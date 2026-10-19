@@ -6,11 +6,34 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 // ------------------------------------------------------------------ setup
 const Q = new URLSearchParams(location.search);
 const BOT = Q.has('bot');
-const LOWQ = Q.get('q') === 'low';
+// ---- settings (localStorage 'elah-settings'): graphics quality, music + sound volume, vibration
+const SET_KEY = 'elah-settings';
+function detectQuality() {
+  // a quick guess from the GPU name, memory and screen; the in-game frame-rate watch corrects it later
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2') || document.createElement('canvas').getContext('webgl');
+    if (!gl) return 'low';
+    const ext = gl.getExtension('WEBGL_debug_renderer_info'); const r = ((ext && gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || '').toLowerCase();
+    const mem = navigator.deviceMemory || 4, cores = navigator.hardwareConcurrency || 4, touch = matchMedia('(pointer:coarse)').matches;
+    if (/swiftshader|llvmpipe|software|mali-[t4]|mali-g31|mali-g51|mali-g52|powervr|adreno \(tm\) [345]\d\d|adreno 5|sgx|ge8320|ge8322|img/.test(r) || mem <= 3 || cores <= 4 && touch) return 'low';
+    if (touch) { if (/apple|adreno \(tm\) (7|8)\d\d|adreno (7|8)|mali-g7[1-9]\d|mali-g6[1-9]\d|immortalis|xclipse/.test(r) && mem >= 6) return 'high'; return 'med'; }
+    if (/intel.*(hd|uhd) graphics [2-6]\d\d\b|intel\(r\) hd/.test(r)) return 'med';
+    return 'high';
+  } catch (e) { return 'med'; }
+}
+const SETTINGS = (() => { let s = {}; try { s = JSON.parse(localStorage.getItem(SET_KEY) || '{}') || {}; } catch (e) { } return { q: s.q || 'auto', music: s.music ?? 0.7, sfx: s.sfx ?? 0.9, vib: s.vib ?? true, auto: s.auto || null }; })();
+function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(SETTINGS)); } catch (e) { } }
+if (!SETTINGS.auto) { SETTINGS.auto = detectQuality(); saveSettings(); }
+const QQ = Q.get('q');
+let QUALITY = ['low', 'med', 'high'].includes(QQ) ? QQ : SETTINGS.q !== 'auto' ? SETTINGS.q : SETTINGS.auto;
+const LOWQ = QUALITY === 'low';
+const QP = { low: { dpr: 1, shadow: 0, bloom: false, post: false, sky: 0 }, med: { dpr: 1.25, shadow: 1024, bloom: false, post: true, sky: 1 }, high: { dpr: 1.75, shadow: 2048, bloom: true, post: true, sky: 1 } };
+const vibrate = (ms) => { if (SETTINGS.vib && navigator.vibrate && !BOT) try { navigator.vibrate(ms); } catch (e) { } };
 const HD = +(Q.get('hd') || 0);
 // ---- save (localStorage): unlocked levels, spoils, upgrades
 const SAVE_KEY = 'elah-save-v1';
@@ -131,7 +154,7 @@ const STORY_L6 = {
     { shot: 'host', sec: 1.9, head: 'The valley of Rephaim', text: '“…and the troop of the Philistines pitched in the valley of Rephaim.”', ref: '2 Samuel 23:13' },
     { shot: 'garrison', sec: 1.9, head: 'A garrison in Bethlehem', text: '“And David was then in an hold, and the garrison of the Philistines was then in Bethlehem.”', ref: '2 Samuel 23:14' },
   ],
-  counsel: { who: 'MOSES · YOUR ADVISOR', text: 'David, you are a man of war now, and your three mighty men fight beside you: Adino, Eleazar and Shammah. When one falls, he rises again.', verse: '“He teacheth my hands to war, so that a bow of steel is broken by mine arms.”', ref: 'PSALM 18:34 (KJV)', tips: '<b>Sword</b> up close, <b>bow</b> at range, <b>dodge</b> their blows. Each mighty man has his own battle: stay with him.', btn: 'TO BATTLE' },
+  counsel: { who: 'COUNSEL · DAVID AND HIS MIGHTY MEN', text: 'David, you are a man of war now, and your three mighty men fight beside you: Adino, Eleazar and Shammah. When one falls, he rises again.', verse: '“He teacheth my hands to war, so that a bow of steel is broken by mine arms.”', ref: 'PSALM 18:34 (KJV)', tips: '<b>Sword</b> up close, <b>bow</b> at range, <b>dodge</b> their blows. Each mighty man has his own battle: stay with him.', btn: 'TO BATTLE' },
   // the three, in the order they fight beside David; dmg multiplies their sword
   men: [{ look: 'adino', name: 'ADINO', dmg: 1.35 }, { look: 'eleazar', name: 'ELEAZAR', dmg: 1.25 }, { look: 'shammah', name: 'SHAMMAH', dmg: 1.25 }],
   hard: { hp: 1.45, dmg: 1.3, speed: 0.4, attackers: 1 },
@@ -170,13 +193,14 @@ const $ = (id) => document.getElementById(id);
 const isTouch = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false });
-let DPR = Math.min(window.devicePixelRatio || 1, LOWQ ? 1 : 1.5);
+let DPR = Math.min(window.devicePixelRatio || 1, QP[QUALITY].dpr);
 renderer.setPixelRatio(DPR);
 renderer.setSize(innerWidth, innerHeight, false);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
-renderer.shadowMap.enabled = !LOWQ;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.info.autoReset = false;
+renderer.shadowMap.enabled = QP[QUALITY].shadow > 0;
+renderer.shadowMap.type = QUALITY === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
 
 const scene = new THREE.Scene();
 let W = new THREE.Group(); scene.add(W); let WORLD = '';
@@ -185,25 +209,51 @@ const FOG = new THREE.Color(0xd2a983);
 scene.fog = new THREE.Fog(FOG, 55, 280);
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.2, 600);
 camera.position.set(0, 6, 14);
-// light bloom (sun glints, flashes, the Spirit glow); off on ?q=low and the first thing the auto quality drop removes
-let BLOOM = !LOWQ && !Q.has('nobloom'), composer = null, bloomPass = null;
+// post: Medium = cinematic grade (ACES, split-tone, contrast, vignette, grain) in one pass; High adds bloom and 4x MSAA.
+// Low renders straight to the screen (no extra passes) and keeps the CSS vignette.
+let POST = QP[QUALITY].post && !Q.has('nopost'), BLOOM = QP[QUALITY].bloom && !Q.has('nobloom'), composer = null, bloomPass = null, gradePass = null;
+const GradeShader = {
+  uniforms: { tDiffuse: { value: null }, uExp: { value: 1 }, uTime: { value: 0 }, uVig: { value: 0.32 }, uGrain: { value: 0.035 }, uSat: { value: 1.08 }, uCon: { value: 1.08 },
+    uShadow: { value: new THREE.Vector3(0.94, 0.99, 1.06) }, uHigh: { value: new THREE.Vector3(1.05, 1.0, 0.93) }, uFlash: { value: 0 } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uExp, uTime, uVig, uGrain, uSat, uCon, uFlash; uniform vec3 uShadow, uHigh; varying vec2 vUv;
+  vec3 rrt(vec3 v){ vec3 a = v*(v+0.0245786)-0.000090537; vec3 b = v*(0.983729*v+0.4329510)+0.238081; return a/b; }
+  vec3 aces(vec3 c){ const mat3 I = mat3(0.59719,0.07600,0.02840, 0.35458,0.90834,0.13383, 0.04823,0.01566,0.83777); const mat3 O = mat3(1.60475,-0.10208,-0.00327, -0.53108,1.10813,-0.07276, -0.07367,-0.00605,1.07602);
+    c *= uExp/0.6; c = I*c; c = rrt(c); c = O*c; return clamp(c,0.0,1.0); }
+  vec3 toSRGB(vec3 c){ return mix(c*12.92, 1.055*pow(c, vec3(0.41666))-0.055, step(0.0031308, c)); }
+  void main(){
+    vec3 c = toSRGB(aces(texture2D(tDiffuse, vUv).rgb));
+    float l = dot(c, vec3(0.2126,0.7152,0.0722));
+    c = mix(c*uShadow, c*uHigh, smoothstep(0.05, 0.85, l));
+    c = (c - 0.5)*uCon + 0.5;
+    l = dot(c, vec3(0.2126,0.7152,0.0722)); c = mix(vec3(l), c, uSat);
+    vec2 d = vUv - 0.5; float v = smoothstep(0.85, 0.2, length(d*vec2(1.25,1.0))); c *= mix(1.0 - uVig, 1.0, v);
+    float n = fract(sin(dot(vUv*vec2(1217.3,973.1) + uTime, vec2(12.9898,78.233)))*43758.5453); c += (n - 0.5)*uGrain;
+    c += uFlash*vec3(1.0,0.92,0.8);
+    gl_FragColor = vec4(clamp(c,0.0,1.0), 1.0);
+  }`,
+};
 function initComposer() {
-  if (!BLOOM || composer) return;
+  if (!POST || composer) return;
   try {
-    composer = new EffectComposer(renderer); composer.setPixelRatio(DPR); composer.setSize(innerWidth, innerHeight);
+    const gl2 = renderer.capabilities.isWebGL2;
+    const rt = new THREE.WebGLRenderTarget(innerWidth * DPR, innerHeight * DPR, { type: THREE.HalfFloatType, samples: QUALITY === 'high' && gl2 ? 4 : 0 });
+    composer = new EffectComposer(renderer, rt); composer.setPixelRatio(DPR); composer.setSize(innerWidth, innerHeight);
     composer.addPass(new RenderPass(scene, camera));
-    bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.32, 0.55, 0.82); composer.addPass(bloomPass);
-    composer.addPass(new OutputPass());
-  } catch (e) { console.warn('bloom off', e); BLOOM = false; composer = null; }
+    if (BLOOM) { bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.36, 0.55, 0.8); composer.addPass(bloomPass); }
+    gradePass = new ShaderPass(GradeShader); composer.addPass(gradePass);
+    document.body.classList.add('post');
+  } catch (e) { console.warn('post off', e); POST = BLOOM = false; composer = null; }
 }
 initComposer();
+document.body.dataset.q = QUALITY;
 
 const SUN_DIR = new THREE.Vector3(-0.55, 0.42, -0.72).normalize();
 const hemi = new THREE.HemisphereLight(0xffe2b8, 0x4a3420, 0.85);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffd29a, 3.1);
-sun.castShadow = !LOWQ;
-sun.shadow.mapSize.set(1024, 1024);
+sun.castShadow = QP[QUALITY].shadow > 0;
+sun.shadow.mapSize.set(QP[QUALITY].shadow || 512, QP[QUALITY].shadow || 512);
 const sc = sun.shadow.camera; sc.left = -16; sc.right = 16; sc.top = 16; sc.bottom = -16; sc.near = 1; sc.far = 80;
 sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.04;
 scene.add(sun, sun.target);
@@ -246,9 +296,12 @@ const ARENA_BY = { elah: { x0: -30, x1: 30, z0: -16, z1: 17 }, lehi: { x0: -26, 
 // ------------------------------------------------------------------ sky (also used for env map)
 const skyMat = new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
-  uniforms: { uWarm: { value: 1 }, uStars: { value: 0 }, uSun: { value: SUN_DIR }, uZen: { value: new THREE.Vector3(0.26, 0.42, 0.68) }, uHor: { value: new THREE.Vector3(0.98, 0.74, 0.50) }, uLow: { value: new THREE.Vector3(0.85, 0.66, 0.48) }, uSunC: { value: new THREE.Vector3(1.0, 0.62, 0.28) } },
+  uniforms: { uWarm: { value: 1 }, uStars: { value: 0 }, uSun: { value: SUN_DIR }, uZen: { value: new THREE.Vector3(0.26, 0.42, 0.68) }, uHor: { value: new THREE.Vector3(0.98, 0.74, 0.50) }, uLow: { value: new THREE.Vector3(0.85, 0.66, 0.48) }, uSunC: { value: new THREE.Vector3(1.0, 0.62, 0.28) }, uTime: { value: 0 }, uCloud: { value: 1 } },
   vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }`,
-  fragmentShader: `varying vec3 vDir; uniform vec3 uSun, uZen, uHor, uLow, uSunC; uniform float uWarm, uStars;
+  fragmentShader: `varying vec3 vDir; uniform vec3 uSun, uZen, uHor, uLow, uSunC; uniform float uWarm, uStars, uTime, uCloud;
+  float hsh(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+  float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(hsh(i),hsh(i+vec2(1.0,0.0)),f.x), mix(hsh(i+vec2(0.0,1.0)),hsh(i+vec2(1.0,1.0)),f.x), f.y); }
+  float fb(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < ${QP[QUALITY].sky ? 5 : 3}; i++) { s += a*vn(p); p = p*2.03 + 1.7; a *= 0.5; } return s; }
   void main(){ vec3 d = normalize(vDir); float h = clamp(d.y,0.0,1.0);
     vec3 zen = uZen; vec3 hor = uHor; vec3 low = uLow;
     vec3 col = mix(hor, zen, pow(h,0.55)); if(d.y<0.0) col = mix(hor, low, clamp(-d.y*4.0,0.0,1.0));
@@ -257,7 +310,14 @@ const skyMat = new THREE.ShaderMaterial({
     if (uStars > 0.0) { vec3 q = floor(d*420.0); float hh = fract(sin(dot(q, vec3(12.9898,78.233,45.164)))*43758.5453); vec3 fq = fract(d*420.0)-0.5;
       col += vec3(0.85,0.9,1.0)*step(0.9965,hh)*smoothstep(0.5,0.05,length(fq))*uStars*(0.55+0.45*fract(hh*977.0))*smoothstep(0.02,0.3,d.y)*(1.0-smoothstep(0.985,0.9995,s)); }
     // soft cloud bands
-    float c = sin(d.x*9.0+d.z*4.0)*sin(d.z*7.0-d.x*2.0); col = mix(col, col*1.08+vec3(0.05,0.03,0.02), smoothstep(0.3,0.9,c)*smoothstep(0.05,0.3,h)*(1.0-h)*0.6);
+    float c = sin(d.x*9.0+d.z*4.0)*sin(d.z*7.0-d.x*2.0); col = mix(col, col*1.08+vec3(0.05,0.03,0.02), smoothstep(0.3,0.9,c)*smoothstep(0.05,0.3,h)*(1.0-h)*0.3);
+    // drifting cumulus: lit edges toward the sun, darker bellies, thinning toward the zenith and the horizon
+    if (d.y > 0.0 && uCloud > 0.0) { vec2 cuv = d.xz/(d.y+0.16)*1.25 + vec2(uTime*0.006, uTime*0.0022);
+      float n = fb(cuv); float cl = smoothstep(0.5, 0.82, n)*smoothstep(0.0, 0.22, d.y)*(1.0-smoothstep(0.75,1.0,d.y))*uCloud;
+      float body = fb(cuv*2.1 + 4.0);
+      vec3 base = mix(hor*0.55 + vec3(0.04), vec3(1.0,0.96,0.9), 0.35 + 0.5*uWarm);
+      vec3 cc = base*(0.62 + 0.45*body) + uSunC*pow(s,3.0)*0.9*(1.0-body*0.5);
+      col = mix(col, cc, cl*0.82); }
     gl_FragColor = vec4(col,1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -705,11 +765,22 @@ const ENV = {
   storm: { fog: 0x5e666e, near: 22, far: 140, hemi: [0xb4c0d4, 0x3a3a34, 1.0], sun: [0xc8d4e8, 1.2], dir: [-0.4, 0.6, 0.7], zen: [0.18, 0.21, 0.26], hor: [0.4, 0.43, 0.48], low: [0.3, 0.32, 0.35], sunC: [0.5, 0.55, 0.6], exp: 1.0, dust: 0xc8d8ff },
   temple: { fog: 0x4a3226, near: 22, far: 90, hemi: [0xffd2a0, 0x3a2618, 1.05], sun: [0xffb070, 2.6], dir: [0.3, 0.42, 0.86], zen: [0.15, 0.17, 0.36], hor: [1.0, 0.5, 0.3], low: [0.5, 0.3, 0.26], sunC: [1.0, 0.42, 0.18], exp: 1.12, dust: 0xffc890 },
 };
+// colour grade per world: shadow tint, highlight tint, saturation, contrast, vignette
+const GRADE = {
+  def: { sh: [0.95, 0.99, 1.06], hi: [1.06, 1.0, 0.92], sat: 1.1, con: 1.08, vig: 0.34 },
+  dan: { sh: [0.9, 0.97, 1.12], hi: [1.08, 0.98, 0.88], sat: 1.05, con: 1.1, vig: 0.42 },
+  pit: { sh: [0.94, 0.98, 1.08], hi: [1.02, 1.0, 0.97], sat: 1.0, con: 1.08, vig: 0.38 },
+  moab: { sh: [0.94, 0.98, 1.08], hi: [1.03, 1.0, 0.96], sat: 1.02, con: 1.07, vig: 0.32 },
+  storm: { sh: [0.92, 0.98, 1.08], hi: [1.0, 1.0, 1.0], sat: 0.92, con: 1.12, vig: 0.42 },
+  temple: { sh: [0.92, 0.95, 1.06], hi: [1.1, 0.98, 0.86], sat: 1.08, con: 1.1, vig: 0.42 },
+};
+function setGrade(name) { if (!gradePass) return; const g = GRADE[name] || GRADE.def, u = gradePass.uniforms; u.uShadow.value.set(...g.sh); u.uHigh.value.set(...g.hi); u.uSat.value = g.sat; u.uCon.value = g.con; u.uVig.value = g.vig; }
 function setEnv(name) {
-  const E = ENV[name];
+  const E = ENV[name]; setGrade(name);
   scene.fog.color.set(E.fog); scene.fog.near = E.near; scene.fog.far = E.far; FOG.set(E.fog);
   hemi.color.set(E.hemi[0]); hemi.groundColor.set(E.hemi[1]); hemi.intensity = E.hemi[2]; sun.color.set(E.sun[0]); sun.intensity = E.sun[1];
-  SUN_DIR.set(...E.dir).normalize(); const u = skyMat.uniforms; u.uZen.value.set(...E.zen); u.uHor.value.set(...E.hor); u.uLow.value.set(...E.low); u.uSunC.value.set(...E.sunC); u.uWarm.value = E.warm ?? 1; u.uStars.value = E.stars ?? 0;
+  SUN_DIR.set(...E.dir).normalize(); const u = skyMat.uniforms; u.uZen.value.set(...E.zen); u.uHor.value.set(...E.hor); u.uLow.value.set(...E.low); u.uSunC.value.set(...E.sunC); u.uWarm.value = E.warm ?? 1; u.uStars.value = E.stars ?? 0; u.uCloud.value = E.cloud ?? (name === 'dan' || name === 'pit' ? 0.35 : name === 'storm' ? 1.6 : name === 'temple' ? 0.6 : 1);
+  RIM.value.set(E.rim || (E.warm === 0 ? 0x3a4a78 : E.sun[0])).multiplyScalar(E.rim ? 1 : E.warm === 0 ? 1 : 0.3);
   renderer.toneMappingExposure = E.exp; if (dust) dust.material.color.set(E.dust);
   makeEnv();
 }
@@ -801,6 +872,8 @@ function puff(p, size = 2, life = 1.2, v, col = 0xcdb898) { const q = PUFFS[puff
 function updatePuffs(dt) { for (const q of PUFFS) { if (q.life <= 0) continue; q.life -= dt; const k = q.life / q.max; q.s.position.addScaledVector(q.v, dt); q.s.scale.setScalar(q.size * (1.6 - k * 0.8)); q.s.material.opacity = Math.min(1, k * 1.5) * 0.75; if (q.life <= 0) q.s.visible = false; } }
 
 // ------------------------------------------------------------------ painted character material
+// rim light shared by every character: picked from the world's sun (warm by day, moonlight at night)
+const RIM = { value: new THREE.Color(0.32, 0.24, 0.16) };
 const PAINT = `
 vec3 p = vBind; float ax = abs(p.x); float isMetal = 0.0; float clothK = 0.0;
 float nz = fract(sin(dot(floor(p*140.0), vec3(12.9898,78.233,37.719)))*43758.5453);
@@ -829,7 +902,30 @@ if (uAge > 0.0 && col == skinC && p.y > 1.6 && p.y < 1.78 && p.z > 0.055) {
   if (ax > 0.042 && ax < 0.062 && p.y > 1.628 && p.y < 1.648) k = max(k, 0.12 * (1.0 - abs(p.y - 1.638) / 0.01));
   col *= 1.0 - k * uAge;
 }
-if (col != skinC) { clothK = 1.0; col *= 0.94 + 0.1*nz; }
+bool skinHere = col == skinC;
+if (skinHere && p.y > 1.55 && p.y < 1.75 && p.z > 0.0) {
+  // face pass: eye sockets for depth, warmer lips, a shaved-beard shadow on the jaw and upper lip (heroes and soldiers)
+  float sock = (1.0 - smoothstep(0.0, 1.0, pow((ax - 0.034) / 0.03, 2.0) + pow((p.y - 1.697) / 0.017, 2.0))) * smoothstep(0.05, 0.08, p.z);
+  col *= 1.0 - 0.16 * sock;
+  float lip = (1.0 - smoothstep(0.012, 0.026, ax)) * smoothstep(1.612, 1.618, p.y) * (1.0 - smoothstep(1.628, 1.636, p.y)) * smoothstep(0.07, 0.085, p.z);
+  col = mix(col, col * vec3(1.02, 0.72, 0.68), 0.55 * lip);
+  float stub = smoothstep(1.553, 1.578, p.y) * (1.0 - smoothstep(1.642, 1.658, p.y)) * smoothstep(-0.01, 0.035, p.z) * (1.0 - lip) * (1.0 - smoothstep(0.075, 0.095, ax));
+  stub *= 1.0 - (1.0 - smoothstep(1.632, 1.64, p.y)) * smoothstep(1.6, 1.61, p.y) * (1.0 - smoothstep(0.03, 0.05, ax)) * smoothstep(0.06, 0.08, p.z) * 0.6;
+  float sn = fract(sin(dot(floor(p*900.0), vec3(12.9898,78.233,37.719)))*43758.5453);
+  col = mix(col, mix(col, uHair, 0.55) * 0.8, uStub * stub * (0.65 + 0.35 * sn));
+}
+if (!skinHere) {
+  clothK = 1.0; col *= 0.94 + 0.1*nz;
+  if (isMetal < 0.5) {
+    // woven cloth: soft large-scale mottling, darker folds running down the skirt, dust at the hem
+    float m1 = fract(sin(dot(floor(p*22.0), vec3(12.9898,78.233,37.719)))*43758.5453), m2 = fract(sin(dot(floor(p*9.0 + 3.1), vec3(12.9898,78.233,37.719)))*43758.5453);
+    col *= 0.9 + 0.08*m1 + 0.06*m2;
+    if (p.y < 0.86 && p.y > uSkirt) { float fold = 0.5 + 0.5*sin(atan(p.x, p.z + 0.02) * 9.0 + p.y * 3.0); col *= 0.86 + 0.16 * fold; col = mix(col, col * vec3(0.78, 0.7, 0.6), smoothstep(uSkirt + 0.12, uSkirt, p.y) * 0.5); }
+  } else {
+    // armour: worn bright edges and darker hollows
+    col *= 0.85 + 0.3 * smoothstep(0.4, 1.0, nz);
+  }
+}
 diffuseColor.rgb = col;
 `;
 function paintMat(L) {
@@ -839,21 +935,21 @@ function paintMat(L) {
     uSkin: { value: new THREE.Color(L.skin).multiply(SKIN_REF_INV) }, uTunic: { value: new THREE.Color(L.tunic) }, uTrim: { value: new THREE.Color(L.trim) },
     uHair: { value: new THREE.Color(L.hair) }, uMetal: { value: new THREE.Color(L.metal || 0xb07a3a) }, uShoe: { value: new THREE.Color(L.shoe || 0x4a321c) },
     uSkirt: { value: L.skirt ?? 0.55 }, uSleeve: { value: L.sleeve ?? 0.0 }, uArmor: { value: L.armor ? 1 : 0 }, uGreaves: { value: L.greaves ? 1 : 0 },
-    uBeard: { value: L.beard ? 1 : 0 }, uNeck: { value: L.neck ?? 1.545 }, uSash: { value: L.sash || 0 }, uFlash: { value: 0 }, uGlow: { value: L.glow || 0 }, uAge: { value: L.age || 0 },
+    uRimC: RIM, uBeard: { value: L.beard ? 1 : 0 }, uNeck: { value: L.neck ?? 1.545 }, uSash: { value: L.sash || 0 }, uFlash: { value: 0 }, uGlow: { value: L.glow || 0 }, uAge: { value: L.age || 0 }, uStub: { value: L.stub ?? 0.55 },
   };
   m.userData.u = u;
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = 'attribute vec3 aBind;\nvarying vec3 vBind;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vBind = aBind;');
-    sh.fragmentShader = 'varying vec3 vBind;\nuniform vec3 uSkin,uTunic,uTrim,uHair,uMetal,uShoe;\nuniform float uSkirt,uSleeve,uArmor,uGreaves,uBeard,uNeck,uSash,uFlash,uGlow,uAge;\n' +
+    sh.fragmentShader = 'varying vec3 vBind;\nuniform vec3 uSkin,uTunic,uTrim,uHair,uMetal,uShoe,uRimC;\nuniform float uSkirt,uSleeve,uArmor,uGreaves,uBeard,uNeck,uSash,uFlash,uGlow,uAge,uStub;\n' +
       sh.fragmentShader
         .replace('#include <color_fragment>', '#include <color_fragment>\n' + PAINT)
         .replace('#include <normal_fragment_maps>', 'vec3 nBefore = normal;\n#include <normal_fragment_maps>\n normal = normalize(mix(normal, nBefore, clothK * 0.8));')
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor * 0.95, 0.93, clothK); roughnessFactor = mix(roughnessFactor, 0.34, isMetal);')
         .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n metalnessFactor = mix(metalnessFactor, 0.9, isMetal);')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += uFlash*vec3(1.0,0.45,0.3) + uGlow*diffuseColor.rgb;');
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += uFlash*vec3(1.0,0.45,0.3) + uGlow*diffuseColor.rgb;\n float rimF = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0); totalEmissiveRadiance += uRimC * rimF * (1.0 - 0.5*isMetal) + uRimC * 0.12 * isMetal;');
   };
-  m.customProgramCacheKey = () => 'paint-v3';
+  m.customProgramCacheKey = () => 'paint-v5';
   return m;
 }
 const LOOKS = {
@@ -978,7 +1074,10 @@ const BONE_ALIAS = { 'DEF-head': 'Head', 'DEF-handR': 'hand_r', 'DEF-handL': 'ha
 let BODY_MAT = null, HAIR_MAT = {}; const SKIN_REF_INV = (() => { const c = new THREE.Color(0xa97250); return new THREE.Color(1 / c.r, 1 / c.g, 1 / c.b); })();
 function findBone(root, name) { const n = BONE_ALIAS[name] || name; let b = null; root.traverse(o => { if (o.name === n && (o.isBone || !b)) b = o; }); return b; }
 const HMC = {};
-function hairMat(src, hex, glow) { const k = src.uuid + hex + (glow ? 'g' : ''); if (!HMC[k]) { const m = src.clone(); const c = new THREE.Color(hex); m.color.setRGB(Math.min(1.15, c.r / 0.26), Math.min(1.15, c.g / 0.26), Math.min(1.15, c.b / 0.26)); m.roughness = 0.75; m.side = THREE.DoubleSide; if (glow) { m.emissive = new THREE.Color(0x6a5a30); } HMC[k] = m; } return HMC[k]; }
+function hairMat(src, hex, glow) { const k = src.uuid + hex + (glow ? 'g' : ''); if (!HMC[k]) { const m = src.clone(); const c = new THREE.Color(hex); m.color.setRGB(Math.min(1.15, c.r / 0.26), Math.min(1.15, c.g / 0.26), Math.min(1.15, c.b / 0.26)); m.roughness = 0.62; m.side = THREE.DoubleSide; if (glow) { m.emissive = new THREE.Color(0x6a5a30); }
+    // a soft sheen on the rim, so black hair reads as hair and not as a hole
+    m.onBeforeCompile = (sh) => { sh.uniforms.uRimC = RIM; sh.fragmentShader = 'uniform vec3 uRimC;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += uRimC * 0.8 * pow(1.0 - abs(dot(normal, normalize(vViewPosition))), 2.5);'); }; m.customProgramCacheKey = () => 'hair-rim';
+    HMC[k] = m; } return HMC[k]; }
 function attach(root, boneName, geo, mat, worldPos, opts = {}) {
   const bone = findBone(root, boneName); const m = new THREE.Mesh(geo, mat); m.castShadow = !!opts.shadow;
   m.position.copy(worldPos); if (opts.rot) m.rotation.copy(opts.rot); root.add(m); root.updateMatrixWorld(true); bone.attach(m); return m;
@@ -1119,6 +1218,7 @@ class Actor {
     root.updateMatrixWorld(true);
     const L0 = LOOKS[this.look], hairs = {};
     this.mat = paintMat(L0);
+    if (L0.stub === undefined && (/woman|deborah|jael|angel|captive/.test(this.look) || kind === 'angel')) this.mat.userData.u.uStub.value = 0; else if (L0.stub === undefined && this.look === 'david') this.mat.userData.u.uStub.value = 0.22;
     kind = L0.gear || kind; // gear and costume follow the look; this.kind drives the AI
     root.traverse(o => {
       if (!o.isMesh) return; o.frustumCulled = false;
@@ -1230,6 +1330,7 @@ class Actor {
     { let seed = (kind.length * 9301 + (Actor.n = (Actor.n || 0) + 1) * 49297) % 233280; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280; armourKit(root, kind, L, rnd); }
     this.obj = new THREE.Group(); this.obj.add(root); root.scale.setScalar(scale); if (kind === 'samson') root.scale.set(scale * 1.1, scale, scale * 1.08); if (kind === 'david') root.scale.set(scale * 0.87, scale, scale * 0.9); if (kind === 'woman') root.scale.set(scale * 0.85, scale, scale * 0.88); if (kind === 'benaiah' || kind === 'barak') root.scale.set(scale * 1.04, scale, scale * 1.03); this.scale = scale; this.root = root;
     scene.add(this.obj);
+    { const b = new THREE.Mesh(blobGeo(), blobMat()); b.position.y = 0.035; b.scale.setScalar(scale); b.renderOrder = 2; this.obj.add(b); this.blob = b; }
     this.mixer = new THREE.AnimationMixer(root);
     this.actions = {}; this.cur = null; this.curName = '';
     this.pos = this.obj.position; this.yaw = 0; this.vel = new THREE.Vector3();
@@ -1263,6 +1364,15 @@ class Actor {
 
 // ------------------------------------------------------------------ effects
 const FX = {};
+// soft contact shadow under every character: the only shadow on Low, a darker contact patch under the real shadow on Medium/High
+let _BG = null, _BM = null;
+function blobGeo() { return _BG || (_BG = new THREE.PlaneGeometry(1.25, 1.25).rotateX(-Math.PI / 2)); }
+function blobMat() {
+  if (_BM) return _BM;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const g = x.createRadialGradient(32, 32, 2, 32, 32, 31);
+  g.addColorStop(0, 'rgba(0,0,0,0.85)'); g.addColorStop(0.45, 'rgba(0,0,0,0.45)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  return (_BM = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, opacity: QP[QUALITY].shadow ? 0.38 : 0.7, polygonOffset: true, polygonOffsetFactor: -3, fog: false }));
+}
 function buildFX() {
   // blood droplets (instanced)
   const N = 140;
@@ -1306,9 +1416,31 @@ function blood(p, dir, n = 14, power = 1) {
 function flashAt(p, size = 1, max = 0.18, color = 0xffffff) {
   const f = FX.flashes[FX.flashI = (FX.flashI + 1) % FX.flashes.length];
   f.s.position.copy(p); f.s.visible = true; f.life = max; f.max = max; f.size = size; f.s.material.color.set(color);
+  if (size >= 0.6) sparks(p, Math.round(5 + size * 5), Math.min(1.6, 0.6 + size * 0.5));
+  if (size >= 1.4) G.flashV = Math.max(G.flashV || 0, Math.min(0.12, size * 0.04));
 }
 const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _e = new THREE.Euler();
+// hit sparks: one Points draw for all of them, each spark fading on its own life
+function buildSparks() {
+  const N = 160, g = new THREE.BufferGeometry(); FX.spk = Array.from({ length: N }, () => ({ life: 0, max: 1, p: new THREE.Vector3(0, -99, 0), v: new THREE.Vector3() })); FX.spkI = 0;
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3)); g.setAttribute('aLife', new THREE.BufferAttribute(new Float32Array(N), 1));
+  const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uPx: { value: renderer.getPixelRatio() * innerHeight * 0.5 }, uC: { value: new THREE.Color(1.0, 0.72, 0.32) } },
+    vertexShader: `attribute float aLife; varying float vL; uniform float uPx; void main(){ vL = aLife; vec4 mv = modelViewMatrix*vec4(position,1.0); gl_Position = projectionMatrix*mv; gl_PointSize = aLife > 0.0 ? (0.05 + 0.07*aLife)*uPx/-mv.z : 0.0; }`,
+    fragmentShader: `varying float vL; uniform vec3 uC; void main(){ vec2 d = gl_PointCoord-0.5; float a = smoothstep(0.5,0.0,length(d)); gl_FragColor = vec4(uC*(1.6+vL)*a*vL, a*vL); }` });
+  FX.spkPts = new THREE.Points(g, m); FX.spkPts.frustumCulled = false; scene.add(FX.spkPts);
+}
+function sparks(p, n = 8, power = 1) {
+  if (!FX.spk) return; if (LOWQ) n = Math.ceil(n / 2);
+  for (let i = 0; i < n; i++) { const s = FX.spk[FX.spkI = (FX.spkI + 1) % FX.spk.length]; s.max = s.life = 0.25 + Math.random() * 0.35; s.p.copy(p); s.v.set((Math.random() - 0.5) * 7, 1 + Math.random() * 5, (Math.random() - 0.5) * 7).multiplyScalar(power); }
+  FX.spkOn = 1;
+}
+function updateSparks(dt) {
+  if (!FX.spkOn) return; const pa = FX.spkPts.geometry.attributes.position, la = FX.spkPts.geometry.attributes.aLife; let any = false;
+  for (let i = 0; i < FX.spk.length; i++) { const s = FX.spk[i]; if (s.life > 0) { any = true; s.life -= dt; s.v.y -= 16 * dt; s.v.multiplyScalar(1 - dt * 2); s.p.addScaledVector(s.v, dt); } pa.setXYZ(i, s.p.x, s.p.y, s.p.z); la.setX(i, Math.max(0, s.life / s.max)); }
+  pa.needsUpdate = la.needsUpdate = true; FX.spkPts.material.uniforms.uPx.value = renderer.getPixelRatio() * innerHeight * 0.5 / Math.tan(camera.fov * Math.PI / 360); if (!any) FX.spkOn = 0;
+}
 function updateFX(dt) {
+  updateSparks(dt);
   let any = false;
   for (let i = 0; i < FX.drops.length; i++) {
     const d = FX.drops[i]; if (d.life <= 0) continue; any = true;
@@ -1393,7 +1525,8 @@ function updateDmg(dt) {
 const AU = { ctx: null, on: (() => { try { return localStorage.getItem('elah-mute') !== '1'; } catch (e) { return true; } })(), master: null };
 function audioInit() {
   if (AU.ctx || (BOT && !Q.has('sound'))) return; try { AU.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
-  const c = AU.ctx; AU.master = c.createGain(); AU.master.gain.value = 0.6; AU.master.connect(c.destination);
+  const c = AU.ctx; AU.master = c.createGain(); AU.master.gain.value = 0.6 * SETTINGS.sfx; AU.master.connect(c.destination);
+  AU.musicOut = c.createGain(); AU.musicOut.gain.value = SETTINGS.music; AU.musicOut.connect(c.destination); loadSamples();
   const len = c.sampleRate * 2, buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; AU.noise = buf;
   // ambient wind
   const w = c.createBufferSource(); w.buffer = buf; w.loop = true; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 400; f.Q.value = 0.6; const g = c.createGain(); g.gain.value = AU.on ? 0.05 : 0;
@@ -1417,7 +1550,7 @@ const MUSIC_CFG = {
 function musicMode(m) { MUSIC.want = m; if (MUSIC.bus) MUSIC.mode = m; }
 function musicStart() {
   if (!AU.ctx || MUSIC.bus) return; const c = AU.ctx;
-  MUSIC.bus = c.createGain(); MUSIC.bus.gain.value = 0; MUSIC.bus.connect(AU.master);
+  MUSIC.bus = c.createGain(); MUSIC.bus.gain.value = 0; MUSIC.bus.connect(AU.musicOut && AU.musicOut.context === c ? AU.musicOut : AU.master);
   const comp = c.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 4; comp.connect(MUSIC.bus); MUSIC.in = comp;
   // a long dark reverb tail made from decaying noise
   const len = c.sampleRate * 2.2, ir = c.createBuffer(2, len, c.sampleRate); for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
@@ -1469,8 +1602,39 @@ function musicTick() {
   // intensity: calmer in menus and story cards, fuller in fights, fullest for Goliath and the pillars
   const fight = G.phase === 'play' && (G.stage === 'escape' || (G.enemies && G.enemies.some(e => e.alive && e.obj.visible)) || G.boss || G.fin);
   MUSIC.inten += ((fight ? (G.boss || G.fin ? 1 : 0.7) : 0.25) - MUSIC.inten) * 0.05;
+  if (trackTick()) { MUSIC.next = c.currentTime + 0.05; return; }   // a recorded score is playing: the synth rests
   if (MUSIC.next < c.currentTime - 0.5) MUSIC.next = c.currentTime + 0.05;
   musicSchedule(cfg, st, c.currentTime + 0.3);
+}
+// ---- recorded score (CC0, see credits): one loop per level and one for the menu, streamed, cross-faded; the synth score is the fallback
+const TRACK = { el: null, g: null, cur: '', failed: {} };
+function trackTick() {
+  if (Q.has('nosong')) return false;
+  const c = AU.ctx, want = (G.phase === 'title' || G.phase === 'loading') ? 'menu' : 'l' + LEVEL;
+  if (TRACK.failed[want]) { if (TRACK.g) TRACK.g.gain.setTargetAtTime(0, c.currentTime, 0.3); MUSIC.bus.gain.setTargetAtTime(AU.on ? 0.58 : 0, c.currentTime, 0.4); return false; }
+  if (TRACK.cur !== want) {
+    if (TRACK.el) { const oel = TRACK.el, og = TRACK.g; oel.dataset.dead = '1'; og.gain.setTargetAtTime(0, c.currentTime, 0.45); setTimeout(() => { try { oel.pause(); oel.removeAttribute('src'); oel.load(); } catch (e) { } }, 2500); }
+    const el = new Audio(); el.loop = true; el.preload = 'auto'; el.crossOrigin = 'anonymous'; el.src = 'audio/music_' + want + '.mp3';
+    const g = c.createGain(); g.gain.value = 0; try { c.createMediaElementSource(el).connect(g); g.connect(AU.musicOut); } catch (e) { TRACK.failed[want] = true; return false; }
+    el.addEventListener('error', () => { if (el.dataset.dead) return; TRACK.failed[want] = true; LOG('track_fail', { want }); });
+    el.play().catch(() => { });
+    Object.assign(TRACK, { el, g, cur: want }); LOG('track', { want });
+  }
+  if (TRACK.el.paused && AU.on && !G.paused) TRACK.el.play().catch(() => { });
+  const target = !AU.on ? 0 : want === 'menu' ? 0.9 : G.paused ? 0.25 : 0.5 + 0.4 * MUSIC.inten;
+  TRACK.g.gain.setTargetAtTime(target, c.currentTime, 0.5);
+  MUSIC.bus.gain.setTargetAtTime(0, c.currentTime, 0.3);
+  return true;
+}
+// ---- recorded hit sounds (Kenney Impact Sounds + RPG Audio, CC0), layered over the synth
+const SMP = { buf: {}, list: { hit: ['hit1', 'hit2', 'hit3'], metal: ['metal1', 'metal2'], wood: ['wood1'], coin: ['coin'], draw: ['draw'] } };
+function loadSamples() {
+  const c = AU.ctx; for (const names of Object.values(SMP.list)) for (const n of names) fetch('audio/sfx_' + n + '.mp3').then(r => r.arrayBuffer()).then(b => c.decodeAudioData(b)).then(d => { SMP.buf[n] = d; }).catch(() => { });
+}
+function smp(kind, vol = 1, rate = 1) {
+  if (!AU.ctx || !AU.on) return false; const names = SMP.list[kind].filter(n => SMP.buf[n]); if (!names.length) return false;
+  const s = AU.ctx.createBufferSource(); s.buffer = SMP.buf[names[(Math.random() * names.length) | 0]]; s.playbackRate.value = rate * (0.92 + Math.random() * 0.16);
+  const g = AU.ctx.createGain(); g.gain.value = vol; s.connect(g); g.connect(AU.master); s.start(); return true;
 }
 function musicSchedule(cfg, st, until) {
   while (MUSIC.next < until) {
@@ -1498,10 +1662,10 @@ function noise(dur, f0, f1, vol = 0.3, type = 'bandpass', q = 1, delay = 0) {
 }
 const SFX = {
   swing: () => noise(0.22, 1800, 500, 0.25, 'bandpass', 1.2),
-  hit: () => { tone('sine', 140, 50, 0.18, 0.55); noise(0.12, 900, 200, 0.35, 'lowpass', 0.8); },
-  clang: () => { tone('square', 820, 760, 0.25, 0.08); tone('triangle', 1240, 1180, 0.4, 0.12); noise(0.08, 4000, 2500, 0.15, 'highpass'); },
+  hit: () => { const s = smp('hit', 0.9); tone('sine', 140, 50, 0.18, s ? 0.3 : 0.55); noise(0.12, 900, 200, s ? 0.15 : 0.35, 'lowpass', 0.8); },
+  clang: () => { if (smp('metal', 0.8)) return; tone('square', 820, 760, 0.25, 0.08); tone('triangle', 1240, 1180, 0.4, 0.12); noise(0.08, 4000, 2500, 0.15, 'highpass'); },
   sling: () => { noise(0.35, 300, 2400, 0.22, 'bandpass', 3); tone('sine', 300, 900, 0.25, 0.05); },
-  coin: () => { tone('triangle', 1320, 1320, 0.12, 0.12); tone('triangle', 1980, 1980, 0.2, 0.1, 0.06); },
+  coin: () => { if (smp('coin', 0.7)) return; tone('triangle', 1320, 1320, 0.12, 0.12); tone('triangle', 1980, 1980, 0.2, 0.1, 0.06); },
   hurt: () => { tone('sawtooth', 220, 110, 0.25, 0.12); noise(0.15, 600, 200, 0.3, 'lowpass'); },
   roar: () => { tone('sawtooth', 95, 55, 1.2, 0.22); tone('sawtooth', 71, 45, 1.3, 0.18); noise(1.0, 500, 150, 0.25, 'lowpass'); },
   slam: () => { tone('sine', 70, 28, 0.7, 0.8); noise(0.6, 400, 60, 0.6, 'lowpass'); },
@@ -1524,7 +1688,7 @@ const SFX = {
     [0.3, 0.75, 1.1, 1.6, 2.1, 2.7, 3.3, 4.0].forEach((d, i) => { noise(0.9, 700, 60, 0.75 - i * 0.05, 'lowpass', 0.9, d); tone('sine', 65, 25, 0.9, 0.6 - i * 0.04, d); });
     SFX.shout();
   },
-  thud: () => { tone('sine', 80, 30, 0.5, 0.5); noise(0.4, 500, 60, 0.4, 'lowpass', 0.8); },
+  thud: () => { smp('wood', 0.6, 0.7); tone('sine', 80, 30, 0.5, 0.5); noise(0.4, 500, 60, 0.4, 'lowpass', 0.8); },
   shout: () => { for (let i = 0; i < 6; i++) noise(0.7 + Math.random() * 0.4, 500 + Math.random() * 400, 300, 0.07, 'bandpass', 3, i * 0.08); },
   burn: () => { noise(0.9, 3000, 600, 0.3, 'highpass', 0.5); tone('sawtooth', 120, 400, 0.5, 0.06); },
   horn: () => { tone('sawtooth', 220, 220, 1.0, 0.07); tone('sawtooth', 330, 330, 1.0, 0.05, 0.05); },
@@ -1595,7 +1759,13 @@ const turnTo = (a, b, k) => a + angDiff(a, b) * Math.min(1, k);
 function clampArena(p, m = 0) { p.x = THREE.MathUtils.clamp(p.x, ARENA.x0 + m, ARENA.x1 - m); p.z = THREE.MathUtils.clamp(p.z, ARENA.z0 + m, ARENA.z1 - m); }
 function ground(a) { a.pos.y = hgt(a.pos.x, a.pos.z); }
 function shake(v) { G.shake = Math.max(G.shake, v); }
-function hitstop(t) { G.hitstop = Math.max(G.hitstop, t); if (t >= 0.08) G.kick = Math.max(G.kick || 0, Math.min(1, t * 7)); }
+// combo counter: hits landed within 1.8 s of each other; every 5th a beat of hit-stop and a gold flash
+function comboHit() {
+  const t = now(); G.combo = t - (G.comboT || 0) < 1.8 ? (G.combo || 0) + 1 : 1; G.comboT = t;
+  if (G.combo < 2) return; const el = $('combo'); el.firstChild.textContent = '×' + G.combo; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop', 'on');
+  if (G.combo % 5 === 0) { G.hitstop = Math.max(G.hitstop, 0.06); G.flashV = 0.08; el.classList.add('gold'); setTimeout(() => el.classList.remove('gold'), 500); }
+}
+function hitstop(t) { G.hitstop = Math.max(G.hitstop, t); if (t >= 0.08) { G.kick = Math.max(G.kick || 0, Math.min(1, t * 7)); vibrate(Math.round(12 + t * 120)); } }
 const flashEl = $('flash');
 function hurtFlash() { flashEl.style.opacity = 1; setTimeout(() => flashEl.style.opacity = 0, 120); }
 let toastT = 0;
@@ -1613,7 +1783,7 @@ function damagePlayer(dmg, from) {
   if (P.bound || P.state === 'spirit' || (G.fin && G.fin.collapsing)) return;
   if (P.state === 'push' && G.fin) { G.fin.prog = Math.max(0, G.fin.prog - 0.03); P.poseT = 0; LOG('torn'); if (!G.fin.tornTold) { G.fin.tornTold = true; toast('They tear you from the pillars! <b>Fight them off</b>, then take hold again.', 3000); } }
   if (G.angel && G.angel.t < 3.2) return;
-  P.hp -= dmg; LOG('player_hit', { dmg, hp: Math.round(P.hp) }); SFX.hurt(); hurtFlash(); shake(0.35); P.flash = 1;
+  P.hp -= dmg; LOG('player_hit', { dmg, hp: Math.round(P.hp) }); SFX.hurt(); vibrate(dmg > 20 ? 90 : 45); hurtFlash(); shake(0.35); P.flash = 1;
   const dir = tmpV.copy(P.pos).sub(from).setY(0).normalize(); blood(P.headPos(new THREE.Vector3()).setY(P.pos.y + 1.2), dir, 10, 0.8);
   P.vel.addScaledVector(dir, 6);
   dmgText(P.headPos(new THREE.Vector3()), '-' + Math.round(dmg));
@@ -1849,7 +2019,7 @@ function hurtEnemy(e, dmg, dir, src, crit = false, from = P) {
       return;
     }
   }
-  e.hp -= dmg; e.flash = 1; LOG('enemy_hit', { src, dmg: Math.round(dmg), hp: Math.round(e.hp), kind: e.kind });
+  e.hp -= dmg; e.flash = 1; LOG('enemy_hit', { src, dmg: Math.round(dmg), hp: Math.round(e.hp), kind: e.kind }); if (from === P) comboHit();
   const hp = e.pos.clone().setY(e.pos.y + 1.3); blood(hp, dir, crit ? 24 : 14, crit ? 1.3 : 0.95); flashAt(hp, crit ? 1.9 : 1.3, crit ? 0.2 : 0.14, 0xfff0d0); flashAt(hp.clone().addScaledVector(dir, 0.15), crit ? 1.1 : 0.7, 0.09, 0xff7a40); SFX.hit();
   if (crit) { hitstop(0.11); shake(0.32); }
   dmgText(hp.setY(hp.y + 0.6), Math.round(dmg) + (crit ? '!' : ''), crit ? 'crit' : '');
@@ -2959,6 +3129,20 @@ function buildBeth() {
 }
 function hgtPit(x, z) { return Math.abs(x) < PITH && Math.abs(z) < PITH ? 0 : PITD; }
 function hgtPitShape(x, z) { const m = Math.max(Math.abs(x), Math.abs(z)); if (m < PITH + 0.4) return -0.6; const r = Math.hypot(x, z); return PITD + Math.max(0, r - 40) * Math.max(0, r - 40) * 0.01 + fbm(x * 0.05 + 3, z * 0.05) * 1.4 * Math.min(1, (m - PITH) / 8); }
+// a rough rock face (faces +Z): layered strata, cracks and overhangs, snow caught on the ledges and the rim
+function rockWallGeo(w, h, seed, rockC, snowC) {
+  const SS = THREE.MathUtils.smoothstep, g = new THREE.PlaneGeometry(w, h, Math.ceil(w * 2.4), Math.ceil(h * 4)), p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color();
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i);
+    const strata = Math.sin(y * 5.2 + vnoise(x * 0.4 + seed, y * 0.3) * 3.0) * 0.08;
+    const n = fbm(x * 0.45 + seed, y * 0.7) * 0.75 + vnoise(x * 2.2 + seed, y * 2.6) * 0.16 + strata;
+    const ledge = SS(Math.sin(y * 2.6 + seed) , 0.75, 0.95) * 0.12;
+    p.setZ(i, n + ledge - 0.35);
+    const top = SS(y, h / 2 - 0.55, h / 2), up = ledge > 0.05 ? 0.6 : 0;
+    c.copy(rockC).multiplyScalar(0.62 + n * 0.55 + strata).lerp(snowC, Math.max(top, up * 0.8, n > 0.62 ? 0.4 : 0)); col.set([c.r, c.g, c.b], i * 3);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g;
+}
 function buildPit() {
   const snow = new THREE.Color(0.9, 0.92, 0.96), rockC = new THREE.Color(0.45, 0.42, 0.4), SS = THREE.MathUtils.smoothstep;
   HGT = hgtPitShape;
@@ -2970,11 +3154,9 @@ function buildPit() {
   fg.setAttribute('color', new THREE.BufferAttribute(fc, 3)); fg.computeVertexNormals();
   const fm = new THREE.Mesh(fg, new THREE.MeshLambertMaterial({ vertexColors: true, map: detailTex() })); fm.receiveShadow = true; W.add(fm);
   // four walls of rough rock, faces inward only (the camera can sit outside the rim and look down through the back of a wall)
-  const wm = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  const wm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, map: detailTex() });
   for (let k = 0; k < 4; k++) {
-    const g = new THREE.PlaneGeometry(PITH * 2 + 0.6, PITD + 0.9, 22, 7); const p = g.attributes.position, col = new Float32Array(p.count * 3);
-    for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i); const n = vnoise(x * 0.9 + k * 13, y * 1.3) * 0.45 + vnoise(x * 2.7, y * 2.9 + k) * 0.14; p.setZ(i, n); const top = SS(y, (PITD + 0.9) / 2 - 0.5, (PITD + 0.9) / 2); c.copy(rockC).multiplyScalar(0.8 + n * 0.5).lerp(snow, Math.max(top, n > 0.3 ? 0.55 : 0)); col.set([c.r, c.g, c.b], i * 3); }
-    g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
+    const g = rockWallGeo(PITH * 2 + 0.6, PITD + 0.9, k * 13, rockC, snow);
     const m = new THREE.Mesh(g, wm); m.rotation.y = k * Math.PI / 2; const a = k * Math.PI / 2; m.position.set(-Math.sin(a) * PITH, (PITD + 0.9) / 2 - 0.45, -Math.cos(a) * PITH); m.receiveShadow = true; W.add(m);
   }
   // rocks, drifts, old bones, and the rope he went down by
@@ -3026,8 +3208,8 @@ const INTRO4_SHOTS = {
   pit(s) {
     // he went down into a pit in time of snow; the lion turns on him
     for (const a of CINE.actors) a.obj.visible = false;
-    const px = 18, pz = 12, lam = new THREE.MeshLambertMaterial({ color: 0x8a847c, emissive: 0x2a2622, flatShading: true });
-    for (const [x, z, w, d] of [[px, pz - 4.2, 9, 0.8], [px - 4.2, pz, 0.8, 9], [px + 4.2, pz, 0.8, 9]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 4.5, d, 3, 3, 1), lam); m.position.set(x, hgt(px, pz) + 1.6, z); W.add(m); CINE.objs.push(m); }
+    const px = 18, pz = 12, lam = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, emissive: 0x1a1816, map: detailTex() });
+    for (const [x, z, ry] of [[px, pz - 4.2, 0], [px - 4.2, pz, Math.PI / 2], [px + 4.2, pz, -Math.PI / 2]]) { const m = new THREE.Mesh(rockWallGeo(9, 4.5, x + z, new THREE.Color(0.5, 0.47, 0.44), new THREE.Color(0.9, 0.92, 0.96)), lam); m.position.set(x, hgt(px, pz) + 1.6, z); m.rotation.y = ry; W.add(m); CINE.objs.push(m); }
     const fl = new THREE.Mesh(new THREE.CircleGeometry(4.6, 18).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xe8ecf2 })); fl.position.set(px, hgt(px, pz) + 0.06, pz); W.add(fl); CINE.objs.push(fl);
     const L = new Lion(1); L.pos.set(px, hgt(px, pz) + 0.06, pz - 1.4); L.yaw = 0.2; L.play('Idle_Talking_Loop'); CINE.actors.push(L);
     P.obj.visible = true; P.pos.set(px + 0.3, hgt(px, pz) + 0.06, pz + 1.9); P.yaw = Math.PI + 0.1; P.cineAnim = 'Sword_Idle';
@@ -3040,7 +3222,8 @@ const INTRO4_SHOTS = {
     for (const a of CINE.actors) a.obj.visible = false; if (SNOW) SNOW.visible = false;
     const e = cineActor('goliath', 'egypt', -0.4, -4.2, 0, 'Walk_Loop', STORY_L4.egypt.scale, 0.7);
     P.obj.visible = true; P.pos.set(1.1, 0, 1.2); ground(P); P.yaw = Math.PI; P.cineAnim = 'Idle_Loop';
-    camAt(2.3, P.pos.y + 0.7, 4.0, -0.2, e.pos.y + 2.5, -4.2); SFX.roar();
+    // low and to Benaiah's left: the Egyptian fills the frame, his full height and spear clear of Benaiah's head
+    camAt(-2.9, P.pos.y + 0.55, 4.6, -0.9, e.pos.y + 3.0, -4.2); SFX.roar();
     G.storyTick = (dt) => { e.pos.z += dt * 0.9; ground(e); G.cine.look.z += dt * 0.9; };
   },
 };
@@ -3217,10 +3400,10 @@ async function flow6() {
   await playShots(STORY_L6.intro, INTRO6_SHOTS);
   cineClear(); P.obj.visible = true; P.state = 'idle'; P.cineAnim = null; P.pos.set(0, 0, 10); ground(P); P.yaw = Math.PI;
   ALLIES.forEach((a, i) => { a.obj.visible = true; if (home[i]) { a.pos.copy(home[i]); ground(a); } a.yaw = Math.PI; a.play('Idle_Loop'); });
-  MOSES.obj.visible = true; MOSES.yaw = 1.25; G.cine = { pos: new THREE.Vector3(MOSES.pos.x + 2.9, MOSES.pos.y + 1.55, MOSES.pos.z + 0.7), look: MOSES.pos.clone().setY(MOSES.pos.y + 1.45).add(new THREE.Vector3(0, 0, -1.35)), snap: true };
-  MOSES.play('Idle_Talking_Loop');
+  // the counsel is spoken over David and his three, not by Moses (who has no place at Bethlehem)
+  MOSES.obj.visible = false; G.cine = { pos: new THREE.Vector3(P.pos.x + 1.6, P.pos.y + 1.7, P.pos.z - 3.6), look: P.pos.clone().setY(P.pos.y + 1.35).add(new THREE.Vector3(0.4, 0, 0)), snap: true };
   await card(STORY_L6.counsel);
-  MOSES.play('Idle_Loop'); MOSES.yaw = Math.PI * 0.92; G.cine = null; document.body.classList.remove('cine');
+  G.cine = null; document.body.classList.remove('cine');
   await runWaves(0);
 }
 const INTRO6_SHOTS = {
@@ -3592,6 +3775,13 @@ function updateCamera(dt) {
     if (G.shake > 0) { camera.position.x += (Math.random() - 0.5) * G.shake * 0.4; camera.position.y += (Math.random() - 0.5) * G.shake * 0.4; G.shake = Math.max(0, G.shake - dt * 2.2); }
     CAM.tgt.lerp(look, Math.min(1, dt * 3)); camera.lookAt(CAM.tgt); return;
   }
+  if (G.phase === 'title' && document.getElementById('menu').classList.contains('show')) {
+    // main menu: the hero stands right of frame, the logo on the left; a slow drifting orbit
+    const t = now() * 0.09, a = 0.25 + Math.sin(t) * 0.16, r = 4.2, cx = P.pos.x + Math.sin(a) * r, cz = P.pos.z + Math.cos(a) * r;
+    CAM.pos.set(cx, Math.max(hgt(cx, cz) + 1.0, P.pos.y + 1.45 + Math.sin(t * 1.7) * 0.1), cz); camera.position.copy(CAM.pos);
+    const side = new THREE.Vector3(Math.cos(a), 0, -Math.sin(a)), fwd = new THREE.Vector3(-Math.sin(a), 0, -Math.cos(a));
+    CAM.tgt.set(P.pos.x, P.pos.y + 2.0, P.pos.z).addScaledVector(fwd, 7).addScaledVector(side, -2.9); camera.lookAt(CAM.tgt); return;
+  }
   if (G.phase === 'title') {
     const t = Math.sin(now() * 0.12); const cx = P.pos.x + 2.6 + t * 1.5, cz = P.pos.z + 4.2; CAM.pos.set(cx, Math.max(hgt(cx, cz) + 1.2, P.pos.y + 1.5), cz); camera.position.copy(CAM.pos); CAM.tgt.set(P.pos.x - 1 + t, P.pos.y + 3.2, P.pos.z - 20); camera.lookAt(CAM.tgt); return;
   }
@@ -3697,6 +3887,7 @@ function bot2(toInput) {
 const hud = { hp: $('hp-fill'), ghost: $('hp-ghost'), coins: $('coins'), armour: $('armour'), boss: $('boss-fill'), cd: $('sling-cd') };
 let lastHud = '';
 function updateHud() {
+  if (G.combo && now() - G.comboT > 1.8) { G.combo = 0; $('combo').classList.remove('on'); }
   const st = STATS(); const hpP = Math.max(0, P.hp / st.maxHp * 100).toFixed(1);
   const bp = G.fin ? (G.fin.prog * 100).toFixed(1) : G.boss ? (G.boss.hp / G.boss.maxHp * 100).toFixed(1) : 0;
   const cd = LEVEL === 2 ? (100 - G.spirit).toFixed(0) : (P.slingCd / st.slingCd * 100 || 0).toFixed(0);
@@ -3716,11 +3907,12 @@ function frame() {
   let rdt = Math.min(clock.getDelta(), 0.05);
   frames++; fpsAcc += rdt; fpsT += rdt;
   if (fpsT >= 2) { const fps = frames / fpsAcc; G.fps = Math.round(fps); G.fpsLog.push(G.fps); if (G.fpsLog.length > 120) G.fpsLog.shift(); frames = 0; fpsAcc = 0; fpsT = 0;
-    if (ADAPT && G.phase === 'play') { if (fps < 42) lowFor++; else lowFor = 0; if (lowFor >= 2) { lowFor = 0; if (BLOOM) { BLOOM = false; LOG('adapt', { bloom: false }); } else if (DPR > 1) { DPR = Math.max(1, DPR - 0.25); renderer.setPixelRatio(DPR); onResize(); LOG('adapt', { dpr: DPR }); } else if (sun.castShadow) { sun.castShadow = false; LOG('adapt', { shadows: false }); } } } }
+    if (ADAPT && G.phase === 'play') { if (fps < 42) lowFor++; else lowFor = 0; if (lowFor >= 2) { lowFor = 0; if (bloomPass && bloomPass.enabled) { bloomPass.enabled = false; LOG('adapt', { bloom: false }); } else if (DPR > 1) { DPR = Math.max(1, DPR - 0.25); renderer.setPixelRatio(DPR); onResize(); LOG('adapt', { dpr: DPR }); } else if (sun.castShadow) { sun.castShadow = false; LOG('adapt', { shadows: false }); } else if (POST) { POST = false; document.body.classList.remove('post'); LOG('adapt', { post: false }); } } } }
   if (G.paused || document.hidden) return;
   if (G.hitstop > 0) { G.hitstop -= rdt; rdt *= 0.05; }
   if (G.slowT > 0) { G.slowT -= rdt; if (G.slowT <= 0) G.slow = 1; }
   const dt = rdt * G.slow;
+  skyMat.uniforms.uTime.value += rdt;
   const _t0 = performance.now();
   if (BOT) bot(dt);
   readKeys();
@@ -3740,14 +3932,27 @@ function frame() {
     if (toastT > 0) { toastT -= rdt; if (toastT <= 0) $('toast').classList.remove('on'); }
   }
   const _t1 = performance.now();
-  if (BLOOM && composer) composer.render(); else renderer.render(scene, camera);
+  renderer.info.reset();
+  if (POST && composer) { const gu = gradePass.uniforms; gu.uExp.value = renderer.toneMappingExposure; gu.uTime.value = (gu.uTime.value + 0.013) % 7; gu.uFlash.value = G.flashV || 0; composer.render(); } else renderer.render(scene, camera);
+  if (G.flashV > 0) G.flashV = Math.max(0, G.flashV - rdt * 4);
+  if (G.wantCalls) G.calls = renderer.info.render.calls;
   const _t2 = performance.now();
   G.cpuU = (G.cpuU || 0) * 0.95 + (_t1 - _t0) * 0.05; G.cpuR = (G.cpuR || 0) * 0.95 + (_t2 - _t1) * 0.05;
 }
 
 // ------------------------------------------------------------------ boot
+const TIPS = [
+  ['“The LORD that delivered me out of the paw of the lion, and out of the paw of the bear, he will deliver me out of the hand of this Philistine.”', '1 Samuel 17:37'],
+  ['“Up; for this is the day in which the LORD hath delivered Sisera into thine hand: is not the LORD gone out before thee?”', 'Judges 4:14'],
+  ['“He teacheth my hands to war, so that a bow of steel is broken by mine arms.”', 'Psalm 18:34'],
+  ['“And he brought back all the goods, and also brought again his brother Lot, and his goods, and the women also, and the people.”', 'Genesis 14:16'],
+  ['“Thou comest to me with a sword, and with a spear, and with a shield: but I come to thee in the name of the LORD of hosts…”', '1 Samuel 17:45'],
+  ['“Be strong and of a good courage, fear not, nor be afraid of them: for the LORD thy God, he it is that doth go with thee…”', 'Deuteronomy 31:6'],
+  ['“Saul hath slain his thousands, and David his ten thousands.”', '1 Samuel 18:7'],
+];
+{ const t = TIPS[(Math.random() * TIPS.length) | 0]; $('ltip').innerHTML = `${t[0]}<span>${t[1]} (KJV)</span>`; }
 async function boot() {
-  buildDust(); buildFX(); buildStones(); buildArrows(); buildSpoils(); buildPuffs(); setupInput();
+  buildDust(); buildFX(); buildSparks(); buildStones(); buildArrows(); buildSpoils(); buildPuffs(); setupInput();
   buildWorld(WORLD_OF(LEVEL));
   const loader = new GLTFLoader();
   const gltf = await loader.loadAsync('assets/hero2.glb', (e) => { if (e.total) $('lfill').style.width = (e.loaded / e.total * 100).toFixed(0) + '%'; });
@@ -3776,8 +3981,8 @@ async function boot() {
   const tmp = [new Actor('phil'), new Actor('captain'), new Actor('goliath', 2.25), new Actor('archer'), new Actor('shield'), new Actor(LEVEL === 2 ? 'david' : 'samson'), new Actor('servant'), new Actor('phil', 1, 'e_phil'), new Actor('captive', 1, 'lot')].concat(LEVEL === 4 ? [new Actor('benaiah', 1), new Actor('goliath', 1.75, 'egypt'), new Actor('phil', 1, 'm_phil'), new Actor('captain', 1.2, 'lionman')] : LEVEL === 5 ? [new Actor('barak', 1), new Actor('phil', 1, 'k_phil'), new Actor('captain', 1, 'k_captain'), new Actor('servant', 1, 'isr_ally'), new Actor('moses', 1, 'deborah')] : LEVEL === 6 ? [new Actor('barak', 1.04, 'davidking'), new Actor('barak', 1, 'adino'), new Actor('servant', 1, 'eleazar'), new Actor('servant', 1, 'shammah'), new Actor('servant', 1, 'adino')] : []); tmp.forEach((a, i) => a.pos.set(i * 3, -50, 0));
   renderer.compile(scene, camera); renderer.render(scene, camera); tmp.forEach(a => a.remove());
   $('ltext').textContent = 'Ready';
-  show('loading', false); show('title'); G.phase = 'title';
-  setLevelUI(); renderTitle();
+  show('loading', false); show(LQO || BOT ? 'title' : 'menu'); G.phase = 'title';
+  setLevelUI(); renderTitle(); renderMenu();
   requestAnimationFrame(frame);
   if (BOT) setTimeout(() => $('btn-start').click(), 600);
 }
@@ -3849,10 +4054,10 @@ function switchLevel(l) {
   const box = $('tsel'); box.innerHTML = '';
   for (const o of LEVEL_ORDER) {
     const b = document.createElement('button'); b.className = 'lvc' + (o.soon ? ' soon' : '');
-    if (o.soon) { b.innerHTML = `<b>COMING SOON</b><span>${o.name}</span><i>${o.place}</i>`; b.onclick = async () => { audioInit(); show('title', false); await card({ who: 'COMING SOON', text: `<b>${o.name}</b> · ${o.place}<br>This part of the story is being built next.`, btn: 'BACK' }); show('title'); }; }
+    if (o.soon) { b.innerHTML = `<div class="art soonart"></div><b>COMING SOON</b><span>${o.name}</span><i>${o.place}</i>`; b.onclick = async () => { audioInit(); show('title', false); await card({ who: 'COMING SOON', text: `<b>${o.name}</b> · ${o.place}<br>This part of the story is being built next.`, btn: 'BACK' }); show('title'); }; }
     else {
       const prev = PREV(o.run); b.dataset.l = o.run;
-      b.innerHTML = `<b>LEVEL ${NUM(o.run)}</b><span>${o.name}</span><i>${o.place}</i>${prev ? `<em>🔒 Finish Level ${NUM(prev.run)}</em>` : ''}`;
+      b.innerHTML = `<div class="art" style="background-image:url(assets/art/l${o.run}.jpg)"></div><b>LEVEL ${NUM(o.run)}</b><span>${o.name}</span><i>${o.place}</i>${prev ? `<em>🔒 Finish Level ${NUM(prev.run)}</em>` : ''}`;
       b.onclick = async () => {
         const l = o.run; audioInit();
         if (!isOpen(l)) {
@@ -3866,8 +4071,38 @@ function switchLevel(l) {
     box.appendChild(b);
   }
 })();
+// ---- main menu, settings, loading tip
+function renderMenu() {
+  const o = ORD(LEVEL); $('mcont').innerHTML = o ? `Continue · <b>Level ${NUM(LEVEL)}</b> · ${o.name}` : '';
+}
+$('btn-play').onclick = () => { audioInit(); show('menu', false); $('btn-start').click(); };
+$('btn-levels').onclick = () => { audioInit(); show('menu', false); show('title'); renderTitle(); };
+$('btn-back').onclick = () => { show('title', false); renderMenu(); show('menu'); };
+let setFrom = 'menu';
+const Q_NAME = { low: 'Low', med: 'Medium', high: 'High' };
+function renderSettings() {
+  document.querySelectorAll('#set-q button').forEach(b => b.classList.toggle('on', b.dataset.q === SETTINGS.q));
+  const eff = SETTINGS.q === 'auto' ? SETTINGS.auto : SETTINGS.q, changed = eff !== QUALITY && !['low', 'med', 'high'].includes(QQ);
+  $('set-qnote').innerHTML = (SETTINGS.q === 'auto' ? `Auto picked <b>${Q_NAME[SETTINGS.auto]}</b> for this device. ` : '') + `Now running: <b>${Q_NAME[QUALITY]}</b>` + (QUALITY === 'low' ? ' · smoothest on phones' : QUALITY === 'high' ? ' · bloom, soft shadows, sharpest' : ' · colour grade and shadows');
+  $('set-apply').style.display = changed ? '' : 'none';
+  $('set-music').value = Math.round(SETTINGS.music * 100); $('set-sfx').value = Math.round(SETTINGS.sfx * 100);
+  $('set-vib').textContent = SETTINGS.vib ? 'ON' : 'OFF'; $('set-vib').classList.toggle('on', SETTINGS.vib);
+}
+function openSettings(from) { setFrom = from; show(from, false); renderSettings(); show('settings'); }
+$('btn-settings').onclick = () => { audioInit(); openSettings('menu'); };
+$('btn-psettings').onclick = () => openSettings('paused');
+$('set-done').onclick = () => { show('settings', false); show(setFrom); };
+document.querySelectorAll('#set-q button').forEach(b => b.onclick = () => { SETTINGS.q = b.dataset.q; saveSettings(); renderSettings(); });
+$('set-apply').onclick = () => { location.reload(); };
+$('set-music').oninput = (e) => { SETTINGS.music = e.target.value / 100; saveSettings(); if (AU.musicOut) AU.musicOut.gain.value = SETTINGS.music; };
+$('set-sfx').oninput = (e) => { SETTINGS.sfx = e.target.value / 100; saveSettings(); if (AU.master) AU.master.gain.value = 0.6 * SETTINGS.sfx; };
+$('set-sfx').onchange = () => SFX.hit();
+$('set-vib').onclick = () => { SETTINGS.vib = !SETTINGS.vib; saveSettings(); renderSettings(); vibrate(40); };
 $('btn-reset').onclick = () => { if (!confirm('Reset all saved progress?')) return; try { localStorage.removeItem(SAVE_KEY); } catch (e) { } location.href = location.pathname; };
 
 // QA hook
-window.__elah = { G, camera, scene, get chariots() { return CH.list.map(c => c.state + ':' + Math.round(c.d || 0) + '/' + Math.round(c.stuckAt < 1e8 ? c.stuckAt : -1)); }, get moses() { return MOSES && MOSES.pos.toArray(); }, get player() { return P && { hp: P.hp, state: P.state, pos: P.pos.toArray().map(v => +v.toFixed(2)) }; }, get boss() { return G.boss && { hp: G.boss.hp, state: G.boss.state, dist: +G.boss.pos.distanceTo(P.pos).toFixed(1) }; }, hurt(n) { damagePlayer(n, P.pos.clone().add(new THREE.Vector3(0, 0, 1))); }, get angel() { return !!G.angel; }, get dpr() { return DPR; }, renderer, get level() { return LEVEL; }, get fin() { return G.fin && { prog: +G.fin.prog.toFixed(3), collapsing: G.fin.collapsing }; }, get spirit() { return G.spirit; }, get world() { return WORLD; }, get allies() { return ALLIES.map(a => ({ hp: Math.round(a.hp), down: a.down, st: a.state })); }, get captives() { return (G.captives || []).map(c => ({ n: c.name, freed: c.freed, prog: +c.prog.toFixed(2) })); }, get stage() { return G.stage; }, get esc() { return ESC && { stamina: Math.round(ESC.stamina), hidden: ESC.hidden, hiding: ESC.hiding, near: +ESC.near.toFixed(1), hunters: ESC.hunters.length, chasing: ESC.hunters.filter(h => h.state === 'chase' || h.state === 'grab').length, caught: ESC.caught, toCave: WILD ? +Math.hypot(WILD.cave.x - P.pos.x, WILD.cave.z - P.pos.z).toFixed(1) : null, won: ESC.won }; }, get seq() { return G.seq; }, get l6() { return LEVEL === 6 ? { hold: +L6.hold.toFixed(1), field: Math.round(L6.field), run: L6.run, drawn: +L6.drawn.toFixed(1), hero: P.look, horde: G.horde } : null; }, dbgHide() { const r = WILD.rocks[3]; P.pos.set(r.x + r.s + 0.9, 0, r.z); ground(P); BOTI.x = BOTI.y = 0; ESC.hiding = true; return [r.x, r.z]; }, dbgH() { return ESC && { esc: this.esc, p: P.pos.toArray().map(v => +v.toFixed(1)), pst: P.state, hp: Math.round(P.hp), hs: ESC.hunters.map(h => [h.state, +h.pos.distanceTo(P.pos).toFixed(2), +h.cd.toFixed(1)]).sort((a, b) => a[1] - b[1]).slice(0, 4), log: G.log.slice(-4).map(l => l.type) }; }, devFin(p) { if (G.fin) G.fin.prog = p; }, lineup(kinds, close) { show('title', false); kinds = kinds || ['david', 'phil', 'archer', 'captain', 'shield', 'samson', 'moses']; const base = P.pos.clone(); const out = kinds.map((k, i) => { const a = new Actor(k, k === 'goliath' ? 2.25 : 1); a.pos.set(base.x + (i - (kinds.length - 1) / 2) * 0.9, 0, base.z - 3); ground(a); a.yaw = 0; a.play('Idle_Loop'); a.update(0.6); a.obj.updateMatrixWorld(true); return a; }); const c = out[0].pos; G.cine = close ? { pos: new THREE.Vector3(c.x + 0.25, c.y + close, c.z + 0.75), look: new THREE.Vector3(c.x, c.y + close - 0.05, c.z), snap: true } : { pos: new THREE.Vector3(base.x, base.y + 1.5, base.z + 1.2), look: new THREE.Vector3(base.x, base.y + 1.1, base.z - 3), snap: true }; P.obj.visible = false; MOSES.obj.visible = false; return kinds.length; }, get tdbg() { const T = TEMPLE; return T && T.collapse && { t: +T.collapse.t.toFixed(2), f: T.falling.slice(0, 6).map(f => +f.m.position.y.toFixed(2)), c0: T.crowdBase[0][4].p.y.toFixed(2), slow: G.slow, hs: G.hitstop }; }, save: () => SAVE, musicRenderTest, get music() { return { step: MUSIC.step, mode: MUSIC.mode, inten: +MUSIC.inten.toFixed(2), ctx: AU.ctx && AU.ctx.state }; } };
+window.__elah = { G, camera, scene, get calls() { G.wantCalls = true; return G.calls || null; }, get quality() { return QUALITY; }, bindStats() { let a = null; BASE.traverse(o => { if (o.isSkinnedMesh && o.name === 'SuperHero_Male') a = o.geometry.attributes.aBind; }); const rows = {}; for (let i = 0; i < a.count; i++) { const y = a.getY(i), z = a.getZ(i), x = a.getX(i); if (y < 1.45 || Math.abs(x) > 0.12) continue; const k = y.toFixed(2); const r = rows[k] || (rows[k] = { zmax: -9, zmin: 9, xmax: 0, n: 0 }); r.zmax = Math.max(r.zmax, z); r.zmin = Math.min(r.zmin, z); r.xmax = Math.max(r.xmax, Math.abs(x)); r.n++; } return rows; }, faceshot(kind, look, sc) {
+    // QA: one character, close on the face, in this world's light
+    if (window._fs) window._fs.remove(); const a = new Actor(kind, sc || 1, look); window._fs = a; a.pos.set(P.pos.x + 30, 0, P.pos.z); ground(a); a.yaw = 0; a.play('Idle_Loop'); a.update(0.01);
+    const h = a.headPos(new THREE.Vector3()); G.phase = 'cine'; const d = (window._fsd || 0.5) * (sc || 1); G.cine = { pos: new THREE.Vector3(h.x + d * 0.3, h.y + 0.0, h.z + d), look: h.clone().add(new THREE.Vector3(0, -0.07 * (sc || 1), 0)), snap: true }; return h.toArray(); }, get audio() { return { ctx: AU.ctx && AU.ctx.state, track: TRACK.cur, playing: !!(TRACK.el && !TRACK.el.paused), t: TRACK.el ? +TRACK.el.currentTime.toFixed(1) : 0, failed: Object.keys(TRACK.failed), smp: Object.keys(SMP.buf) }; }, get tris() { return renderer.info.render.triangles; }, get chariots() { return CH.list.map(c => c.state + ':' + Math.round(c.d || 0) + '/' + Math.round(c.stuckAt < 1e8 ? c.stuckAt : -1)); }, get moses() { return MOSES && MOSES.pos.toArray(); }, get player() { return P && { hp: P.hp, state: P.state, pos: P.pos.toArray().map(v => +v.toFixed(2)) }; }, get boss() { return G.boss && { hp: G.boss.hp, state: G.boss.state, dist: +G.boss.pos.distanceTo(P.pos).toFixed(1) }; }, hurt(n) { damagePlayer(n, P.pos.clone().add(new THREE.Vector3(0, 0, 1))); }, get angel() { return !!G.angel; }, get dpr() { return DPR; }, renderer, get level() { return LEVEL; }, get fin() { return G.fin && { prog: +G.fin.prog.toFixed(3), collapsing: G.fin.collapsing }; }, get spirit() { return G.spirit; }, get world() { return WORLD; }, get allies() { return ALLIES.map(a => ({ hp: Math.round(a.hp), down: a.down, st: a.state })); }, get captives() { return (G.captives || []).map(c => ({ n: c.name, freed: c.freed, prog: +c.prog.toFixed(2) })); }, get stage() { return G.stage; }, get esc() { return ESC && { stamina: Math.round(ESC.stamina), hidden: ESC.hidden, hiding: ESC.hiding, near: +ESC.near.toFixed(1), hunters: ESC.hunters.length, chasing: ESC.hunters.filter(h => h.state === 'chase' || h.state === 'grab').length, caught: ESC.caught, toCave: WILD ? +Math.hypot(WILD.cave.x - P.pos.x, WILD.cave.z - P.pos.z).toFixed(1) : null, won: ESC.won }; }, get seq() { return G.seq; }, get l6() { return LEVEL === 6 ? { hold: +L6.hold.toFixed(1), field: Math.round(L6.field), run: L6.run, drawn: +L6.drawn.toFixed(1), hero: P.look, horde: G.horde } : null; }, dbgHide() { const r = WILD.rocks[3]; P.pos.set(r.x + r.s + 0.9, 0, r.z); ground(P); BOTI.x = BOTI.y = 0; ESC.hiding = true; return [r.x, r.z]; }, dbgH() { return ESC && { esc: this.esc, p: P.pos.toArray().map(v => +v.toFixed(1)), pst: P.state, hp: Math.round(P.hp), hs: ESC.hunters.map(h => [h.state, +h.pos.distanceTo(P.pos).toFixed(2), +h.cd.toFixed(1)]).sort((a, b) => a[1] - b[1]).slice(0, 4), log: G.log.slice(-4).map(l => l.type) }; }, devFin(p) { if (G.fin) G.fin.prog = p; }, lineup(kinds, close) { show('title', false); kinds = kinds || ['david', 'phil', 'archer', 'captain', 'shield', 'samson', 'moses']; const base = P.pos.clone(); const out = kinds.map((k, i) => { const a = new Actor(k, k === 'goliath' ? 2.25 : 1); a.pos.set(base.x + (i - (kinds.length - 1) / 2) * 0.9, 0, base.z - 3); ground(a); a.yaw = 0; a.play('Idle_Loop'); a.update(0.6); a.obj.updateMatrixWorld(true); return a; }); const c = out[0].pos; G.cine = close ? { pos: new THREE.Vector3(c.x + 0.25, c.y + close, c.z + 0.75), look: new THREE.Vector3(c.x, c.y + close - 0.05, c.z), snap: true } : { pos: new THREE.Vector3(base.x, base.y + 1.5, base.z + 1.2), look: new THREE.Vector3(base.x, base.y + 1.1, base.z - 3), snap: true }; P.obj.visible = false; MOSES.obj.visible = false; return kinds.length; }, get tdbg() { const T = TEMPLE; return T && T.collapse && { t: +T.collapse.t.toFixed(2), f: T.falling.slice(0, 6).map(f => +f.m.position.y.toFixed(2)), c0: T.crowdBase[0][4].p.y.toFixed(2), slow: G.slow, hs: G.hitstop }; }, save: () => SAVE, musicRenderTest, get music() { return { step: MUSIC.step, mode: MUSIC.mode, inten: +MUSIC.inten.toFixed(2), ctx: AU.ctx && AU.ctx.state }; } };
 boot().catch((e) => { console.error(e); $('ltext').textContent = 'Could not load: ' + e.message; });

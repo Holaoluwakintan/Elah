@@ -6,9 +6,9 @@
 <meta name="theme-color" content="#1a120b">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>ELAH · Bible combat in 3D · A Blossom game demo</title>
+<title>ELAH WARRIOR · Bible combat in 3D · A Blossom game</title>
 <meta name="description" content="Level 1: David, from the Valley of Elah to the cave of Adullam. Level 2: Abram rescues Lot. Level 3: Benaiah, the lion in the pit. Level 4: Deborah and Barak at the river Kishon. Level 5: Samson. Level 6: David and his three mighty men. A story-driven 3D Bible combat demo by Blossom.">
-<meta property="og:title" content="ELAH: Rise of the Shepherd">
+<meta property="og:title" content="ELAH WARRIOR">
 <meta property="og:description" content="Playable 3D Bible story game. Level 1: David, from Elah to Adullam. Level 2: Abram rescues Lot. Level 3: Benaiah. Level 4: Deborah and Barak. Level 5: Samson. Level 6: David's mighty men.">
 <meta property="og:image" content="og.jpg">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -36,6 +36,7 @@
   <div id="boss-wrap" class="hidden"><div class="bname" id="bname">GOLIATH OF GATH</div><div class="hpbar boss"><div id="boss-fill"></div></div></div>
   <div id="topbtns"><button id="btn-mute" aria-label="Sound">♪</button><button id="btn-pause" aria-label="Pause">❚❚</button></div>
   <div id="prompt"></div>
+  <div id="combo"><b>×2</b><span>COMBO</span></div>
 </div>
 
 <!-- Touch controls -->
@@ -49,16 +50,38 @@
 </div>
 
 <!-- Screens -->
-<div id="loading" class="screen show"><div class="brand">BLOSSOM</div><div class="ltitle">ELAH</div><div class="lbar"><div id="lfill"></div></div><div id="ltext">Loading the valley…</div></div>
+<div id="loading" class="screen show"><div class="brand">BLOSSOM PRESENTS</div><div class="logo"><span class="l1">ELAH</span><span class="l2">WARRIOR</span></div><div class="lbar"><div id="lfill"></div></div><div id="ltext">Loading the valley…</div><div id="ltip"></div></div>
+
+<div id="menu" class="screen">
+  <div class="mbox">
+    <div class="tbrand">BLOSSOM PRESENTS</div>
+    <div class="logo big"><span class="l1">ELAH</span><span class="l2">WARRIOR</span></div>
+    <div class="mtag">A BIBLE COMBAT SAGA</div>
+    <button id="btn-play" class="gold">PLAY</button>
+    <div class="mcont" id="mcont"></div>
+    <div class="mrow"><button id="btn-levels" class="ghost">LEVELS</button><button id="btn-settings" class="ghost">SETTINGS</button></div>
+    <div class="tfoot"><a href="credits.html" target="_blank" rel="noopener">Credits</a> · <a href="#" id="btn-reset">Reset progress</a></div>
+  </div>
+</div>
+
+<div id="settings" class="screen">
+  <div class="setbox">
+    <h3>SETTINGS</h3>
+    <div class="srow"><label>Graphics</label><div class="seg" id="set-q"><button data-q="auto">AUTO</button><button data-q="low">LOW</button><button data-q="med">MEDIUM</button><button data-q="high">HIGH</button></div></div>
+    <div class="snote" id="set-qnote"></div>
+    <div class="srow"><label>Music</label><input type="range" id="set-music" min="0" max="100" step="5"></div>
+    <div class="srow"><label>Sound</label><input type="range" id="set-sfx" min="0" max="100" step="5"></div>
+    <div class="srow"><label>Vibration</label><button class="tog" id="set-vib"></button></div>
+    <div class="cbtns"><button id="set-apply" class="ghost" style="display:none">RESTART TO APPLY</button><button id="set-done" class="gold">DONE</button></div>
+  </div>
+</div>
 
 <div id="title" class="screen">
-  <div class="tbrand">BLOSSOM PRESENTS</div>
-  <h1>ELAH</h1>
-  <div class="tsub" id="tsub">RISE OF THE SHEPHERD</div>
+  <div class="thead"><button id="btn-back" class="back" aria-label="Back">‹</button><div><div class="tbrand">ELAH WARRIOR</div><div class="ttl">CHOOSE YOUR BATTLE</div></div></div>
   <div class="tsel" id="tsel"></div>
+  <div class="tsub" id="tsub">RISE OF THE SHEPHERD</div>
   <button id="btn-start" class="gold">TAP TO BEGIN</button>
   <div class="tcontrols" id="tcontrols"></div>
-  <div class="tfoot">Playable demo · Built by Blossom · <a href="#" id="btn-reset">Reset progress</a></div>
 </div>
 
 <div id="card" class="screen">
@@ -85,7 +108,7 @@
   <div class="wstats" id="wstats"></div>
   <div class="wnext" id="wnext">NEXT: <b>SAMSON</b></div>
   <div class="cbtns"><button id="btn-again" class="ghost">PLAY AGAIN</button><button id="btn-next" class="gold">PLAY LEVEL 2</button></div>
-  <div class="credits"><a href="credits.html" target="_blank" rel="noopener">Credits</a> · A Blossom game demo</div>
+  <div class="credits"><a href="credits.html" target="_blank" rel="noopener">Credits</a> · ELAH WARRIOR · A Blossom game</div>
 </div>
 
 <div id="lose" class="screen">
@@ -94,7 +117,7 @@
   <button id="btn-retry" class="gold">RISE AGAIN</button>
 </div>
 
-<div id="paused" class="screen"><h2>Paused</h2><button id="btn-resume" class="gold">RESUME</button><button id="btn-restart" class="ghost">RESTART LEVEL</button><button id="btn-menu" class="ghost">LEVEL SELECT</button></div>
+<div id="paused" class="screen"><h2>Paused</h2><button id="btn-resume" class="gold">RESUME</button><div class="mrow"><button id="btn-restart" class="ghost">RESTART LEVEL</button><button id="btn-psettings" class="ghost">SETTINGS</button><button id="btn-menu" class="ghost">MAIN MENU</button></div></div>
 
 <div id="rotate"><div class="phone"></div><div>Turn your phone sideways to play</div></div>
 <div id="fade"></div>

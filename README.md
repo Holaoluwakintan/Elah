@@ -86,3 +86,16 @@ icon.svg, og.jpg      icon and share image
 ## Credits
 
 See [CREDITS.md](CREDITS.md). Every third-party asset is CC0 or MIT. Everything else (costumes, weapons, worlds, sound and music) is made in code for this game.
+
+
+## Premium pass v1 (2026-10-19, "ELAH WARRIOR")
+- Graphics quality: SETTINGS in localStorage 'elah-settings' {q: auto|low|med|high, music, sfx, vib, auto}. detectQuality() guesses from the GPU name, memory and cores (swiftshader/Mali-G52/Adreno 5xx → low; most phones → med; Adreno 7xx/Mali-G7xx/Apple with ≥6 GB → high; desktops → high). ?q=low|med|high overrides. QP table: low = DPR 1, no shadow map, no post (CSS vignette); med = DPR 1.25, 1024 PCF shadows, grade pass; high = DPR 1.75, 2048 PCFSoft, bloom + grade, 4x MSAA target. The fps watch (ADAPT) drops bloom → DPR → shadows → post. ?nopost, ?nobloom.
+- GradeShader (one ShaderPass, replaces OutputPass): ACES + sRGB, split-tone (GRADE per world), contrast, saturation, vignette, grain, flash (G.flashV). setGrade(name) runs from setEnv.
+- Sky: FBM cumulus in skyMat (uTime, uCloud per world; 5 octaves on med/high, 3 on low).
+- Characters: RIM uniform (rim light from the world's sun, moonlight at night) in paintMat (paint-v4) and hairMat (hair-rim). Contact-shadow blob under every Actor (blobGeo/blobMat).
+- FX: buildSparks/sparks/updateSparks (one Points draw); flashAt() of size ≥0.6 throws sparks; ≥1.4 a screen flash. Combo counter (comboHit, #combo). vibrate() on hurt and heavy hit-stop (settings toggle).
+- Audio: recorded CC0 score streamed per level (audio/music_menu.mp3, music_l1..l6.mp3 by run number) through TRACK/trackTick (cross-fade, louder in fights, synth score is the fallback, ?nosong disables). Kenney CC0 samples audio/sfx_*.mp3 via smp(kind) layered in SFX.hit/clang/coin/thud. AU.master = sound volume, AU.musicOut = music volume. See CREDITS.md.
+- UI: loading screen with a KJV tip (TIPS), main menu #menu (logo, PLAY = continue, LEVELS, SETTINGS, credits, reset), level select #title with art cards (assets/art/l<run>.jpg, rendered from the game), settings #settings (graphics, music, sound, vibration; quality change = restart), pause has SETTINGS and MAIN MENU. ?l=N or ?bot skips the menu.
+- Fixes: pit walls (rockWallGeo, smooth rock with strata and snow ledges, also in the pit intro), Egyptian intro camera, credits.html (6 levels, music and sound credits).
+- QA tools (kept outside this repo): capture.js <base> <out> phone|desktop [levels] (EXTRA='&q=med', NOMENU=1), win.js <base> <displayLevel> <limitSec>, audiotest.js <base>, clip.js <base> <outdir>, artgen.js, smoke.js.
+- Rollback: site-backup-pre-premium/ (local copy) and deployment dpl_5nNxjg5Xf2d54s2f8EHNUMnSp5AE (prod before this pass).
