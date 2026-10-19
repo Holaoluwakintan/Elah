@@ -1,0 +1,27 @@
+# dependencies and build output
+node_modules/
+dist/
+build/
+.cache/
+.parcel-cache/
+
+# Vercel
+.vercel/
+
+# env and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# logs and OS junk
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# local QA output, renders, backups
+qa/
+renders/
+*.bak.js
+*.tmp

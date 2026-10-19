@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1a120b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ELAH · Bible combat in 3D · A Blossom game demo</title>
+<meta name="description" content="Level 1: David, from the Valley of Elah to the cave of Adullam. Level 2: Abram rescues Lot. Level 3: Benaiah, the lion in the pit. Level 4: Deborah and Barak at the river Kishon. Level 5: Samson. Level 6: David and his three mighty men. A story-driven 3D Bible combat demo by Blossom.">
+<meta property="og:title" content="ELAH: Rise of the Shepherd">
+<meta property="og:description" content="Playable 3D Bible story game. Level 1: David, from Elah to Adullam. Level 2: Abram rescues Lot. Level 3: Benaiah. Level 4: Deborah and Barak. Level 5: Samson. Level 6: David's mighty men.">
+<meta property="og:image" content="og.jpg">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preload" href="assets/hero2.glb" as="fetch" crossorigin>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vignette"></div>
+<div id="flash"></div>
+<div id="bars"><div class="bar top"></div><div class="bar bot"></div></div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="hp-wrap">
+    <div class="who"><span id="who-name">DAVID</span> <span id="angel-ico" title="Angel rescue ready">✦</span></div>
+    <div class="hpbar"><div id="hp-fill"></div><div id="hp-ghost"></div></div>
+    <div id="sp-wrap" class="hidden"><div class="splabel">SPIRIT</div><div class="spbar"><div id="sp-fill"></div></div></div>
+    <div id="purse"><span class="coin"></span><b id="coins">0</b><span class="armour"></span><b id="armour">0</b></div>
+  </div>
+  <div id="wave"></div>
+  <div id="goal" class="hidden"><i id="goal-arrow">▲</i><span>CAVE OF ADULLAM</span><b id="goal-d"></b></div>
+  <div id="boss-wrap" class="hidden"><div class="bname" id="bname">GOLIATH OF GATH</div><div class="hpbar boss"><div id="boss-fill"></div></div></div>
+  <div id="topbtns"><button id="btn-mute" aria-label="Sound">♪</button><button id="btn-pause" aria-label="Pause">❚❚</button></div>
+  <div id="prompt"></div>
+</div>
+
+<!-- Touch controls -->
+<div id="touch" class="hidden">
+  <div id="stick-zone"></div>
+  <div id="stick"><div id="knob"></div></div>
+  <button class="act" id="b-attack" aria-label="Staff attack"><svg viewBox="0 0 64 64"><path d="M14 52 L50 12" stroke="#f3e2c0" stroke-width="6" stroke-linecap="round"/><path d="M44 10 q8 -2 10 6" stroke="#f3e2c0" stroke-width="4" fill="none" stroke-linecap="round"/></svg><span>STAFF</span></button>
+  <button class="act" id="b-sling" aria-label="Sling"><svg viewBox="0 0 64 64"><circle cx="32" cy="30" r="11" fill="#d9d2c4"/><path d="M10 46 Q32 64 54 46" stroke="#c49a5a" stroke-width="4" fill="none"/><path d="M10 46 L18 20 M54 46 L46 20" stroke="#c49a5a" stroke-width="3"/></svg><span>SLING</span><i id="sling-cd"></i></button>
+  <button class="act" id="b-push" aria-label="Push the pillars"><svg viewBox="0 0 64 64"><rect x="6" y="8" width="10" height="50" rx="2" fill="#e8d6b0"/><rect x="48" y="8" width="10" height="50" rx="2" fill="#e8d6b0"/><path d="M18 32 L28 32 M46 32 L36 32" stroke="#ffcf6a" stroke-width="6" stroke-linecap="round"/><circle cx="32" cy="22" r="5" fill="#ffcf6a"/></svg><span>HOLD · PUSH</span></button>
+  <button class="act" id="b-dodge" aria-label="Dodge"><svg viewBox="0 0 64 64"><path d="M14 40 a18 18 0 1 1 30 6" stroke="#f3e2c0" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M38 50 l7 -5 l1 9" fill="#f3e2c0"/></svg><span>DODGE</span></button>
+</div>
+
+<!-- Screens -->
+<div id="loading" class="screen show"><div class="brand">BLOSSOM</div><div class="ltitle">ELAH</div><div class="lbar"><div id="lfill"></div></div><div id="ltext">Loading the valley…</div></div>
+
+<div id="title" class="screen">
+  <div class="tbrand">BLOSSOM PRESENTS</div>
+  <h1>ELAH</h1>
+  <div class="tsub" id="tsub">RISE OF THE SHEPHERD</div>
+  <div class="tsel" id="tsel"></div>
+  <button id="btn-start" class="gold">TAP TO BEGIN</button>
+  <div class="tcontrols" id="tcontrols"></div>
+  <div class="tfoot">Playable demo · Built by Blossom · <a href="#" id="btn-reset">Reset progress</a></div>
+</div>
+
+<div id="card" class="screen">
+  <div class="cardbox">
+    <div class="cwho" id="card-who"></div>
+    <div class="ctext" id="card-text"></div>
+    <div class="cverse" id="card-verse"></div>
+    <div class="cref" id="card-ref"></div>
+    <div class="ctips" id="card-tips"></div>
+    <div class="cbtns"><button id="card-btn2" class="ghost" style="display:none"></button><button id="card-btn" class="gold">CONTINUE</button></div>
+  </div>
+</div>
+
+<div id="upgrade" class="screen">
+  <div class="uphead"><div class="uptitle">SPOILS OF THE FALLEN</div><div class="upsub">Spend what you gathered. <span class="coin"></span><b id="u-coins">0</b> <span class="armour"></span><b id="u-armour">0</b></div></div>
+  <div class="upcards" id="upcards"></div>
+  <button id="up-go" class="gold">NEXT WAVE</button>
+</div>
+
+<div id="win" class="screen">
+  <div class="wtag" id="wtag">LEVEL 1 COMPLETE</div>
+  <h2 id="wh2">The battle is the LORD’S</h2>
+  <div class="wverse" id="wverse">“So David prevailed over the Philistine with a sling and with a stone, and smote the Philistine, and slew him; but there was no sword in the hand of David.”<span>1 Samuel 17:50 (KJV)</span></div>
+  <div class="wstats" id="wstats"></div>
+  <div class="wnext" id="wnext">NEXT: <b>SAMSON</b></div>
+  <div class="cbtns"><button id="btn-again" class="ghost">PLAY AGAIN</button><button id="btn-next" class="gold">PLAY LEVEL 2</button></div>
+  <div class="credits"><a href="credits.html" target="_blank" rel="noopener">Credits</a> · A Blossom game demo</div>
+</div>
+
+<div id="lose" class="screen">
+  <h2>You have fallen</h2>
+  <div class="wverse" id="lverse">“The LORD that delivered me out of the paw of the lion, and out of the paw of the bear, he will deliver me out of the hand of this Philistine.”<span>1 Samuel 17:37 (KJV)</span></div>
+  <button id="btn-retry" class="gold">RISE AGAIN</button>
+</div>
+
+<div id="paused" class="screen"><h2>Paused</h2><button id="btn-resume" class="gold">RESUME</button><button id="btn-restart" class="ghost">RESTART LEVEL</button><button id="btn-menu" class="ghost">LEVEL SELECT</button></div>
+
+<div id="rotate"><div class="phone"></div><div>Turn your phone sideways to play</div></div>
+<div id="fade"></div>
+<div id="story"><div class="sbox"><div id="s-head"></div><div id="s-text"></div><div id="s-ref"></div></div><div class="sskip">TAP TO SKIP ▸</div></div>
+<div id="seq"><div id="seq-n"></div><div id="seq-t"></div></div>
+<div id="vcard"></div>
+<div id="toast"></div>
+<div id="dmg-layer"></div>
+<noscript>This game needs JavaScript.</noscript>
+<script type="module" src="js/game.js"></script>
+</body>
+</html>
