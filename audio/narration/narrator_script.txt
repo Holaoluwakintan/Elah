@@ -1,0 +1,159 @@
+ELAH WARRIOR · NARRATOR SCRIPT
+
+For Michael to record in his own voice. One audio file per card.
+
+How to add a recording:
+  1. Record the card's words (the line in quotes, then the reference, if you like) as an MP3.
+  2. Name the file exactly as shown after FILE: (for example moses-your-advisor_xxxxx.mp3).
+  3. Put it in the game folder audio/narration/ and add its name to audio/narration/manifest.json under "files".
+  4. Players hear it when the card opens (Settings › Narrator: ON). Cards with no file stay silent.
+
+Scripture is the King James Version, exactly as it appears in the game. The "Read" text is the card as shown on screen.
+Each file name is tied to that card's words: if a card's wording ever changes, its file name changes too (Tab will update this script).
+
+============================================================
+LEVEL 1 · DAVID: FROM ELAH TO ADULLAM
+============================================================
+
+1. MOSES · YOUR ADVISOR
+   FILE: moses-your-advisor_1r29b.mp3
+   Read: Not for the king’s riches, David, but for Israel. First the armies of the Philistines, then their champion. Remember what you told Saul:
+   Verse: “The LORD that delivered me out of the paw of the lion, and out of the paw of the bear, he will deliver me out of the hand of this Philistine.”
+   Reference: 1 SAMUEL 17:37 (KJV)
+
+2. GOLIATH OF GATH
+   FILE: goliath-of-gath_d972w.mp3
+   Verse: “I defy the armies of Israel this day; give me a man, that we may fight together.”
+   Reference: 1 SAMUEL 17:10 (KJV)
+
+3. DAVID
+   FILE: david_1um6m.mp3
+   Verse: “Thou comest to me with a sword, and with a spear, and with a shield: but I come to thee in the name of the LORD of hosts…”
+   Reference: 1 SAMUEL 17:45 (KJV)
+
+4. SEQUENCE 4 OF 4 · ESCAPE TO ADULLAM
+   FILE: sequence-4-of-4-escape-to-adulla_lh19n.mp3
+   Read: Saul now seeks your life, and his soldiers are many. Do not fight back. Run for the cave of Adullam.
+   Verse: “…and David fled, and escaped that night.”
+   Reference: 1 SAMUEL 19:10 (KJV)
+
+5. THE CAVE OF ADULLAM
+   FILE: the-cave-of-adullam_1hoo0.mp3
+   Verse: “David therefore departed thence, and escaped to the cave Adullam: and when his brethren and all his father’s house heard it, they went down thither to him. And every one that was in distress, and every one that was in debt, and every one that was discontented, gathered themselves unto him; and he became a captain over them: and there were with him about four hundred men.”
+   Reference: 1 SAMUEL 22:1–2 (KJV)
+
+============================================================
+LEVEL 2 · ABRAM RESCUES LOT
+============================================================
+
+6. MOSES · YOUR ADVISOR
+   FILE: moses-your-advisor_7jp6o.mp3
+   Read: Lot and the people are bound in the camp of the four kings at Dan. Divide your servants and strike by night.
+
+7. CHEDORLAOMER · KING OF ELAM
+   FILE: chedorlaomer-king-of-elam_1fonu.mp3
+   Read: The king who led the east against the cities of the plain comes out from his pavilion.
+   Verse: “With Chedorlaomer the king of Elam, and with Tidal king of nations, and Amraphel king of Shinar, and Arioch king of Ellasar; four kings with five.”
+   Reference: GENESIS 14:9 (KJV)
+
+8. THE GOODS BROUGHT BACK
+   FILE: the-goods-brought-back_7gvv4.mp3
+   Read: Lot is free, and all that was taken is brought back.
+   Verse: “And he brought back all the goods, and also brought again his brother Lot, and his goods, and the women also, and the people.”
+   Reference: GENESIS 14:16 (KJV)
+
+9. MELCHIZEDEK · KING OF SALEM
+   FILE: melchizedek-king-of-salem_iyuos.mp3
+   Verse: “And Melchizedek king of Salem brought forth bread and wine: and he was the priest of the most high God. And he blessed him, and said, Blessed be Abram of the most high God, possessor of heaven and earth: And blessed be the most high God, which hath delivered thine enemies into thy hand. And he gave him tithes of all.”
+   Reference: GENESIS 14:18–20 (KJV)
+
+============================================================
+LEVEL 3 · BENAIAH
+============================================================
+
+10. MOSES · YOUR ADVISOR
+   FILE: moses-your-advisor_n77vr.mp3
+   Read: Benaiah son of Jehoiada, the raiders of Moab are on the border, and two lionlike men lead them. Go out and meet them.
+
+11. THE LION IN THE PIT
+   FILE: the-lion-in-the-pit_yjq1w.mp3
+   Read: Snow is falling. A lion has come down into the pit, and Benaiah goes down after it.
+   Verse: “…he went down also and slew a lion in the midst of a pit in time of snow:”
+   Reference: 2 SAMUEL 23:20 (KJV)
+
+12. THE EGYPTIAN · FIVE CUBITS HIGH
+   FILE: the-egyptian-five-cubits-high_113ru.mp3
+   Verse: “And he slew an Egyptian, a goodly man: and the Egyptian had a spear in his hand; but he went down to him with a staff, and plucked the spear out of the Egyptian’s hand, and slew him with his own spear.”
+   Reference: 2 SAMUEL 23:21 (KJV)
+
+13. BENAIAH SON OF JEHOIADA
+   FILE: benaiah-son-of-jehoiada_x5ly9.mp3
+   Read: Over David’s guard.
+   Verse: “These things did Benaiah the son of Jehoiada, and had the name among three mighty men. He was more honourable than the thirty, but he attained not to the first three. And David set him over his guard.”
+   Reference: 2 SAMUEL 23:22–23 (KJV)
+
+============================================================
+LEVEL 4 · DEBORAH AND BARAK
+============================================================
+
+14. DEBORAH · PROPHETESS, JUDGE OF ISRAEL
+   FILE: deborah-prophetess-judge-of-isra_lqcf1.mp3
+   Read: Barak, meet his foot soldiers on the plain. Do not stand before his chariots: step out of their path. The LORD will fight for you.
+   Verse: “And I will draw unto thee to the river Kishon Sisera, the captain of Jabin’s army, with his chariots and his multitude; and I will deliver him into thine hand.”
+   Reference: JUDGES 4:7 (KJV)
+
+15. JAEL · THE WIFE OF HEBER
+   FILE: jael-the-wife-of-heber_1ag1g.mp3
+   Verse: “Then Jael Heber’s wife took a nail of the tent, and took an hammer in her hand, and went softly unto him, and smote the nail into his temples, and fastened it into the ground: for he was fast asleep and weary. So he died.”
+   Reference: JUDGES 4:21 (KJV)
+
+16. JAEL COMES OUT TO MEET BARAK
+   FILE: jael-comes-out-to-meet-barak_osqmk.mp3
+   Verse: “And, behold, as Barak pursued Sisera, Jael came out to meet him, and said unto him, Come, and I will shew thee the man whom thou seekest. And when he came into her tent, behold, Sisera lay dead, and the nail was in his temples.”
+   Reference: JUDGES 4:22 (KJV)
+
+============================================================
+LEVEL 5 · SAMSON
+============================================================
+
+17. MOSES · YOUR ADVISOR
+   FILE: moses-your-advisor_1qhbt.mp3
+   Read: Samson, the men of Judah have bound you with two new cords and brought you to Lehi, to the Philistines. Do not fear them:
+   Verse: “Be strong and of a good courage, fear not, nor be afraid of them: for the LORD thy God, he it is that doth go with thee…”
+   Reference: DEUTERONOMY 31:6 (KJV)
+
+18. GAZA · THE HOUSE OF DAGON
+   FILE: gaza-the-house-of-dagon_sqqbq.mp3
+   Read: Betrayed by Delilah and taken by the Philistines, Samson was brought out of the prison house to make sport for the lords of the Philistines. They set him between the pillars. But…
+   Verse: “Howbeit the hair of his head began to grow again after he was shaven.”
+   Reference: JUDGES 16:22 (KJV)
+
+19. SAMSON
+   FILE: samson_n768k.mp3
+   Verse: “O Lord GOD, remember me, I pray thee, and strengthen me, I pray thee, only this once, O God…”
+   Reference: JUDGES 16:28 (KJV)
+
+============================================================
+LEVEL 6 · DAVID AND HIS MIGHTY MEN
+============================================================
+
+20. COUNSEL · DAVID AND HIS MIGHTY MEN
+   FILE: counsel-david-and-his-mighty-men_f9kqm.mp3
+   Read: David, you are a man of war now, and your three mighty men fight beside you: Adino, Eleazar and Shammah. When one falls, he rises again.
+   Verse: “He teacheth my hands to war, so that a bow of steel is broken by mine arms.”
+   Reference: PSALM 18:34 (KJV)
+
+21. DAVID IN THE HOLD
+   FILE: david-in-the-hold_i4d2q.mp3
+   Verse: “And David longed, and said, Oh that one would give me drink of the water of the well of Bethlehem, which is by the gate!”
+   Reference: 2 SAMUEL 23:15
+
+22. DAVID POURS IT OUT UNTO THE LORD
+   FILE: david-pours-it-out-unto-the-lord_7ypgn.mp3
+   Verse: “…and took it, and brought it to David: nevertheless he would not drink thereof, but poured it out unto the LORD.”
+   Reference: 2 SAMUEL 23:16 (KJV)
+
+23. DAVID
+   FILE: david_zdcc5.mp3
+   Verse: “And he said, Be it far from me, O LORD, that I should do this: is not this the blood of the men that went in jeopardy of their lives? therefore he would not drink it. These things did these three mighty men.”
+   Reference: 2 SAMUEL 23:17 (KJV)

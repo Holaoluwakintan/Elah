@@ -6,6 +6,10 @@ Six levels: 1 David (Elah to Adullam), 2 Abram rescues Lot, 3 Benaiah, 4 Deborah
 - Universal Base Characters by Quaternius (https://quaternius.com), CC0.
 - Universal Animation Library by Quaternius, CC0.
 - Costumes, armour, weapons, worlds, sky, weather, effects and colour grade: made in code for this game.
+- Phase 2 (made in code, no new asset files): face shapes per character, blinking eyelids, moving brows and jaw (anger, pain), army helmets and headdresses (Philistine feathered crowns, Moabite and Canaanite helmets, Israelite leather helmets, Egyptian striped nemes and collar), bronze scale armour, the slow-motion finishing blow, batched gear and fires.
+
+## Narrator
+- Settings › Narrator plays a recorded voice for each story card when its file is in audio/narration/ (listed in audio/narration/manifest.json). No voice files ship yet: the script for Michael's own recording is narrator_script.txt. No AI voices.
 
 ## Music (CC0, OpenGameArt.org)
 | Where | Track | Author | Source |

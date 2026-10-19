@@ -99,3 +99,12 @@ See [CREDITS.md](CREDITS.md). Every third-party asset is CC0 or MIT. Everything 
 - Fixes: pit walls (rockWallGeo, smooth rock with strata and snow ledges, also in the pit intro), Egyptian intro camera, credits.html (6 levels, music and sound credits).
 - QA tools (kept outside this repo): capture.js <base> <out> phone|desktop [levels] (EXTRA='&q=med', NOMENU=1), win.js <base> <displayLevel> <limitSec>, audiotest.js <base>, clip.js <base> <outdir>, artgen.js, smoke.js.
 - Rollback: site-backup-pre-premium/ (local copy) and deployment dpl_5nNxjg5Xf2d54s2f8EHNUMnSp5AE (prod before this pass).
+
+
+## Premium pass v2 (2026-10-19, phase 2)
+- Faces (no new files): setupFaceRig/faceMat/faceSetup/faceUpdate in js/game.js. Per-vertex deltas run before skinning on the Quaternius head (aBind + aJaw attributes, uB2L): FACES table gives each look its own jaw, brow, cheek and nose shape; BUILD makes young David and the women slighter. Expressions (uExpr = jaw, brow, wide, smile; uLid = upper, lower lid painted in the fragment shader): blink timer, anger in attack states/clips, pain on hit/flash, eyes shut when dead, jaw flap on Idle_Talking_Loop. Dev: actor._fx = [jaw, brow, wide, smile, lidU, lidL] overrides.
+- Headgear per army: armyOf(look) + headgear() (vertex-coloured, HG_MAT). Philistine feathered crown, Moabite pointed bronze helmet, Canaanite iron helmet with neck guard, Israelite leather helmet with cheek pieces, Elamite felt cap with fillet, Goliath plumed bronze helmet. scaleMat bronze scale armour (armourKit(look)). Egyptian striped nemes and banded collar (stripeTex).
+- Finisher: finisher(target, boss) on boss kill and on the last enemy of a wave (not L6): 0.75–1.0 s slow motion (G.slow), orbiting camera (finisherCam), white flash, shake, vibrate. Tap, Esc, Space or Enter skips. No blood.
+- Narrator: Settings › Narrator (SETTINGS.narr). Plays audio/narration/<id>.mp3 for each story card when the id is listed in audio/narration/manifest.json (files: []). No voices ship and no AI voices. Script with ids: audio/narration/narrator_script.txt; __elah.narrScript() prints the same list in the browser.
+- Draw calls: mergeGear(actor) merges rigid gear on bones into skinned meshes per material bucket (?nomerge disables); all fires are two batched billboard meshes (updateFires). Medium, mid-fight: L2 ~325 -> ~258 before the fire batch, L6 ~290-360 -> ~250-290.
+- Rollback: site-backup-pre-phase2/ (local) and deployment dpl_4i7QBBfvETWS4WwnVZrzRM1oaRFY.
