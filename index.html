@@ -31,6 +31,7 @@
     <div class="hpbar"><div id="hp-fill"></div><div id="hp-ghost"></div></div>
     <div id="sp-wrap" class="hidden"><div class="splabel">SPIRIT</div><div class="spbar"><div id="sp-fill"></div></div></div>
     <div id="purse"><span class="coin"></span><b id="coins">0</b><span class="armour"></span><b id="armour">0</b></div>
+    <div id="relic-hud"></div>
   </div>
   <div id="wave"></div>
   <div id="goal" class="hidden"><i id="goal-arrow">▲</i><span>CAVE OF ADULLAM</span><b id="goal-d"></b></div>
@@ -104,6 +105,23 @@
 
 <div id="upgrade" class="screen">
   <div class="uphead"><div class="uptitle">SPOILS OF THE FALLEN</div><div class="upsub">Spend what you gathered. <span class="coin"></span><b id="u-coins">0</b> <span class="armour"></span><b id="u-armour">0</b></div></div>
+
+<div id="covenant-screen" class="screen">
+  <div class="cvhead">
+    <div class="cvtitle">DIVINE COVENANTS</div>
+    <div class="cvsub">Choose a holy vow to bless your crusade across this realm.</div>
+  </div>
+  <div class="cvcards" id="covenant-cards"></div>
+</div>
+
+<div id="relic-screen" class="screen">
+  <div class="rlhead">
+    <div class="rltitle">SACRED RELIC CLAIMED</div>
+    <div class="rlsub">The fallen have yielded a sacred artifact. Select your relic:</div>
+  </div>
+  <div class="rlcards" id="relic-cards"></div>
+  <button id="relic-skip" class="ghost">FORGO RELIC</button>
+</div>
   <div class="upcards" id="upcards"></div>
   <button id="up-go" class="gold">NEXT WAVE</button>
 </div>

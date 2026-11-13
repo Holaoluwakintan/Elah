@@ -2020,7 +2020,7 @@ const SFX = {
 };
 
 // ------------------------------------------------------------------ game state
-const G = { captives: [], divided: false, phase: 'loading', wave: 0, coins: 0, armour: 0, kills: 0, t0: 0, angelUsed: false, up: UP0(), spirit: 0, fin: null, stage: null, jawItem: null, slow: 1, slowT: 0, hitstop: 0, shake: 0, paused: false, cine: null, boss: null, enemies: [], log: [], fpsLog: [] };
+const G = { captives: [], divided: false, phase: 'loading', covenant: null, relics: [], wave: 0, coins: 0, armour: 0, kills: 0, t0: 0, angelUsed: false, up: UP0(), spirit: 0, fin: null, stage: null, jawItem: null, slow: 1, slowT: 0, hitstop: 0, shake: 0, paused: false, cine: null, boss: null, enemies: [], log: [], fpsLog: [] };
 const LOG = (type, data = {}) => { G.log.push({ t: +(performance.now() / 1000).toFixed(2), type, ...data }); if (G.log.length > 400) G.log.shift(); };
 let P, MOSES, ANGEL, MELCH;
 const CAM = { yaw: 0, pitch: 0.33, dist: 6.9, tgt: new THREE.Vector3(), lastDrag: -10, pos: new THREE.Vector3(0, 6, 14) };
@@ -2200,7 +2200,7 @@ function releaseStone() {
   const tg = P.slingTarget;
   if (tg && tg.alive) { aim = tg.isBoss ? tg.headPos(new THREE.Vector3()) : tg.pos.clone().setY(tg.pos.y + 1.25 * tg.scale); const tt = from.distanceTo(aim) / 36; aim.addScaledVector(tg.vel, tt * 0.8); }
   else aim = from.clone().add(new THREE.Vector3(Math.sin(P.yaw), 0, Math.cos(P.yaw)).multiplyScalar(20));
-  s.v.copy(aim).sub(from).normalize().multiplyScalar(36); s.m.position.copy(from); s.m.lookAt(aim); s.m.visible = true; s.life = 1.4; s.dmg = STATS().sling;
+  s.v.copy(aim).sub(from).normalize().multiplyScalar(36); s.m.position.copy(from); s.m.lookAt(aim); s.m.visible = true; s.life = 1.4; s.dmg = cvOnSling(STATS().sling);
   if (LEVEL === 3 || LEVEL >= 5) SFX.bow(); else SFX.sling(); LOG('sling');
 }
 function updateStones(dt) {
@@ -2242,7 +2242,7 @@ function updatePlayer(dt) {
         if (LEVEL === 2 && G.fin && !G.fin.collapsing && pushHeld() && nearSpot()) { startPush(); break; }
         if (LEVEL !== 2 && p.slingCd <= 0) { startSling(); break; }
       }
-      const sp = iv.m > 0.7 ? 6.0 : 2.4 + 3.6 * iv.m;
+      const sp = (iv.m > 0.7 ? 6.0 : 2.4 + 3.6 * iv.m) * (p._rage ? 1.4 : 1);
       if (iv.m > 0) { p.pos.x += iv.x * sp * dt; p.pos.z += iv.z * sp * dt; p.yaw = turnTo(p.yaw, Math.atan2(iv.x, iv.z), dt * 12); p.play(iv.m > 0.7 ? 'Jog_Fwd_Loop' : 'Walk_Loop', { ts: iv.m > 0.7 ? 1.05 : 0.8 + iv.m * 0.6 }); p.state = 'move'; }
       else { p.play('Idle_Loop'); p.state = 'idle'; }
       break;
@@ -2316,7 +2316,7 @@ function startDodge(iv) {
 
 
 // ------------------------------------------------------------------ Samson: Spirit, cords, jawbone, pillars
-function gainSpirit(v) { if (!P || P.bound) return; const was = G.spirit; G.spirit = Math.min(100, G.spirit + v * STATS().spiritGain); if (was < 100 && G.spirit >= 100) { SFX.buy(); dmgText(P.headPos(new THREE.Vector3()), 'SPIRIT READY', 'heal'); LOG('spirit_ready'); } }
+function gainSpirit(v) { if (G.spirit < 100 && G.spirit + v >= 100) cvOnSpirit(); if (!P || P.bound) return; const was = G.spirit; G.spirit = Math.min(100, G.spirit + v * STATS().spiritGain); if (was < 100 && G.spirit >= 100) { SFX.buy(); dmgText(P.headPos(new THREE.Vector3()), 'SPIRIT READY', 'heal'); LOG('spirit_ready'); } }
 function trySpirit() {
   if (G.spirit < 100) { if (now() - (G.spNag || 0) > 1.5) { G.spNag = now(); dmgText(P.headPos(new THREE.Vector3()), 'SPIRIT ' + Math.floor(G.spirit) + '%', ''); } return false; }
   const p = P; p.heave = p.state === 'push'; p.state = 'spirit'; p.st = 0; p.blasted = false; p.poseT = 0;
@@ -2543,7 +2543,7 @@ function hurtEnemy(e, dmg, dir, src, crit = false, from = P) {
   e.state = 'hit'; e.st = 0; e.play(Math.random() < 0.5 ? 'Hit_Chest' : 'Hit_Head', { loop: false, ts: 1.3, restart: true, fade: 0.06 });
 }
 function killEnemy(e) {
-  e.alive = false; e.state = 'dead'; e.st = 0; G.kills++; if (e.attacking) { attackers--; e.attacking = false; } gainSpirit(10);
+  e.alive = false; e.state = 'dead'; e.st = 0; G.kills++; cvOnKill(e); if (e.attacking) { attackers--; e.attacking = false; } gainSpirit(10);
   e.play('Death01', { loop: false, ts: 1.1, fade: 0.1, restart: true }); e.bar.visible = false; LOG('enemy_dead', { kind: e.kind });
   if (!G.boss && G.enemies.every(x => !x.alive) && captivesLeft() === 0 && LEVEL !== 6) finisher(e, false);
 }
@@ -3087,10 +3087,290 @@ const UPG8 = [
   { k: 'spirit', ic: '🔥', nm: 'TORCH OF THE LORD', ds: 'Spirit fills faster, torch blaze panic lasts longer', cost: { coin: 8 }, max: 3 },
   { k: 'bronze', ic: '🛡️', nm: 'BRONZE OF MIDIAN', ds: '+30 max health, full heal', cost: { armour: 3 }, max: 5 },
 ];
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// COVENANTS — one is chosen before every level; persists for that entire run
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const COVENANTS = [
+  {
+    id: 'abraham', ic: '🔥', name: 'COVENANT OF ABRAHAM',
+    verse: '"I will bless thee, and in multiplying I will multiply thy seed."',
+    ref: 'Genesis 22:17 (KJV)',
+    desc: 'Faith strikes true. Sling +50% dmg. Enemies below 20% HP sometimes flee in terror.',
+    apply(S) { S.sling = Math.round(S.sling * 1.5); },
+    onKill() { if (Math.random() < 0.25) { for (const e of G.enemies) if (e.alive && e.hp / e.maxHp < 0.25) e.flee = true; } },
+  },
+  {
+    id: 'elijah', ic: '🌪️', name: 'MANTLE OF ELIJAH',
+    verse: '"The LORD was not in the wind… the LORD was not in the fire… and after the fire a still small voice."',
+    ref: '1 Kings 19:12 (KJV)',
+    desc: 'Spirit fills 60% faster. All spirit abilities cost 15% less. Bloom ignites on spirit use.',
+    apply(S) { S.spiritGain = (S.spiritGain || 1) * 1.6; },
+    onSpirit() { bloomPulse(1.0, 0.4); godRayPulse(0.12); },
+  },
+  {
+    id: 'samson', ic: '💪', name: 'SEVEN LOCKS OF SAMSON',
+    verse: '"There hath not come a razor upon mine head; for I have been a Nazarite unto God."',
+    ref: 'Judges 16:17 (KJV)',
+    desc: 'Staff & jawbone +60% dmg. Near death (<25% HP): enter Rage — speed +40%, no flinch.',
+    apply(S) { S.staff = Math.round(S.staff * 1.6); },
+    onFrame(dt) {
+      if (P && P.hp / STATS().maxHp < 0.25) { P._rage = true; }
+      else if (P) { P._rage = false; }
+    },
+  },
+  {
+    id: 'joshua', ic: '📯', name: 'HORN OF JOSHUA',
+    verse: '"And it shall come to pass, that when they make a long blast with the ram's horn… the wall of the city shall fall down flat."',
+    ref: 'Joshua 6:5 (KJV)',
+    desc: 'The shofar echoes. +30 coins at run start. Each kill: 15% chance of a bonus coin drop.',
+    apply(S) { /* bonus coins given on covenant pick */ },
+    onKill(e, pos) { if (Math.random() < 0.15) { G.coins++; dmgText(pos.clone().add(new THREE.Vector3(0,1.5,0)), '+1', '#ffe090'); SFX.coin && SFX.coin(); } },
+  },
+  {
+    id: 'shield', ic: '🛡️', name: 'SHIELD OF FAITH',
+    verse: '"Above all, taking the shield of faith, wherewith ye shall be able to quench all the fiery darts of the wicked."',
+    ref: 'Ephesians 6:16 (KJV)',
+    desc: '+50 max HP. Parry window +40ms wider. Blocking reduces damage by an extra 30%.',
+    apply(S) { S.maxHp = (S.maxHp || 100) + 50; S.parryWindow = (S.parryWindow || 240) + 40; },
+  },
+  {
+    id: 'david', ic: '🪨', name: 'STONE FROM THE BROOK',
+    verse: '"And he chose him five smooth stones out of the brook, and put them in a shepherd's bag."',
+    ref: '1 Samuel 17:40 (KJV)',
+    desc: 'First sling shot of every wave always crits (3× dmg). Sling reload 25% faster.',
+    apply(S) { S.slingCd = (S.slingCd || 1) * 0.75; },
+    onWaveStart() { G._brookStoneReady = true; },
+    onSling(dmg) { if (G._brookStoneReady) { G._brookStoneReady = false; return dmg * 3; } return dmg; },
+  },
+];
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RELICS — collected from defeated bosses / end-of-level rewards
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const RELIC_DEFS = [
+  {
+    id: 'goliath_helm', ic: '⛑️', name: "GOLIATH'S HELMET",
+    desc: 'Gain 25 HP at the start of each new wave.',
+    ref: '1 Samuel 17:5 (KJV)',
+    onWaveStart() { P.hp = Math.min(STATS().maxHp, P.hp + 25); dmgText(P.pos.clone().add(new THREE.Vector3(0,2.2,0)), '+25 HP', '#88ffaa'); },
+  },
+  {
+    id: 'jawbone', ic: '🦴', name: 'JAWBONE OF LEHI',
+    desc: 'Every 8th kill triggers a divine shockwave, stunning nearby enemies.',
+    ref: 'Judges 15:16 (KJV)',
+    onKill(e, pos) {
+      G._jawKills = (G._jawKills || 0) + 1;
+      if (G._jawKills % 8 === 0) { SFX.spirit && SFX.spirit(); dustRing(pos, 14, 6, 5); shake(0.6); bloomPulse(0.8, 0.4); for (const en of G.enemies) if (en.alive && en.pos.distanceTo(pos) < 7) { en.stagger = 2.0; } }
+    },
+  },
+  {
+    id: 'fire_chariot', ic: '🔥', name: "ELIJAH'S CHARIOT",
+    desc: 'Every 30s, divine fire rains on 3 random enemies.',
+    ref: '2 Kings 2:11 (KJV)',
+    onFrame(dt) {
+      G._chariotT = (G._chariotT || 0) + dt;
+      if (G._chariotT >= 30) { G._chariotT = 0; let n = 0; for (const e of G.enemies) { if (e.alive && n < 3) { flashAt(e.pos.clone().setY(e.pos.y+1), 1.5, 0.3, 0xff6020); e.hp -= 40; e.flash = 1; n++; } } if (n) { toast('"The LORD sent thunder and rain that day." · 1 Sam 12:18', 2500); bloomPulse(1.2, 0.5); } }
+    },
+  },
+  {
+    id: 'armor_light', ic: '✨', name: 'ARMOUR OF LIGHT',
+    desc: 'Each perfect parry restores 8 HP.',
+    ref: 'Romans 13:12 (KJV)',
+    onParry() { P.hp = Math.min(STATS().maxHp, P.hp + 8); dmgText(P.pos.clone().add(new THREE.Vector3(0,2,0)), '+8 HP', '#a0e8ff'); },
+  },
+  {
+    id: 'samuels_oil', ic: '🫙', name: "SAMUEL'S OIL",
+    desc: 'Coins drop 40% more often. Execution meter fills 25% faster.',
+    ref: '1 Samuel 16:13 (KJV)',
+    apply(S) { S.spiritGain = (S.spiritGain || 1) * 1.25; },
+  },
+  {
+    id: 'angels_bread', ic: '🍞', name: "ANGEL'S BREAD",
+    desc: 'Heal 15 HP on every enemy kill.',
+    ref: '1 Kings 19:5 (KJV)',
+    onKill() { P.hp = Math.min(STATS().maxHp, P.hp + 15); },
+  },
+  {
+    id: 'ephod', ic: '📿', name: 'THE GOLDEN EPHOD',
+    desc: 'Staff hits deal bonus holy damage (×1.3) to captains and champions.',
+    ref: 'Exodus 28:6 (KJV)',
+    apply(S) { S._ephod = true; },
+  },
+  {
+    id: 'ten_strings', ic: '🪗', name: 'THE TEN-STRINGED HARP',
+    desc: 'Your songs calm the enemy. Enemies stagger 20% longer.',
+    ref: 'Psalm 33:2 (KJV)',
+    apply(S) { S._harp = true; },
+  },
+];
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Run-scoped state
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// G.covenant = active covenant id (or null)
+// G.relics   = array of active relic ids
+
+// Helper — get relic def objects currently active
+function activeRelics() { return (G.relics || []).map(id => RELIC_DEFS.find(r => r.id === id)).filter(Boolean); }
+function activeCovenant() { return COVENANTS.find(c => c.id === G.covenant) || null; }
+
+// Apply covenant + relic passive modifiers to a STATS() result object
+function applyCovenantStats(S) {
+  const cv = activeCovenant(); if (cv && cv.apply) cv.apply(S);
+  for (const r of activeRelics()) if (r.apply) r.apply(S);
+}
+
+// Per-frame passive tick for covenant + relics
+function tickPassives(dt) {
+  const cv = activeCovenant(); if (cv && cv.onFrame) cv.onFrame(dt);
+  for (const r of activeRelics()) if (r.onFrame) r.onFrame(dt);
+  // Samson rage visual
+  if (P && P._rage) { if (!P._rageFx) { P._rageFx = true; toast('SAMSON RAGE — NEAR DEATH FURY!', 2200); bloomPulse(0.9, 0.8); } } else { P._rageFx = false; }
+}
+
+// Covenant/relic hooks called from game events
+function cvOnKill(e) { const pos = e.pos.clone(); const cv = activeCovenant(); if (cv && cv.onKill) cv.onKill(e, pos); for (const r of activeRelics()) if (r.onKill) r.onKill(e, pos); }
+function cvOnSpirit() { const cv = activeCovenant(); if (cv && cv.onSpirit) cv.onSpirit(); }
+function cvOnParry() { for (const r of activeRelics()) if (r.onParry) r.onParry(); }
+function cvOnSling(dmg) { const cv = activeCovenant(); return cv && cv.onSling ? cv.onSling(dmg) : dmg; }
+function cvOnWaveStart() { const cv = activeCovenant(); if (cv && cv.onWaveStart) cv.onWaveStart(); for (const r of activeRelics()) if (r.onWaveStart) r.onWaveStart(); }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// COVENANT SELECTION PANEL
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function covenantPanel() {
+  return new Promise(res => {
+    // Pick 3 unique covenants at random (or fewer if already has one — show upgrade/swap)
+    const pool = COVENANTS.filter(c => c.id !== G.covenant);
+    const picks = pool.sort(() => Math.random() - 0.5).slice(0, 3);
+    if (G.covenant) picks.unshift(COVENANTS.find(c => c.id === G.covenant)); // keep current as first option
+
+    const el = $('covenant-screen');
+    const cards = $('covenant-cards');
+    cards.innerHTML = '';
+    picks.forEach(cv => {
+      const btn = document.createElement('button');
+      btn.className = 'cvc' + (cv.id === G.covenant ? ' cvc-active' : '');
+      btn.innerHTML = `<div class="cvc-ic">${cv.ic}</div>
+        <div class="cvc-nm">${cv.name}</div>
+        <div class="cvc-verse">${cv.verse}<span>${cv.ref}</span></div>
+        <div class="cvc-ds">${cv.desc}</div>
+        ${cv.id === G.covenant ? '<div class="cvc-keep">KEEP (CURRENT)</div>' : ''}`;
+      btn.onclick = () => {
+        G.covenant = cv.id;
+        if (cv.id === 'joshua' && !G._joshuaCoins) { G.coins += 30; G._joshuaCoins = true; }
+        show('covenant-screen', false);
+        speakVoice(cv.verse.replace(/["""]/g,''), 'lord');
+        updateRelicHUD();
+        res();
+      };
+      cards.appendChild(btn);
+    });
+    show('covenant-screen');
+    if (BOT) setTimeout(() => picks[0] && picks[0].ic && $('covenant-cards').firstChild && $('covenant-cards').firstChild.click(), 800);
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RELIC REWARD PANEL (after boss / final wave)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function relicPanel() {
+  return new Promise(res => {
+    const owned = G.relics || [];
+    const pool = RELIC_DEFS.filter(r => !owned.includes(r.id));
+    if (pool.length === 0) { res(); return; }  // all relics collected
+    const picks = pool.sort(() => Math.random() - 0.5).slice(0, Math.min(2, pool.length));
+
+    const el = $('relic-screen');
+    const cards = $('relic-cards');
+    cards.innerHTML = '';
+    picks.forEach(r => {
+      const btn = document.createElement('button');
+      btn.className = 'rlc';
+      btn.innerHTML = `<div class="rlc-ic">${r.ic}</div>
+        <div class="rlc-nm">${r.name}</div>
+        <div class="rlc-ref">${r.ref}</div>
+        <div class="rlc-ds">${r.desc}</div>`;
+      btn.onclick = () => {
+        G.relics.push(r.id);
+        show('relic-screen', false);
+        toast(`Relic acquired: ${r.ic} ${r.name}`, 2800);
+        bloomPulse(1.3, 0.8); godRayPulse(0.18);
+        updateRelicHUD();
+        res();
+      };
+      cards.appendChild(btn);
+    });
+    // Skip button
+    $('relic-skip').onclick = () => { show('relic-screen', false); res(); };
+    show('relic-screen');
+    if (BOT) setTimeout(() => $('relic-cards').firstChild && $('relic-cards').firstChild.click(), 900);
+  });
+}
+
+// Update the HUD relic icon strip
+function updateRelicHUD() {
+  const bar = $('relic-hud'); if (!bar) return;
+  bar.innerHTML = '';
+  const cv = activeCovenant();
+  if (cv) { const s = document.createElement('span'); s.className='rh-cov'; s.title=cv.name; s.textContent=cv.ic; bar.appendChild(s); }
+  for (const r of activeRelics()) { const s = document.createElement('span'); s.className='rh-relic'; s.title=r.name; s.textContent=r.ic; bar.appendChild(s); }
+}
+
 let UPG = UPG1;
 function saveProgress() { SAVE.coins = G.coins; SAVE.armour = G.armour; SAVE.up = Object.assign(UP0(), G.up); writeSave(); }
+// Covenant/relic stat modifier — called after STATS() computes base values
+const _statsBase = STATS;
+function STATS() { const S = _statsBase(); if (typeof applyCovenantStats === 'function') applyCovenantStats(S); return S; }
 function canBuy(u) { return (u.cost.coin || 0) <= G.coins && (u.cost.armour || 0) <= G.armour && G.up[u.k] < (u.max || 3); }
-function buy(u) { if (!canBuy(u)) return false; G.coins -= u.cost.coin || 0; G.armour -= u.cost.armour || 0; G.up[u.k]++; if (u.k === 'bronze') P.hp = STATS().maxHp; if (u.k === 'men') for (const a of ALLIES) { const r = a.hp / a.maxHp; a.maxHp = STATS().allyHp; a.hp = a.maxHp * Math.max(r, 0.6); } SFX.buy(); LOG('upgrade', { k: u.k, lvl: G.up[u.k] }); return true; }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// VISIBLE HERO ARMOR PROGRESSION (Pillar 4)
+// Attaches 3D bronze gear to skeleton bones as player purchases upgrades
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function updateHeroArmorVisuals() {
+  if (!P || !P.obj) return;
+  const root = P.obj;
+  if (P._armorMeshes) {
+    for (const m of P._armorMeshes) {
+      if (m.parent) m.parent.remove(m);
+      if (m.geometry) m.geometry.dispose();
+    }
+  }
+  P._armorMeshes = [];
+  const lvl = (G.up && G.up.bronze) || 0;
+  if (lvl <= 0) return;
+  const bronze = (MAT && MAT.bronze) || smat(0xc08a45, 0.35, 0.9);
+
+  // Level 1: Bronze bracers on forearms
+  if (lvl >= 1) {
+    const bL = attach(root, 'DEF-forearmL', new THREE.CylinderGeometry(0.044, 0.042, 0.1, 10, 1, true).rotateZ(Math.PI / 2).translate(0.6, 1.45, -0.02), bronze, new THREE.Vector3());
+    const bR = attach(root, 'DEF-forearmR', new THREE.CylinderGeometry(0.044, 0.042, 0.1, 10, 1, true).rotateZ(Math.PI / 2).translate(-0.6, 1.45, -0.02), bronze, new THREE.Vector3());
+    P._armorMeshes.push(bL, bR);
+  }
+
+  // Level 2: Bronze cuirass / breastplate
+  if (lvl >= 2) {
+    const cp = attach(root, 'DEF-spine003', merged([
+      new THREE.CylinderGeometry(0.178, 0.17, 0.28, 16, 1, true, -1.15, 2.3).scale(1, 1, 0.92).translate(0, 1.29, -0.004),
+      ell(0.04, 1, 1, 0.4, 0, 1.3, 0.155)
+    ]), bronze, new THREE.Vector3(), { shadow: true });
+    P._armorMeshes.push(cp);
+  }
+
+  // Level 3: Bronze helmet with crest
+  if (lvl >= 3) {
+    const helmGeo = merged([
+      new THREE.CylinderGeometry(0.126, 0.122, 0.05, 18, 1, true).translate(0, 1.74, 0),
+      new THREE.SphereGeometry(0.125, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1.02, 1.05, 1.1).translate(0, 1.73, -0.015),
+      new THREE.BoxGeometry(0.025, 0.08, 0.22).translate(0, 1.86, -0.02)
+    ]);
+    const helm = attach(root, 'DEF-head', helmGeo, bronze, new THREE.Vector3(), { shadow: true });
+    P._armorMeshes.push(helm);
+  }
+}
+
+function buy(u) { if (!canBuy(u)) return false; G.coins -= u.cost.coin || 0; G.armour -= u.cost.armour || 0; G.up[u.k]++; if (u.k === 'bronze') { P.hp = STATS().maxHp; updateHeroArmorVisuals(); } if (u.k === 'men') for (const a of ALLIES) { const r = a.hp / a.maxHp; a.maxHp = STATS().allyHp; a.hp = a.maxHp * Math.max(r, 0.6); } SFX.buy(); LOG('upgrade', { k: u.k, lvl: G.up[u.k] }); return true; }
 function upgradePanel(nextLabel) {
   return new Promise((res) => {
     const box = $('upcards');
@@ -3145,7 +3425,7 @@ const WAVES5 = [
   { name: 'THEY GATHER AT KISHON', list: [['shield', -6, -16], ['shield', 7, -16], ['captain', 0, -18], ['archer', -14, -17], ['archer', 14, -17], ['phil', -24, 4], ['phil', 24, 6], ['phil', -22, -10], ['phil', 22, -10]] },
 ];
 const curWaves = () => LEVEL === 6 ? WAVES6 : LEVEL === 5 ? WAVES5 : LEVEL === 4 ? WAVES4 : LEVEL === 3 ? WAVES3 : LEVEL === 2 ? WAVES2 : WAVES;
-function startWave(i) {
+function startWave(i) { cvOnWaveStart();
   G.wave = i + 1; G.phase = 'play'; const w = curWaves()[i]; const SQW = STORY[LEVEL] && STORY[LEVEL].waveSeq; if (SQW && SQW[i] !== G.seq) seqBanner(SQW[i]); $('wave').textContent = seqTag() + w.name; toast(`<b>${w.name}</b>`, 2200); SFX.horn();
   if (w.captives && DAN) { spawnCaptives(); setTimeout(() => toast('Lot and the people are bound at the stakes. <b>Stand by a captive</b> to cut his cords.', 3600), 2300); }
   if (w.divided) { G.divided = true; setTimeout(() => toast('“And he divided himself against them, he and his servants, by night, and smote them…”<i>GENESIS 14:15 (KJV)</i>', 4200), 2200); }
@@ -3163,6 +3443,9 @@ async function flow() {
   await card(STORY_L1.counsel);
   MOSES.play('Idle_Loop'); MOSES.yaw = Math.PI * 0.92; G.cine = null; document.body.classList.remove('cine');
   seqBanner(1);
+  G.relics = []; G.covenant = null; G._joshuaCoins = false;
+  await covenantPanel();
+  cvOnWaveStart();
   await runWaves(0);
 }
 async function runWaves(from, pre = false) {
@@ -3177,6 +3460,7 @@ async function runWaves(from, pre = false) {
     if (LEVEL === 4 && i === WV.length - 1) { toast('“…he slew two lionlike men of Moab…”<i>2 SAMUEL 23:20 (KJV)</i>', 3600); await sleep(3200); }
     await upgradePanel(i < WV.length - 1 ? 'NEXT WAVE' : LEVEL === 6 ? 'ON TO PASDAMMIM' : LEVEL === 5 ? 'THE CHARIOTS OF IRON' : LEVEL === 4 ? 'GO DOWN INTO THE PIT' : LEVEL === 3 ? 'FACE THE KING OF ELAM' : LEVEL === 2 ? 'ON TO GAZA' : 'FACE GOLIATH');
   }
+  if (G.relics.length < RELIC_DEFS.length) await relicPanel();
   if (LEVEL === 2) await finale(); else if (LEVEL === 3) await kingFight(); else if (LEVEL === 4) await pitFight(); else if (LEVEL === 5) await chariotSeq(); else if (LEVEL === 6) { G.horde = false; await barleySeq(); } else await bossFight();
 }
 async function bossFight() {
@@ -3282,7 +3566,7 @@ function resetRun(full) {
   clearDead(); if (G.boss) { G.boss.remove(); scene.remove(G.boss.marker); G.boss = null; } $('boss-wrap').classList.add('hidden'); FX.ring.visible = FX.ringFill.visible = false;
   for (const s of spoils) { s.live = false; s.m.visible = false; } for (const a of arrows) { a.life = 0; a.m.visible = false; } prompt('');
   if (G.jawItem) { scene.remove(G.jawItem.m); scene.remove(G.jawItem.gl); G.jawItem = null; }
-  if (full) { G.coins = SAVE.coins; G.armour = SAVE.armour; G.up = Object.assign(UP0(), SAVE.up); G.kills = 0; }
+  if (full) { G.coins = SAVE.coins; G.armour = SAVE.armour; G.up = Object.assign(UP0(), SAVE.up); updateHeroArmorVisuals(); G.kills = 0; G.covenant = null; G.relics = []; G._joshuaCoins = false; updateRelicHUD && updateRelicHUD(); }
   G.angelUsed = false; $('angel-ico').classList.remove('used'); if (G.angel) { G.angel = null; if (ANGEL) ANGEL.obj.visible = false; FX.pillar.visible = false; } G.fin = null; G.stage = null; G.spirit = LEVEL === 2 ? 0 : 0;
   if (LEVEL === 2 && WORLD !== 'lehi' && full) buildWorld('lehi');
   if (LEVEL === 3 && WORLD !== 'dan') buildWorld('dan');
@@ -4689,6 +4973,7 @@ function frame() {
     if (gu.uChroma) { gu.uChroma.value = Math.max(0, (gu.uChroma.value || 0) - rdt * 3.5); }
     updateBloom(rdt);
     updateGodRay(rdt);
+    if (G.phase === 'play') tickPassives(rdt);
     updateEmbers(rdt);
     updateLightning(rdt);
     composer.render();
@@ -4818,7 +5103,7 @@ function makeHero() {
     : LEVEL === 12 ? new Actor('jonah', 0.98, 'jonah')
     : LEVEL === 10 ? new Actor('elijah', 1.0, 'elijah')
     : LEVEL === 9 ? new Actor('daniel', 1.0, 'daniel')
-    : LEVEL === 8 ? new Actor('gideon', 1.02, 'gideon') : LEVEL === 7 ? new Actor('joshua', 1.05, 'joshua') : LEVEL === 6 ? new Actor('barak', 1.04, 'davidking') : LEVEL === 5 ? new Actor('barak', 1.0) : LEVEL === 4 ? new Actor('benaiah', 1.0) : LEVEL === 3 ? new Actor('abram', 0.98) : LEVEL === 2 ? new Actor('samson', 1.0) : new Actor('david', 0.94); P.hp = 100; P.pos.set(0, 0, LEVEL === 3 ? 11 : LEVEL === 2 ? 6 : 10); ground(P); P.yaw = Math.PI; P.play('Idle_Loop');
+    : LEVEL === 8 ? new Actor('gideon', 1.02, 'gideon') : LEVEL === 7 ? new Actor('joshua', 1.05, 'joshua') : LEVEL === 6 ? new Actor('barak', 1.04, 'davidking') : LEVEL === 5 ? new Actor('barak', 1.0) : LEVEL === 4 ? new Actor('benaiah', 1.0) : LEVEL === 3 ? new Actor('abram', 0.98) : LEVEL === 2 ? new Actor('samson', 1.0) : new Actor('david', 0.94); P.hp = 100; P.pos.set(0, 0, LEVEL === 3 ? 11 : LEVEL === 2 ? 6 : 10); ground(P); P.yaw = Math.PI; P.play('Idle_Loop'); updateHeroArmorVisuals();
   if (LEVEL === 3 || LEVEL === 6) MOSES.pos.set(-4.5, 0, 15.5); else if (LEVEL === 2) { MOSES.pos.set(-4.5, 0, 14.5); } else MOSES.pos.set(-5, 0, 19.5); ground(MOSES);
 }
 function switchLevel(l) {
@@ -6809,7 +7094,7 @@ function startParry() {
   flashAt(P.pos.clone().setY(P.pos.y + 1.2), 0.9, 0.14, 0xffd700);
 }
 
-function handlePerfectParry(from) {
+function handlePerfectParry(from) { cvOnParry();
   SFX.parry();
   SFX.clang();
   shake(0.38);

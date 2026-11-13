@@ -500,3 +500,32 @@ body.post:not(.vision):not(.dark) #vignette{background:none}
   text-shadow: 0 0 18px #ff1744, 0 2px 6px #000;
   font-style: italic; font-weight: 900;
 }
+
+
+/* ------------------------------------------------------------------ Covenants & Relics (Pillar 4) */
+#covenant-screen,#relic-screen{background:radial-gradient(ellipse at center,rgba(26,16,6,.94),rgba(6,3,1,.98));padding:20px;z-index:15}
+.cvhead,.rlhead{text-align:center;margin-bottom:16px}
+.cvtitle,.rltitle{font:700 clamp(22px,4vw,32px) 'Cinzel',Georgia,serif;letter-spacing:.2em;color:#ffe6a6;text-shadow:0 0 24px rgba(255,200,80,.45)}
+.cvsub,.rlsub{font:13px system-ui,sans-serif;opacity:.88;margin-top:6px;color:#d8c6aa}
+
+.cvcards,.rlcards{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;max-width:96vw}
+
+.cvc,.rlc{width:min(29vw,240px);background:linear-gradient(170deg,#2f1e0d,#150c05);border:1.5px solid rgba(232,194,122,.5);border-radius:14px;padding:16px 12px;color:var(--ink);text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s}
+.cvc:hover,.rlc:hover{transform:translateY(-4px);border-color:#ffe8a8;box-shadow:0 8px 24px rgba(255,190,70,.35)}
+.cvc:active,.rlc:active{transform:scale(.97)}
+
+.cvc.cvc-active{border-color:#88ffaa;box-shadow:0 0 20px rgba(136,255,170,.3)}
+.cvc-keep{font:700 10px system-ui,sans-serif;letter-spacing:.14em;color:#88ffaa;margin-top:4px}
+
+.cvc-ic,.rlc-ic{font-size:36px;margin-bottom:2px}
+.cvc-nm,.rlc-nm{font:700 14px 'Cinzel',Georgia,serif;letter-spacing:.12em;color:var(--gold)}
+.cvc-verse{font:italic 12px/1.35 Georgia,serif;color:#f3e8cf;background:rgba(0,0,0,.4);border-left:3px solid var(--gold);padding:6px 8px;margin:6px 0;border-radius:0 6px 6px 0;text-align:left}
+.cvc-verse span,.rlc-ref{display:block;font:600 10px system-ui,sans-serif;letter-spacing:.1em;color:var(--gold);margin-top:4px;font-style:normal}
+.cvc-ds,.rlc-ds{font:12px/1.4 system-ui,sans-serif;opacity:.92;color:#e8dcc4;margin-top:2px}
+.rlc-ref{color:#e8c47a;font-size:10px;margin-bottom:2px}
+
+#relic-skip{margin-top:16px;font-size:12px;letter-spacing:.14em}
+
+#relic-hud{display:flex;gap:6px;margin-top:6px;pointer-events:auto}
+.rh-cov{font-size:17px;background:rgba(212,175,55,.2);border:1px solid rgba(212,175,55,.5);border-radius:6px;padding:2px 6px;cursor:help;display:inline-block}
+.rh-relic{font-size:17px;background:rgba(80,180,255,.2);border:1px solid rgba(80,180,255,.5);border-radius:6px;padding:2px 6px;cursor:help;display:inline-block}
