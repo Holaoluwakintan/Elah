@@ -83,17 +83,27 @@ camera.position.set(0, 6, 14);
 // post: Medium = cinematic grade (ACES, split-tone, contrast, vignette, grain) in one pass; High adds bloom and 4x MSAA.
 // Low renders straight to the screen (no extra passes) and keeps the CSS vignette.
 let POST = QP[QUALITY].post && !Q.has('nopost'), BLOOM = QP[QUALITY].bloom && !Q.has('nobloom'), composer = null, bloomPass = null, gradePass = null;
+const BLM = { base: 0.36, cur: 0.36, target: 0.36 };
+function bloomPulse(str = 1.4, dur = 0.6) { BLM.target = Math.max(BLM.target, str); BLM._decay = dur; }
+function updateBloom(dt) {
+  if (!bloomPass) return;
+  BLM.target = Math.max(BLM.base, BLM.target - dt * (1 / (BLM._decay || 0.6)));
+  BLM.cur += (BLM.target - BLM.cur) * Math.min(1, dt * 8);
+  bloomPass.threshold = THREE.MathUtils.lerp(0.8, 0.5, (BLM.cur - BLM.base) / (1.6 - BLM.base));
+  bloomPass.strength = BLM.cur;
+}
 const GradeShader = {
   uniforms: { tDiffuse: { value: null }, uExp: { value: 1 }, uTime: { value: 0 }, uVig: { value: 0.32 }, uGrain: { value: 0.035 }, uSat: { value: 1.08 }, uCon: { value: 1.08 },
-    uShadow: { value: new THREE.Vector3(0.94, 0.99, 1.06) }, uHigh: { value: new THREE.Vector3(1.05, 1.0, 0.93) }, uFlash: { value: 0 } },
+    uShadow: { value: new THREE.Vector3(0.94, 0.99, 1.06) }, uHigh: { value: new THREE.Vector3(1.05, 1.0, 0.93) }, uFlash: { value: 0 }, uChroma: { value: 0 } },
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float uExp, uTime, uVig, uGrain, uSat, uCon, uFlash; uniform vec3 uShadow, uHigh; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uExp, uTime, uVig, uGrain, uSat, uCon, uFlash, uChroma; uniform vec3 uShadow, uHigh; varying vec2 vUv;
   vec3 rrt(vec3 v){ vec3 a = v*(v+0.0245786)-0.000090537; vec3 b = v*(0.983729*v+0.4329510)+0.238081; return a/b; }
   vec3 aces(vec3 c){ const mat3 I = mat3(0.59719,0.07600,0.02840, 0.35458,0.90834,0.13383, 0.04823,0.01566,0.83777); const mat3 O = mat3(1.60475,-0.10208,-0.00327, -0.53108,1.10813,-0.07276, -0.07367,-0.00605,1.07602);
     c *= uExp/0.6; c = I*c; c = rrt(c); c = O*c; return clamp(c,0.0,1.0); }
   vec3 toSRGB(vec3 c){ return mix(c*12.92, 1.055*pow(c, vec3(0.41666))-0.055, step(0.0031308, c)); }
   void main(){
-    vec3 c = toSRGB(aces(texture2D(tDiffuse, vUv).rgb));
+    vec2 cOff = (vUv - 0.5) * uChroma * 0.012;
+    vec3 c = toSRGB(aces(vec3(texture2D(tDiffuse, vUv + cOff).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - cOff).b)));
     float l = dot(c, vec3(0.2126,0.7152,0.0722));
     c = mix(c*uShadow, c*uHigh, smoothstep(0.05, 0.85, l));
     c = (c - 0.5)*uCon + 0.5;
@@ -117,6 +127,41 @@ function initComposer() {
   } catch (e) { console.warn('post off', e); POST = BLOOM = false; composer = null; }
 }
 initComposer();
+// ---- God Ray pass (radial light shaft blur toward sun position on screen)
+const GodRayShader = {
+  uniforms: { tDiffuse: { value: null }, uSunPos: { value: new THREE.Vector2(0.65, 0.72) }, uIntensity: { value: 0 }, uDecay: { value: 0.96 }, uDensity: { value: 0.8 }, uWeight: { value: 0.4 }, uSamples: { value: 60 } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uSunPos; uniform float uIntensity, uDecay, uDensity, uWeight; varying vec2 vUv;
+  void main() {
+    if (uIntensity < 0.004) { gl_FragColor = texture2D(tDiffuse, vUv); return; }
+    vec2 tc = vUv; vec2 delta = (tc - uSunPos) * (1.0 / 60.0) * uDensity;
+    float ill = 1.0; vec3 col = vec3(0.0);
+    for (int i = 0; i < 60; i++) { tc -= delta; col += texture2D(tDiffuse, tc).rgb * ill * uWeight; ill *= uDecay; }
+    gl_FragColor = texture2D(tDiffuse, vUv) + vec4(col * uIntensity, 0.0);
+  }`
+};
+let godRayPass = null;
+function initGodRay() {
+  if (!composer || !POST || godRayPass) return;
+  try {
+    godRayPass = new ShaderPass(GodRayShader);
+    // Insert before gradePass (second-to-last)
+    composer.passes.splice(composer.passes.length - 1, 0, godRayPass);
+  } catch(e) { console.warn('godray off', e); }
+}
+// GodRay state
+const GR = { intensity: 0, target: 0, sunScreen: new THREE.Vector3() };
+function godRayPulse(v) { GR.target = Math.max(GR.target, v); }
+function updateGodRay(dt) {
+  if (!godRayPass) return;
+  GR.target = Math.max(0, GR.target - dt * 1.2);
+  GR.intensity += (GR.target - GR.intensity) * Math.min(1, dt * 6);
+  godRayPass.uniforms.uIntensity.value = GR.intensity;
+  // Project sun direction to screen space
+  const sv = SUN_DIR.clone().multiplyScalar(-1);
+  sv.project(camera);
+  godRayPass.uniforms.uSunPos.value.set(sv.x * 0.5 + 0.5, sv.y * 0.5 + 0.5);
+}
 document.body.dataset.q = QUALITY;
 
 const SUN_DIR = new THREE.Vector3(-0.55, 0.42, -0.72).normalize();
@@ -297,6 +342,44 @@ const rockG = vcol(new THREE.DodecahedronGeometry(1, 0), 0x9b8b78);
 
 // dust motes
 let dust;
+// ---- Floating embers (for fire worlds: carmel, belly, temple)
+let embers = null, EMBER_ON = false;
+function buildEmbers() {
+  if (embers) { scene.remove(embers); embers.geometry.dispose(); embers.material.dispose(); embers = null; }
+  const N = 180;
+  const g = new THREE.BufferGeometry();
+  const pos = new Float32Array(N * 3), vel = new Float32Array(N * 3), life = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    pos[i*3]   = (Math.random()-0.5)*20; pos[i*3+1] = Math.random()*8; pos[i*3+2] = (Math.random()-0.5)*20;
+    vel[i*3]   = (Math.random()-0.5)*0.4; vel[i*3+1] = 0.3+Math.random()*0.6; vel[i*3+2] = (Math.random()-0.5)*0.4;
+    life[i] = Math.random();
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aVel', new THREE.BufferAttribute(vel, 3));
+  g.setAttribute('aLife', new THREE.BufferAttribute(life, 1));
+  const cv = document.createElement('canvas'); cv.width = cv.height = 32;
+  const cx = cv.getContext('2d'); const grd = cx.createRadialGradient(16,16,0,16,16,14);
+  grd.addColorStop(0,'rgba(255,220,120,1)'); grd.addColorStop(0.4,'rgba(255,120,20,0.7)'); grd.addColorStop(1,'rgba(255,60,0,0)');
+  cx.fillStyle = grd; cx.beginPath(); cx.arc(16,16,14,0,Math.PI*2); cx.fill();
+  embers = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.18, map: new THREE.CanvasTexture(cv), transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: false, color: 0xff8830 }));
+  embers.frustumCulled = false; scene.add(embers);
+}
+function updateEmbers(dt) {
+  if (!embers || !EMBER_ON) return;
+  embers.position.set(Math.round(P.pos.x/18)*18, 0, Math.round(P.pos.z/18)*18);
+  const pos = embers.geometry.attributes.position, vel = embers.geometry.attributes.aVel;
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    x += vel.getX(i)*dt*2; y += vel.getY(i)*dt*2; z += vel.getZ(i)*dt*2;
+    if (y > 12 || Math.random() < dt*0.3) {
+      x = (Math.random()-0.5)*20; y = 0.1; z = (Math.random()-0.5)*20;
+      vel.setXYZ(i, (Math.random()-0.5)*0.4, 0.3+Math.random()*0.6, (Math.random()-0.5)*0.4);
+    }
+    pos.setXYZ(i, x, y, z);
+  }
+  pos.needsUpdate = true;
+}
+function setEmbers(on) { EMBER_ON = on; if (!embers && on) buildEmbers(); if (embers) embers.visible = on; }
 function buildDust() {
   const n = LOWQ ? 180 : 360, p = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) p.set([(rng() - 0.5) * 50, rng() * 8, (rng() - 0.5) * 50], i * 3);
@@ -655,7 +738,7 @@ const ENV = {
   elah: { fog: 0xd6a57a, near: 42, far: 240, hemi: [0xffdcae, 0x4a3018, 0.78], sun: [0xffc47e, 3.5], dir: [-0.58, 0.31, -0.75], zen: [0.26, 0.42, 0.68], hor: [0.98, 0.74, 0.5], low: [0.85, 0.66, 0.48], sunC: [1.0, 0.62, 0.28], exp: 1.05, dust: 0xffd9a0 },
   lehi: { fog: 0xa88078, near: 50, far: 250, hemi: [0xb4b0dc, 0x6a4a30, 1.25], sun: [0xffae74, 3.4], dir: [0.62, 0.24, -0.75], zen: [0.16, 0.2, 0.42], hor: [1.0, 0.56, 0.36], low: [0.52, 0.38, 0.4], sunC: [1.0, 0.45, 0.2], exp: 1.22, dust: 0xffb070 },
   dan: { fog: 0x111a2e, near: 16, far: 125, hemi: [0x6a80bc, 0x2a1e16, 0.55], sun: [0xb4c6f0, 1.25], dir: [0.3, 0.42, -0.86], zen: [0.012, 0.02, 0.055], hor: [0.07, 0.1, 0.19], low: [0.035, 0.035, 0.05], sunC: [0.22, 0.28, 0.45], exp: 1.08, dust: 0xffa060, warm: 0, stars: 1.4 },
-  moreh: { fog: 0x0a101e, near: 18, far: 140, hemi: [0x506894, 0x1e1610, 0.52], sun: [0x9ab0dc, 1.3], dir: [0.25, 0.5, -0.82], zen: [0.01, 0.018, 0.048], hor: [0.06, 0.08, 0.16], low: [0.03, 0.03, 0.04], sunC: [0.2, 0.26, 0.42], exp: 1.1, dust: 0xffa040, warm: 0, stars: 1.9 },
+  moreh: { fog: 0x06090f, near: 14, far: 120, hemi: [0x405a84, 0x160e0a, 0.45], sun: [0x9ab0dc, 1.1], dir: [0.25, 0.5, -0.82], zen: [0.008, 0.014, 0.038], hor: [0.04, 0.06, 0.12], low: [0.02, 0.02, 0.03], sunC: [0.18, 0.22, 0.38], exp: 1.15, dust: 0xff9030, warm: 0, stars: 2.6, cloud: 0.15 },
   wild: { fog: 0xcf9c70, near: 34, far: 185, hemi: [0xffd8a8, 0x5a3a22, 0.82], sun: [0xffb070, 3.3], dir: [-0.6, 0.27, 0.75], zen: [0.3, 0.4, 0.64], hor: [1.0, 0.68, 0.44], low: [0.84, 0.6, 0.44], sunC: [1.0, 0.56, 0.25], exp: 1.07, dust: 0xffc890 },
   moab: { fog: 0xb8b4bc, near: 40, far: 210, hemi: [0xdfe6f6, 0x5a4a3a, 0.95], sun: [0xffe0bc, 2.7], dir: [-0.5, 0.34, -0.78], zen: [0.32, 0.42, 0.6], hor: [0.86, 0.8, 0.78], low: [0.68, 0.64, 0.62], sunC: [1.0, 0.78, 0.55], exp: 1.05, dust: 0xffffff },
   pit: { fog: 0xc6ccd8, near: 18, far: 110, hemi: [0xe2eaff, 0x5a5450, 1.15], sun: [0xe8eeff, 1.7], dir: [0.35, 0.72, -0.5], zen: [0.5, 0.55, 0.65], hor: [0.8, 0.83, 0.88], low: [0.68, 0.7, 0.74], sunC: [0.9, 0.9, 0.95], exp: 1.0, dust: 0xffffff },
@@ -675,6 +758,11 @@ const GRADE = {
   storm: { sh: [0.92, 0.98, 1.08], hi: [1.0, 1.0, 1.0], sat: 0.92, con: 1.12, vig: 0.42 },
   temple: { sh: [0.92, 0.95, 1.06], hi: [1.1, 0.98, 0.86], sat: 1.08, con: 1.1, vig: 0.42 },
   jericho: { sh: [0.96, 0.98, 1.05], hi: [1.12, 1.02, 0.88], sat: 1.15, con: 1.12, vig: 0.36 },
+  elah:    { sh: [0.93, 0.98, 1.08], hi: [1.08, 1.0, 0.90],  sat: 1.12, con: 1.10, vig: 0.30 },
+  lehi:    { sh: [0.90, 0.95, 1.10], hi: [1.10, 0.98, 0.86],  sat: 1.08, con: 1.12, vig: 0.38 },
+  wild:    { sh: [0.93, 0.98, 1.06], hi: [1.07, 1.0, 0.91],  sat: 1.10, con: 1.09, vig: 0.32 },
+  beth:    { sh: [0.94, 0.98, 1.07], hi: [1.08, 1.0, 0.90],  sat: 1.12, con: 1.10, vig: 0.32 },
+  kishon:  { sh: [0.93, 0.97, 1.07], hi: [1.04, 1.0, 0.95],  sat: 1.05, con: 1.11, vig: 0.36 },
 };
 function setGrade(name) { if (!gradePass) return; const g = GRADE[name] || GRADE.def, u = gradePass.uniforms; u.uShadow.value.set(...g.sh); u.uHigh.value.set(...g.hi); u.uSat.value = g.sat; u.uCon.value = g.con; u.uVig.value = g.vig; }
 function setEnv(name) {
@@ -684,6 +772,7 @@ function setEnv(name) {
   SUN_DIR.set(...E.dir).normalize(); const u = skyMat.uniforms; u.uZen.value.set(...E.zen); u.uHor.value.set(...E.hor); u.uLow.value.set(...E.low); u.uSunC.value.set(...E.sunC); u.uWarm.value = E.warm ?? 1; u.uStars.value = E.stars ?? 0; u.uCloud.value = E.cloud ?? (name === 'dan' || name === 'pit' ? 0.35 : name === 'storm' ? 1.6 : name === 'temple' ? 0.6 : 1);
   RIM.value.set(E.rim || (E.warm === 0 ? 0x3a4a78 : E.sun[0])).multiplyScalar(E.rim ? 1 : E.warm === 0 ? 1 : 0.3);
   renderer.toneMappingExposure = E.exp; if (dust) dust.material.color.set(E.dust);
+  setEmbers(name === 'carmel' || name === 'belly' || name === 'temple');
   makeEnv();
 }
 function buildWorld(name) {
@@ -1734,6 +1823,7 @@ function audioInit() {
   const w = c.createBufferSource(); w.buffer = buf; w.loop = true; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 400; f.Q.value = 0.6; const g = c.createGain(); g.gain.value = AU.on ? 0.05 : 0;
   w.connect(f); f.connect(g); g.connect(AU.master); w.start(); AU.wind = { f, g };
   if (!Q.has('nomusic')) musicStart();
+  initGodRay();
   // Preload Web Speech voices (async in browsers)
   if (typeof window !== 'undefined' && window.speechSynthesis) {
     NARR.voices = window.speechSynthesis.getVoices() || [];
@@ -1758,7 +1848,7 @@ const MUSIC_CFG = {
   carmel: { bpm: 106, root: 73.42, roots: [0, 0, -2, 1, 0, -4, 1, -2] }, // D, Elijah: prophetic confrontation, fiery drone
   den: { bpm: 74, root: 51.91, roots: [0, 1, 0, 1, -2, -4, 1, 0], night: true }, // G#, Daniel: solemn subterranean acoustic echo
   jerusalem: { bpm: 114, root: 82.41, roots: [0, 0, -2, 1, 0, -2, 1, -4] }, // E, Hezekiah: massive Assyrian siege war drums
-  belly: { bpm: 70, root: 43.65, roots: [0, 1, 0, -2, 1, 0, -4, -2], night: true }, // F, Jonah: deep sub-oceanic visceral pulse
+  belly: { bpm: 70, root: 43.65, roots: [0, 1, 0, -2, 1, 0, -4, -2], night: true }, // F, Jonah: deep sub-oceanic visceral pulse — enhanced
 };
 function musicMode(m) { MUSIC.want = m; if (MUSIC.bus) MUSIC.mode = m; }
 function musicStart() {
@@ -2010,6 +2100,22 @@ const turnTo = (a, b, k) => a + angDiff(a, b) * Math.min(1, k);
 function clampArena(p, m = 0) { p.x = THREE.MathUtils.clamp(p.x, ARENA.x0 + m, ARENA.x1 - m); p.z = THREE.MathUtils.clamp(p.z, ARENA.z0 + m, ARENA.z1 - m); }
 function ground(a) { a.pos.y = hgt(a.pos.x, a.pos.z); }
 function shake(v) { G.shake = Math.max(G.shake, v); }
+// ---- Lightning strike (Kishon storm, Carmel fire from heaven)
+const LTN = { active: false, t: 0, next: 4 + Math.random()*6 };
+function lightningStrike() {
+  if (!gradePass) return;
+  LTN.active = true; LTN.t = 0;
+  gradePass.uniforms.uFlash.value = 0.6;
+  shake(0.4); SFX.shofar && SFX.shofar();
+  if (bloomPass) { BLM.target = Math.max(BLM.target, 1.8); BLM._decay = 0.3; }
+  godRayPulse(0.18);
+}
+function updateLightning(dt) {
+  if (WORLD !== 'kishon' || !G.storm) return;
+  LTN.next -= dt;
+  if (LTN.next <= 0) { lightningStrike(); LTN.next = 3 + Math.random()*8; }
+  if (LTN.active) { LTN.t += dt; if (LTN.t > 0.25) LTN.active = false; }
+}
 // combo counter: hits landed within 1.8 s of each other; every 5th a beat of hit-stop and a gold flash
 function comboHit() {
   const t = now(); G.combo = t - (G.comboT || 0) < 1.8 ? (G.combo || 0) + 1 : 1; G.comboT = t;
@@ -2034,7 +2140,8 @@ function damagePlayer(dmg, from) {
   if (P.bound || P.state === 'spirit' || (G.fin && G.fin.collapsing)) return;
   if (P.state === 'push' && G.fin) { G.fin.prog = Math.max(0, G.fin.prog - 0.03); P.poseT = 0; LOG('torn'); if (!G.fin.tornTold) { G.fin.tornTold = true; toast('They tear you from the pillars! <b>Fight them off</b>, then take hold again.', 3000); } }
   if (G.angel && G.angel.t < 3.2) return;
-  P.hp -= dmg; LOG('player_hit', { dmg, hp: Math.round(P.hp) }); SFX.hurt(); vibrate(dmg > 20 ? 90 : 45); hurtFlash(); shake(0.35); P.flash = 1;
+  P.hp -= dmg; LOG('player_hit', { dmg, hp: Math.round(P.hp) }); SFX.hurt(); vibrate(dmg > 20 ? 90 : 45);
+  if (gradePass && gradePass.uniforms.uChroma) gradePass.uniforms.uChroma.value = Math.min(1, (dmg / 25)); hurtFlash(); shake(0.35); P.flash = 1;
   const dir = tmpV.copy(P.pos).sub(from).setY(0).normalize(); blood(P.headPos(new THREE.Vector3()).setY(P.pos.y + 1.2), dir, 10, 0.8);
   P.vel.addScaledVector(dir, 6);
   dmgText(P.headPos(new THREE.Vector3()), '-' + Math.round(dmg));
@@ -4573,7 +4680,19 @@ function frame() {
   }
   const _t1 = performance.now();
   renderer.info.reset();
-  if (POST && composer) { const gu = gradePass.uniforms; gu.uExp.value = renderer.toneMappingExposure; gu.uTime.value = (gu.uTime.value + 0.013) % 7; gu.uFlash.value = G.flashV || 0; composer.render(); } else renderer.render(scene, camera);
+  if (POST && composer) {
+    const gu = gradePass.uniforms;
+    gu.uExp.value = renderer.toneMappingExposure;
+    gu.uTime.value = (gu.uTime.value + 0.013) % 7;
+    gu.uFlash.value = G.flashV || 0;
+    // Chromatic aberration: decays over time, boosted by hits
+    if (gu.uChroma) { gu.uChroma.value = Math.max(0, (gu.uChroma.value || 0) - rdt * 3.5); }
+    updateBloom(rdt);
+    updateGodRay(rdt);
+    updateEmbers(rdt);
+    updateLightning(rdt);
+    composer.render();
+  } else renderer.render(scene, camera);
   if (G.flashV > 0) G.flashV = Math.max(0, G.flashV - rdt * 4);
   if (G.wantCalls) G.calls = renderer.info.render.calls;
   const _t2 = performance.now();
@@ -6726,7 +6845,7 @@ function handlePerfectParry(from) {
   P.state = 'idle'; // instant recovery for immediate counter-attack
 }
 
-function triggerPostureBreak(e) {
+function triggerPostureBreak(e) { bloomPulse(0.9, 0.5); godRayPulse(0.08);
   e.poise = 0;
   e.vulnerable = true;
   e.vulnerableT = 4.5;
@@ -6749,7 +6868,7 @@ function tryExecute() {
   return false;
 }
 
-async function triggerExecution(e) {
+async function triggerExecution(e) { bloomPulse(1.6, 1.2); godRayPulse(0.22);
   if (!e || !e.alive || P.state === 'execute') return;
   P.state = 'execute';
   P.st = 0;
