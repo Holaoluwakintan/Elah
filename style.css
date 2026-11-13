@@ -449,3 +449,54 @@ body.post:not(.vision):not(.dark) #vignette{background:none}
   transition: width .2s;
 }
 .mp-hud-p-fill.low { background: linear-gradient(90deg, #f44336, #ff9800); }
+
+
+/* Combat Overhaul: Parry, Execution & Lock-on */
+#b-parry {
+  width: 66px; height: 66px;
+  right: calc(max(18px, env(safe-area-inset-right)) + 88px);
+  bottom: 104px;
+  border-color: rgba(255, 215, 0, 0.75);
+}
+#b-parry span { color: #ffd36a; font-weight: 800; font-size: 8px; }
+
+#b-exec {
+  width: 80px; height: 80px;
+  right: calc(max(18px, env(safe-area-inset-right)) + 48px);
+  bottom: 184px;
+  border-color: #ff3333;
+  background: radial-gradient(circle at 40% 30%, rgba(180, 24, 24, 0.95), rgba(60, 8, 8, 0.95));
+  box-shadow: 0 0 24px rgba(255, 50, 50, 0.7);
+  animation: pulse-exec 0.6s infinite alternate;
+  z-index: 10;
+}
+#b-exec span { color: #ffdddd; font-weight: 900; letter-spacing: .2em; font-size: 9px; }
+
+#b-lock {
+  width: 52px; height: 52px;
+  right: calc(max(18px, env(safe-area-inset-right)) + 160px);
+  bottom: 88px;
+  border-color: rgba(220, 200, 160, 0.55);
+}
+#b-lock.locked {
+  border-color: #ffd36a;
+  box-shadow: 0 0 16px rgba(255, 211, 106, 0.7);
+  background: radial-gradient(circle at 40% 30%, rgba(120, 85, 30, 0.85), rgba(40, 25, 10, 0.85));
+}
+#b-lock span { font-size: 8px; }
+
+@keyframes pulse-exec {
+  from { transform: scale(1.0); box-shadow: 0 0 12px rgba(255, 50, 50, 0.5); }
+  to { transform: scale(1.1); box-shadow: 0 0 30px rgba(255, 50, 50, 0.95); }
+}
+
+.dmg.parry {
+  font-size: 26px; color: #ffd36a;
+  text-shadow: 0 0 14px #ffc107, 0 2px 4px #000;
+  letter-spacing: .15em; font-weight: 900;
+}
+.dmg.execute {
+  font-size: 30px; color: #ff4d4d;
+  text-shadow: 0 0 18px #ff1744, 0 2px 6px #000;
+  font-style: italic; font-weight: 900;
+}

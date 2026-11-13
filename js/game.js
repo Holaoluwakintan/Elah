@@ -1864,6 +1864,22 @@ function noise(dur, f0, f1, vol = 0.3, type = 'bandpass', q = 1, delay = 0) {
 }
 const SFX = {
   swing: () => noise(0.22, 1800, 500, 0.25, 'bandpass', 1.2),
+  swoosh: () => noise(0.18, 2200, 800, 0.2, 'bandpass', 1.5),
+  parry: () => {
+    tone('square', 1400, 1150, 0.28, 0.2);
+    tone('triangle', 2200, 1900, 0.35, 0.16);
+    noise(0.14, 6000, 3000, 0.3, 'highpass');
+    [1046, 1318].forEach((f, i) => tone('sine', f, f, 0.5, 0.09, i * 0.05));
+  },
+  shatter: () => {
+    noise(0.4, 7000, 1200, 0.45, 'highpass');
+    tone('sawtooth', 320, 90, 0.35, 0.15);
+  },
+  execute: () => {
+    tone('sawtooth', 80, 40, 1.2, 0.3);
+    noise(0.6, 1200, 100, 0.5, 'lowpass');
+    [523, 784, 1046].forEach((f, i) => tone('sine', f, f, 0.8, 0.1, i * 0.08));
+  },
   hit: () => { const s = smp('hit', 0.9); tone('sine', 140, 50, 0.18, s ? 0.3 : 0.55); noise(0.12, 900, 200, s ? 0.15 : 0.35, 'lowpass', 0.8); },
   clang: () => { if (smp('metal', 0.8)) return; tone('square', 820, 760, 0.25, 0.08); tone('triangle', 1240, 1180, 0.4, 0.12); noise(0.08, 4000, 2500, 0.15, 'highpass'); },
   sling: () => { noise(0.35, 300, 2400, 0.22, 'bandpass', 3); tone('sine', 300, 900, 0.25, 0.05); },
@@ -1944,11 +1960,12 @@ function setupInput() {
   zone.addEventListener('pointermove', (e) => { if (e.pointerId !== sid) return; let dx = e.clientX - cx, dy = e.clientY - cy; const d = Math.hypot(dx, dy); if (d > R) { dx *= R / d; dy *= R / d; } knob.style.transform = `translate(${dx}px,${dy}px)`; IN.x = dx / R; IN.y = dy / R; });
   const end = (e) => { if (e.pointerId !== sid) return; sid = null; IN.x = IN.y = 0; homeStick(); };
   zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
-  for (const [id, k] of [['b-attack', 'attack'], ['b-sling', 'sling'], ['b-dodge', 'dodge']]) {
+  for (const [id, k] of [['b-attack', 'attack'], ['b-sling', 'sling'], ['b-dodge', 'dodge'], ['b-parry', 'parry'], ['b-exec', 'execute']]) {
     const b = $(id); b.addEventListener('pointerdown', (e) => { press(k); b.classList.add('down'); e.preventDefault(); e.stopPropagation(); });
 const up = () => b.classList.remove('down'); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
   }
   { const b = $('b-attack'); b.addEventListener('pointerdown', () => { IN.sprintBtn = true; }); const up = () => { IN.sprintBtn = false; }; b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up); }
+  const bLock = $('b-lock'); if (bLock) bLock.addEventListener('pointerdown', (e) => { toggleLockOn(); e.preventDefault(); e.stopPropagation(); });
   $('story').addEventListener('pointerdown', (e) => { if (G.skipStory) G.skipStory(); e.preventDefault(); });
   { const b = $('b-push'); b.addEventListener('pointerdown', (e) => { IN.push = true; b.classList.add('down'); audioInit(); e.preventDefault(); e.stopPropagation(); }); const up = () => { IN.push = false; b.classList.remove('down'); }; b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up); }
   // camera drag (touch on right side / mouse anywhere on canvas)
@@ -1962,7 +1979,10 @@ const up = () => b.classList.remove('down'); b.addEventListener('pointerup', up)
     if (e.repeat) return;
     if (e.code === 'KeyJ' || e.code === 'Enter') press('attack');
     if (G.skipStory && (e.code === 'Space' || e.code === 'Enter' || e.code === 'Escape')) { G.skipStory(); e.preventDefault(); return; }
-    if (e.code === 'KeyK' || e.code === 'KeyF' || e.code === 'KeyC') press('sling');
+    if (e.code === 'KeyK' || e.code === 'KeyC') press('sling');
+    if (e.code === 'KeyF' || e.code === 'KeyQ') press('parry');
+    if (e.code === 'KeyE') press('execute');
+    if (e.code === 'Tab') { e.preventDefault(); toggleLockOn(); }
     if (e.code === 'Space' || (e.code === 'ShiftLeft' && G.stage !== 'escape') || e.code === 'KeyL') { press('dodge'); e.preventDefault(); }
     if (e.code === 'Escape' || e.code === 'KeyP') togglePause();
   });
@@ -2038,7 +2058,11 @@ function staffHit() {
   for (const e of targets()) {
     const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z, d = Math.hypot(dx, dz); const reach = 2.25 + (e.radius || 0.4);
     if (d > reach) continue; if (Math.abs(angDiff(fwd, Math.atan2(dx, dz))) > 1.35 && d > 0.9) continue;
-    hits++; const dmg = st.staff * (strong ? 1.5 : 1) * (0.9 + Math.random() * 0.2);
+    hits++;
+    const critMult = (P.counterCrit ? P.counterCrit : 1.0);
+    if (P.counterCrit) P.counterCrit = null;
+    const isCrit = strong || critMult > 1.0;
+    const dmg = st.staff * (strong ? 1.5 : 1) * (0.9 + Math.random() * 0.2) * critMult;
     hurtEnemy(e, dmg, new THREE.Vector3(dx, 0, dz).normalize(), 'staff', strong);
   }
   if (NET && NET.isMultiplayer) handleMultiplayerMelee(strong);
@@ -2123,6 +2147,14 @@ function updatePlayer(dt) {
       const k = p.st < 0.55 ? 1 : Math.max(0, 1 - (p.st - 0.55) * 4);
       p.pos.x += p.dodgeDir.x * 9.5 * k * dt; p.pos.z += p.dodgeDir.z * 9.5 * k * dt;
       if (p.st >= p.atkDur) p.state = 'idle';
+      break;
+    }
+    case 'parry': {
+      if (p.st >= p.atkDur) p.state = 'idle';
+      break;
+    }
+    case 'execute': {
+      // Handled in async triggerExecution()
       break;
     }
     case 'hit': if (p.st > 0.38) p.state = 'idle'; break;
@@ -6493,6 +6525,234 @@ function startMultiplayerMatch(room) {
 
 // Initialize UI when document is ready
 setTimeout(initMultiplayerUI, 300);
+
+
+
+
+// ====================================================================================================
+// COMBAT OVERHAUL: PARRYING, POSTURE BREAK, CINEMATIC EXECUTIONS & TARGET LOCK-ON
+// ====================================================================================================
+
+let LOCKED_TARGET = null;
+let LOCK_RETICLE = null;
+
+function getLockReticle() {
+  if (!LOCK_RETICLE) {
+    const geo = new THREE.RingGeometry(0.32, 0.42, 4);
+    geo.rotateZ(Math.PI / 4);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffd36a, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+    LOCK_RETICLE = new THREE.Mesh(geo, mat);
+    scene.add(LOCK_RETICLE);
+  }
+  return LOCK_RETICLE;
+}
+
+function toggleLockOn() {
+  if (LOCKED_TARGET && LOCKED_TARGET.alive) {
+    LOCKED_TARGET = null;
+    const bLock = $('b-lock'); if (bLock) bLock.classList.remove('locked');
+    toast('LOCK-ON DISENGAGED', 1200);
+  } else {
+    const candidates = targets().filter(e => e.alive && e.pos.distanceTo(P.pos) < 28);
+    if (candidates.length) {
+      candidates.sort((a, b) => a.pos.distanceTo(P.pos) - b.pos.distanceTo(P.pos));
+      LOCKED_TARGET = candidates[0];
+      const bLock = $('b-lock'); if (bLock) bLock.classList.add('locked');
+      toast(`TARGET LOCKED: ${(LOCKED_TARGET.kind || 'ENEMY').toUpperCase()}`, 1500);
+      SFX.buy();
+    } else {
+      toast('NO TARGET IN RANGE', 1200);
+    }
+  }
+}
+
+function startParry() {
+  P.state = 'parry';
+  P.st = 0;
+  P.parryWindow = 0.24; // 240ms active window
+  P.atkDur = 0.44;
+  P.play('Sword_Idle', { loop: false, ts: 2.2, restart: true, fade: 0.04 });
+  SFX.swoosh();
+  flashAt(P.pos.clone().setY(P.pos.y + 1.2), 0.9, 0.14, 0xffd700);
+}
+
+function handlePerfectParry(from) {
+  SFX.parry();
+  SFX.clang();
+  shake(0.38);
+  hitstop(0.085); // 85ms freeze frame
+  hurtFlash(0.2);
+
+  // Spark explosion at weapon clash point
+  const contact = P.pos.clone().add(from).multiplyScalar(0.5).setY(P.pos.y + 1.25);
+  flashAt(contact, 3.0, 0.35, 0xffe066);
+  puff(contact, 1.2, 0.45, new THREE.Vector3(0, 1.8, 0));
+
+  dmgText(P.headPos(tmpV), 'DEFLECTED!', 'parry');
+  gainSpirit(22); // rewarding deflect
+
+  // Find attacking enemy in radius and shatter their poise!
+  const attacker = targets().find(e => e.alive && e.pos.distanceTo(P.pos) < 3.5);
+  if (attacker) {
+    attacker.poise = Math.max(0, (attacker.poise ?? attacker.maxPoise) - 55);
+    const pushDir = attacker.pos.clone().sub(P.pos).setY(0).normalize();
+    attacker.vel.addScaledVector(pushDir, 9);
+    attacker.state = 'hit';
+    attacker.st = 0;
+    attacker.stun = 1.3;
+    attacker.play('Hit_Chest', { loop: false, restart: true, ts: 0.55 });
+
+    if (attacker.poise <= 0) {
+      triggerPostureBreak(attacker);
+    }
+  }
+
+  // Next attack is guaranteed counter-critical
+  P.counterCrit = 2.0;
+  P.state = 'idle'; // instant recovery for immediate counter-attack
+}
+
+function triggerPostureBreak(e) {
+  e.poise = 0;
+  e.vulnerable = true;
+  e.vulnerableT = 4.5;
+  e.state = 'hit';
+  e.stun = 4.5;
+  e.play('Death01', { loop: false, ts: 0.22, restart: true });
+  SFX.shatter();
+  SFX.shofar();
+  shake(0.45);
+  flashAt(e.pos.clone().setY(e.pos.y + 1.4), 3.5, 0.5, 0xffd700);
+  dmgText(e.headPos(new THREE.Vector3()), 'VULNERABLE · [E] EXECUTE', 'crit');
+}
+
+function tryExecute() {
+  const vulnEnemy = targets().find(e => e.alive && e.vulnerable && e.pos.distanceTo(P.pos) < 3.4);
+  if (vulnEnemy) {
+    triggerExecution(vulnEnemy);
+    return true;
+  }
+  return false;
+}
+
+async function triggerExecution(e) {
+  if (!e || !e.alive || P.state === 'execute') return;
+  P.state = 'execute';
+  P.st = 0;
+  G.phase = 'cine';
+  document.body.classList.add('cine');
+
+  // Slow motion dramatic pacing
+  G.slow = 0.2;
+  G.slowT = 1.3;
+
+  // Face each other
+  const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z;
+  P.yaw = Math.atan2(dx, dz);
+  e.yaw = Math.atan2(-dx, -dz);
+
+  // Cinematic dynamic camera framing
+  const mid = P.pos.clone().add(e.pos).multiplyScalar(0.5);
+  const camOffset = new THREE.Vector3(-Math.sin(P.yaw + 0.8) * 3.4, 1.5, -Math.cos(P.yaw + 0.8) * 3.4);
+  G.cine = {
+    pos: mid.clone().add(camOffset),
+    look: mid.clone().setY(mid.y + 1.2),
+    snap: true
+  };
+
+  P.play('Sword_Attack', { loop: false, ts: 1.15, restart: true });
+  SFX.roar();
+  SFX.swing();
+
+  await sleep(360);
+
+  // Lethal impact
+  shake(0.75);
+  hitstop(0.12);
+  flashAt(e.pos.clone().setY(e.pos.y + 1.2), 4.2, 0.4, 0xffffff);
+  hurtFlash(0.35);
+  SFX.clang();
+  SFX.execute();
+
+  const strikeDir = new THREE.Vector3(dx, 0, dz).normalize();
+  blood(e.headPos(new THREE.Vector3()), strikeDir, 28, 1.4);
+  puff(e.pos.clone().setY(e.pos.y + 1), 2.2, 0.6, new THREE.Vector3(0, 2, 0));
+
+  const execQuotes = {
+    david: '“David took his sword, and slew him, and cut off his head therewith.”',
+    samson: '“With the jawbone of an ass, heaps upon heaps!”',
+    benaiah: '“Plucked the spear out of the Egyptian’s hand, and slew him!”',
+    joshua: '“Shout; for the LORD hath given you the city!”',
+    gideon: '“The sword of the LORD, and of Gideon!”',
+    elijah: '“The LORD, he is the God!”',
+    hezekiah: '“The angel of the LORD smote the camp!”',
+    jonah: '“Salvation is of the LORD!”'
+  };
+  const heroKey = (ORD(LEVEL) && ORD(LEVEL).key) || 'david';
+  toast(`<b>EXECUTION!</b> <i>${execQuotes[heroKey] || 'Great victory wrought!'}</i>`, 4200);
+  dmgText(e.headPos(new THREE.Vector3()), 'CRITICAL EXECUTION', 'execute');
+
+  // Kill enemy and drop spoils
+  e.vulnerable = false;
+  e.hp = 0;
+  e.alive = false;
+  e.state = 'dead';
+  e.play('Death01', { loop: false, restart: true, ts: 1.0 });
+
+  comboHit();
+  gainSpirit(35);
+
+  // Execute button on touch
+  const bExec = $('b-exec');
+  if (bExec) bExec.classList.add('hidden');
+
+  await sleep(700);
+
+  // Restore camera & gameplay
+  G.cine = null;
+  G.slow = 1;
+  document.body.classList.remove('cine');
+  G.phase = 'play';
+  P.state = 'idle';
+}
+
+function updateCombatOverhaul(dt) {
+  // Update Lock-on Reticle
+  if (LOCKED_TARGET && LOCKED_TARGET.alive) {
+    const r = getLockReticle();
+    r.visible = true;
+    r.position.set(LOCKED_TARGET.pos.x, LOCKED_TARGET.pos.y + 2.4 * (LOCKED_TARGET.scale || 1), LOCKED_TARGET.pos.z);
+    r.quaternion.copy(camera.quaternion);
+    r.rotation.z += dt * 2.2;
+    // Auto strafe yaw to face target when moving or attacking
+    if (P.state === 'attack' || P.state === 'move') {
+      P.yaw = turnTo(P.yaw, Math.atan2(LOCKED_TARGET.pos.x - P.pos.x, LOCKED_TARGET.pos.z - P.pos.z), dt * 14);
+    }
+  } else if (LOCK_RETICLE) {
+    LOCK_RETICLE.visible = false;
+    LOCKED_TARGET = null;
+    const bLock = $('b-lock'); if (bLock) bLock.classList.remove('locked');
+  }
+
+  // Update Vulnerable Enemy Timers & Touch Execute Button
+  let anyVuln = false;
+  for (const e of targets()) {
+    if (e.alive && e.vulnerable) {
+      e.vulnerableT -= dt;
+      if (e.vulnerableT <= 0) {
+        e.vulnerable = false;
+        e.poise = e.maxPoise;
+        e.state = 'chase';
+        e.stun = 0;
+      } else {
+        if (P.pos.distanceTo(e.pos) < 3.4) anyVuln = true;
+      }
+    }
+  }
+
+  const bExec = $('b-exec');
+  if (bExec) bExec.classList.toggle('hidden', !anyVuln);
+}
 
 
 
