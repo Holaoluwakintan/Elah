@@ -1734,6 +1734,11 @@ function audioInit() {
   const w = c.createBufferSource(); w.buffer = buf; w.loop = true; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 400; f.Q.value = 0.6; const g = c.createGain(); g.gain.value = AU.on ? 0.05 : 0;
   w.connect(f); f.connect(g); g.connect(AU.master); w.start(); AU.wind = { f, g };
   if (!Q.has('nomusic')) musicStart();
+  // Preload Web Speech voices (async in browsers)
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    NARR.voices = window.speechSynthesis.getVoices() || [];
+    if (!NARR.voices.length) window.speechSynthesis.onvoiceschanged = () => { NARR.voices = window.speechSynthesis.getVoices() || []; };
+  }
 }
 
 // ------------------------------------------------------------------ battle music (generated live in the browser: war drums, low strings, a drone; no files, no voices)
@@ -1747,7 +1752,13 @@ const MUSIC_CFG = {
   moab: { bpm: 104, root: 65.41, roots: [0, 0, -2, 1, 0, -4, -2, 1] },  // C, Benaiah: the border of Moab and the Egyptian
   beth: { bpm: 112, root: 73.42, roots: [0, 0, -2, 1, 0, -4, -2, 1] },  // D, David's mighty men: the harvest battles
   kishon: { bpm: 108, root: 77.78, roots: [0, 0, -2, 1, 0, 1, -4, -2] },  // D#, Deborah and Barak: the charge down from Tabor
-  pit: { bpm: 96, root: 58.27, roots: [0, 1, 0, 1, -2, -4, 1, 0], night: true },  // A#, the pit in time of snow: low and close  // B, the night attack: low frame drums, a sparse ostinato, a high shimmer
+  pit: { bpm: 96, root: 58.27, roots: [0, 1, 0, 1, -2, -4, 1, 0], night: true },  // A#, the pit in time of snow: low and close
+  moreh: { bpm: 84, root: 55.00, roots: [0, 0, 1, 0, -2, -4, 1, -2], night: true }, // A, Gideon's night raid: low tension, sudden bursts
+  jericho: { bpm: 116, root: 65.41, roots: [0, 1, 0, 1, 2, 0, -2, 1] }, // C, Joshua: martial cadence of the seven circuits
+  carmel: { bpm: 106, root: 73.42, roots: [0, 0, -2, 1, 0, -4, 1, -2] }, // D, Elijah: prophetic confrontation, fiery drone
+  den: { bpm: 74, root: 51.91, roots: [0, 1, 0, 1, -2, -4, 1, 0], night: true }, // G#, Daniel: solemn subterranean acoustic echo
+  jerusalem: { bpm: 114, root: 82.41, roots: [0, 0, -2, 1, 0, -2, 1, -4] }, // E, Hezekiah: massive Assyrian siege war drums
+  belly: { bpm: 70, root: 43.65, roots: [0, 1, 0, -2, 1, 0, -4, -2], night: true }, // F, Jonah: deep sub-oceanic visceral pulse
 };
 function musicMode(m) { MUSIC.want = m; if (MUSIC.bus) MUSIC.mode = m; }
 function musicStart() {
@@ -2808,17 +2819,119 @@ function updateAngel(dt) {
 
 // ------------------------------------------------------------------ phase 2: the narrator. A story card plays audio/narration/<id>.mp3 when that file is listed in
 // audio/narration/manifest.json and Settings › Narrator is on. No voices ship yet: Michael records his own from narrator_script.txt.
-const NARR = { files: new Set(), el: null, cur: '', last: '' };
+const NARR = { files: new Set(), el: null, cur: '', last: '', utterance: null, voices: [] };
 fetch('audio/narration/manifest.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : { files: [] }).then(j => { (j.files || []).forEach(f => NARR.files.add(String(f).replace(/\.mp3$/, ''))); }).catch(() => { });
-const stripTags = (s) => String(s || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+const stripTags = (s) => String(s || '').replace(/<[^>]*>/g, '').replace(/["“”]/g, '').replace(/\s+/g, ' ').trim();
 function fnv(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h >>> 0; }
 function narrId(who, text, verse) { const slug = stripTags(who).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32); return slug + '_' + fnv(stripTags(text) + '|' + stripTags(verse)).toString(36).slice(0, 5); }
-function narrStop() { if (NARR.el) { try { NARR.el.pause(); } catch (e) { } NARR.el = null; } NARR.cur = ''; if (TRACK.duck) { if (TRACK.g && TRACK.g.gain) TRACK.g.gain.value = TRACK.duck; else if (TRACK.el) TRACK.el.volume = TRACK.duck; TRACK.duck = 0; } }
+
+function getBestVoice(role = 'prophet') {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return null;
+  if (!NARR.voices.length) NARR.voices = window.speechSynthesis.getVoices() || [];
+  const vs = NARR.voices;
+  if (!vs.length) return null;
+  const enVoices = vs.filter(v => v.lang && v.lang.startsWith('en'));
+  const pool = enVoices.length ? enVoices : vs;
+
+  if (role === 'deborah') {
+    const f = pool.find(v => /female|zira|samantha|victoria|karen|catherine|moira|fiona|stephanie/i.test(v.name));
+    if (f) return f;
+  } else if (role === 'boss') {
+    const d = pool.find(v => /david|george|mark|richard|daniel|male/i.test(v.name));
+    if (d) return d;
+  } else {
+    const nat = pool.find(v => /natural|enhanced|neural|online|uk|great britain|english \(united kingdom\)/i.test(v.name + ' ' + v.lang));
+    if (nat) return nat;
+    const m = pool.find(v => /david|george|daniel|guy|male/i.test(v.name));
+    if (m) return m;
+  }
+  return pool[0];
+}
+
+function duckMusic(on) {
+  if (TRACK.g && TRACK.g.gain && AU.ctx) {
+    if (on && !TRACK.duck) {
+      TRACK.duck = TRACK.g.gain.value || 1;
+      TRACK.g.gain.setTargetAtTime(TRACK.duck * 0.25, AU.ctx.currentTime, 0.2);
+    } else if (!on && TRACK.duck) {
+      TRACK.g.gain.setTargetAtTime(TRACK.duck, AU.ctx.currentTime, 0.4);
+      TRACK.duck = 0;
+    }
+  } else if (MUSIC.bus && MUSIC.bus.gain && AU.ctx) {
+    if (on && !MUSIC.duck) {
+      MUSIC.duck = MUSIC.bus.gain.value || 0.58;
+      MUSIC.bus.gain.setTargetAtTime(MUSIC.duck * 0.25, AU.ctx.currentTime, 0.2);
+    } else if (!on && MUSIC.duck) {
+      MUSIC.bus.gain.setTargetAtTime(MUSIC.duck, AU.ctx.currentTime, 0.4);
+      MUSIC.duck = 0;
+    }
+  }
+}
+
+function speakVoice(text, role = 'prophet') {
+  if (!SETTINGS.narr || !text || typeof window === 'undefined' || !window.speechSynthesis || BOT) return;
+  narrStop();
+  const clean = stripTags(text).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!clean || clean.length < 2) return;
+
+  try {
+    const u = new SpeechSynthesisUtterance(clean);
+    u.voice = getBestVoice(role);
+    if (role === 'boss') {
+      u.pitch = 0.65; u.rate = 0.82; u.volume = 1.0;
+    } else if (role === 'lord' || role === 'angel') {
+      u.pitch = 0.70; u.rate = 0.78; u.volume = 1.0;
+    } else if (role === 'hero') {
+      u.pitch = 0.95; u.rate = 0.96; u.volume = 1.0;
+    } else if (role === 'deborah') {
+      u.pitch = 1.05; u.rate = 0.88; u.volume = 1.0;
+    } else {
+      u.pitch = 0.82; u.rate = 0.85; u.volume = 1.0;
+    }
+
+    duckMusic(true);
+    u.onend = () => { NARR.utterance = null; duckMusic(false); };
+    u.onerror = () => { NARR.utterance = null; duckMusic(false); };
+    NARR.utterance = u;
+    window.speechSynthesis.speak(u);
+  } catch(e) {
+    duckMusic(false);
+  }
+}
+
+function narrStop() {
+  if (NARR.el) {
+    try { NARR.el.pause(); } catch(e){}
+    NARR.el = null;
+  }
+  NARR.cur = '';
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    try { window.speechSynthesis.cancel(); } catch(e){}
+  }
+  NARR.utterance = null;
+  duckMusic(false);
+}
+
 function narrPlay(who, text, verse) {
-  const id = narrId(who, text, verse); NARR.last = id; if (!SETTINGS.narr || !NARR.files.has(id) || BOT) return;
-  narrStop(); const a = new Audio('audio/narration/' + id + '.mp3'); a.volume = Math.min(1, 0.4 + SETTINGS.sfx * 0.6); NARR.el = a; NARR.cur = id;
-  if (!TRACK.duck) { if (TRACK.g && TRACK.g.gain) { TRACK.duck = TRACK.g.gain.value || 1; TRACK.g.gain.value = TRACK.duck * 0.35; } else if (TRACK.el) { TRACK.duck = TRACK.el.volume || 1; TRACK.el.volume = TRACK.duck * 0.35; } }
-  a.onended = () => { if (NARR.el === a) narrStop(); }; a.play().catch(() => { });
+  const id = narrId(who, text, verse);
+  NARR.last = id;
+  if (!SETTINGS.narr || BOT) return;
+
+  if (NARR.files.has(id)) {
+    narrStop();
+    const a = new Audio('audio/narration/' + id + '.mp3');
+    a.volume = Math.min(1, 0.4 + SETTINGS.sfx * 0.6);
+    NARR.el = a; NARR.cur = id;
+    duckMusic(true);
+    a.onended = () => { if (NARR.el === a) narrStop(); };
+    a.play().catch(() => {});
+  } else {
+    // Dynamic Speech Synthesis Fallback
+    const whoLower = (who || '').toLowerCase();
+    const role = whoLower.includes('deborah') ? 'deborah' : (whoLower.includes('lord') || whoLower.includes('angel')) ? 'lord' : 'prophet';
+    const speechText = verse ? stripTags(verse) : text ? stripTags(text) : '';
+    if (speechText) speakVoice(speechText, role);
+  }
 }
 function card({ who, text = '', verse = '', ref = '', tips = '', btn = 'CONTINUE', btn2 = '' }) {
   return new Promise((res) => {
@@ -2960,6 +3073,7 @@ async function runWaves(from, pre = false) {
   if (LEVEL === 2) await finale(); else if (LEVEL === 3) await kingFight(); else if (LEVEL === 4) await pitFight(); else if (LEVEL === 5) await chariotSeq(); else if (LEVEL === 6) { G.horde = false; await barleySeq(); } else await bossFight();
 }
 async function bossFight() {
+  speakVoice('Am I a dog, that thou comest to me with staves? Come to me, and I will give thy flesh unto the fowls of the air!', 'boss');
   G.resumeWave = 3; G.phase = 'cine'; G.seq = 2; $('wave').textContent = 'THE CHAMPION OF GATH'; document.body.classList.add('cine');
   P.state = 'cine'; P.pos.set(0, 0, 8); ground(P); P.yaw = Math.PI;
   const b = spawnGoliath(); LOG('boss_start');
@@ -3052,7 +3166,7 @@ function winGame() {
   SAVE.done[LEVEL] = true; const NX = NEXT_RUN(LEVEL); if (NX) SAVE.open[ORD(NX).key] = true; SAVE.unlocked = Math.max(SAVE.unlocked, LEVEL + 1); saveProgress();
   const t = Math.round(now() - G.t0), ups = UPG.reduce((s, u) => s + G.up[u.k], 0);
   $('wstats').innerHTML = `<span>Time <b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b></span><span>${LEVEL >= 3 ? 'Enemies' : 'Philistines'} <b>${G.kills}</b></span>${LEVEL === 3 ? `<span>Captives freed <b>${(G.captives || []).filter(c => c.freed).length}</b></span>` : ''}${LEVEL === 1 && ESC ? `<span>Caught <b>${ESC.caught}×</b></span>` : ''}<span>Upgrades <b>${ups}</b></span>`;
-  const W_ = WIN_TXT[LEVEL]; W_.tag = `LEVEL ${NUM(LEVEL)} COMPLETE`; W_.next = (W_.bridge ? `<div class="wbridge">${W_.bridge}</div>` : '') + (NX ? `NEXT: <b>${ORD(NX).name.toUpperCase()}</b> · Level ${NUM(NX)} is unlocked` : 'MORE OF THE STORY IS COMING'); W_.btn = NX ? `PLAY LEVEL ${NUM(NX)}` : 'LEVEL SELECT'; $('wtag').textContent = W_.tag; $('wh2').textContent = W_.h2; $('wverse').innerHTML = W_.verse; $('wnext').innerHTML = W_.next; $('btn-next').textContent = W_.btn;
+  const W_ = WIN_TXT[LEVEL]; W_.tag = `LEVEL ${NUM(LEVEL)} COMPLETE`; W_.next = (W_.bridge ? `<div class="wbridge">${W_.bridge}</div>` : '') + (NX ? `NEXT: <b>${ORD(NX).name.toUpperCase()}</b> · Level ${NUM(NX)} is unlocked` : 'MORE OF THE STORY IS COMING'); W_.btn = NX ? `PLAY LEVEL ${NUM(NX)}` : 'LEVEL SELECT'; $('wtag').textContent = W_.tag; if (SETTINGS.narr && W_ && W_.verse) { const rawVerse = W_.verse.replace(/<[^>]+>/g, ''); speakVoice(rawVerse, 'prophet'); } $('wh2').textContent = W_.h2; $('wverse').innerHTML = W_.verse; $('wnext').innerHTML = W_.next; $('btn-next').textContent = W_.btn;
   if (LEVEL === 1 && WILD) { const cv = WILD.cave; P.state = 'cine'; G.cine = { pos: new THREE.Vector3(cv.x + 2.5, cv.y + 2.2, cv.z + 9), look: new THREE.Vector3(cv.x, cv.y + 1.6, cv.z) }; }
   setTimeout(() => { show('win'); $('hud').classList.add('hidden'); $('touch').classList.add('hidden'); $('toast').classList.remove('on'); toastT = 0; }, 600);
   if (BOT && Q.has('chain') && NX) setTimeout(() => $('btn-next').click(), 3500);
@@ -4636,7 +4750,7 @@ function renderSettings() {
   $('set-apply').style.display = changed ? '' : 'none';
   $('set-music').value = Math.round(SETTINGS.music * 100); $('set-sfx').value = Math.round(SETTINGS.sfx * 100);
   $('set-vib').textContent = SETTINGS.vib ? 'ON' : 'OFF'; $('set-vib').classList.toggle('on', SETTINGS.vib);
-  $('set-narr').textContent = SETTINGS.narr ? 'ON' : 'OFF'; $('set-narr').classList.toggle('on', SETTINGS.narr); $('set-nnote').textContent = NARR.files.size ? `Story cards are read aloud (${NARR.files.size} recorded).` : 'Narration: story cards will be read aloud once the voice is recorded.';
+  $('set-narr').textContent = SETTINGS.narr ? 'ON' : 'OFF'; $('set-narr').classList.toggle('on', SETTINGS.narr); $('set-nnote').textContent = 'Spoken KJV scripture, advisor counsel, and hero battle cries are voiced aloud.';
 }
 function openSettings(from) { setFrom = from; show(from, false); renderSettings(); show('settings'); }
 $('btn-settings').onclick = () => { audioInit(); openSettings('menu'); };
@@ -6689,7 +6803,9 @@ async function triggerExecution(e) {
     jonah: '“Salvation is of the LORD!”'
   };
   const heroKey = (ORD(LEVEL) && ORD(LEVEL).key) || 'david';
-  toast(`<b>EXECUTION!</b> <i>${execQuotes[heroKey] || 'Great victory wrought!'}</i>`, 4200);
+  const execText = execQuotes[heroKey] || 'Great victory wrought!';
+  toast(`<b>EXECUTION!</b> <i>${execText}</i>`, 4200);
+  speakVoice(execText, 'hero');
   dmgText(e.headPos(new THREE.Vector3()), 'CRITICAL EXECUTION', 'execute');
 
   // Kill enemy and drop spoils
