@@ -2024,7 +2024,7 @@ const G = { captives: [], divided: false, phase: 'loading', covenant: null, reli
 const LOG = (type, data = {}) => { G.log.push({ t: +(performance.now() / 1000).toFixed(2), type, ...data }); if (G.log.length > 400) G.log.shift(); };
 let P, MOSES, ANGEL, MELCH;
 const CAM = { yaw: 0, pitch: 0.33, dist: 6.9, tgt: new THREE.Vector3(), lastDrag: -10, pos: new THREE.Vector3(0, 6, 14) };
-const STATS = () => LEVEL === 11
+let STATS = () => LEVEL === 11
   ? ({ maxHp: 150 + 30 * G.up.bronze, staff: 32 * (1 + 0.3 * (G.up.sword || 0)), sling: 28 * (1 + 0.4 * (G.up.bow || 0)), slingCd: 0.75, spiritGain: 1.15, wave: 55, ally: 16 * (1 + 0.3 * (G.up.men || 0)), allyHp: 160 * (1 + 0.3 * (G.up.men || 0)) })
   : LEVEL === 12
   ? ({ maxHp: 120 + 30 * G.up.bronze, staff: 28 * (1 + 0.3 * (G.up.staff || 0)), sling: 0, slingCd: 1, spiritGain: 1.3, wave: 45 })
@@ -3321,7 +3321,7 @@ let UPG = UPG1;
 function saveProgress() { SAVE.coins = G.coins; SAVE.armour = G.armour; SAVE.up = Object.assign(UP0(), G.up); writeSave(); }
 // Covenant/relic stat modifier — called after STATS() computes base values
 const _statsBase = STATS;
-function STATS() { const S = _statsBase(); if (typeof applyCovenantStats === 'function') applyCovenantStats(S); return S; }
+STATS = function() { const S = _statsBase(); if (typeof applyCovenantStats === 'function') applyCovenantStats(S); return S; };
 function canBuy(u) { return (u.cost.coin || 0) <= G.coins && (u.cost.armour || 0) <= G.armour && G.up[u.k] < (u.max || 3); }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
