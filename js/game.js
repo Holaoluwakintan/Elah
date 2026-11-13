@@ -40,7 +40,7 @@ const HD = +(Q.get('hd') || 0);
 // ---- save (localStorage): unlocked levels, spoils, upgrades
 const SAVE_KEY = 'elah-save-v1';
 const UP0 = () => ({ staff: 0, sling: 0, bronze: 0, jaw: 0, spirit: 0, sword: 0, bow: 0, men: 0 });
-function loadSave() { let s = {}; try { s = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch (e) { } return { open: s.open || { abram: (s.unlocked || 1) >= 2, samson: (s.unlocked || 1) >= 2 }, unlocked: s.unlocked || 1, coins: s.coins || 0, armour: s.armour || 0, up: Object.assign(UP0(), s.up || {}), done: s.done || {}, level: s.level || 1 }; }
+function loadSave() { let s = {}; try { s = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch (e) { } return { open: s.open || { abram: (s.unlocked || 1) >= 2, samson: (s.unlocked || 1) >= 2 }, unlocked: s.unlocked || 1, coins: s.coins || 0, armour: s.armour || 0, up: Object.assign(UP0(), s.up || {}), done: s.done || {}, level: s.level || 1, highKills: s.highKills || 0, highWave: s.highWave || 0, feats: s.feats || {} }; }
 let SAVE = loadSave();
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) { } }
 // =====================================================================================================
@@ -5005,6 +5005,223 @@ if ($('btn-adullam')) $('btn-adullam').onclick = enterAdullam;
 if ($('btn-pause-adullam')) $('btn-pause-adullam').onclick = enterAdullam;
 if ($('btn-win-adullam')) $('btn-win-adullam').onclick = enterAdullam;
 
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SCROLL OF MIGHTY ACTS (Achievements & Biblical Feats)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const FEATS = [
+  { id: 'goliath', ic: '🪨', name: 'SMOOTH STONE OF ELAH', desc: 'Defeat Goliath of Gath with a forehead sling strike.', ref: '1 Samuel 17:49 (KJV)' },
+  { id: 'parry_master', ic: '⚡', name: 'BLADE DEFLECTION', desc: 'Perform a precision Sekiro deflection against an enemy strike.', ref: '1 Samuel 17:51 (KJV)' },
+  { id: 'lehi_heaps', ic: '🦴', name: 'HEAPS UPON HEAPS', desc: 'Slay 30 Philistines in a single battle with the jawbone.', ref: 'Judges 15:16 (KJV)' },
+  { id: 'lion_snow', ic: '🦁', name: 'THE PIT IN TIME OF SNOW', desc: 'Descend and slay the lion in the pit as Benaiah.', ref: '2 Samuel 23:20 (KJV)' },
+  { id: 'kishon_flood', ic: '🌊', name: 'RIVER KISHON', desc: 'Shatter Sisera’s iron chariot division in the flash flood.', ref: 'Judges 5:21 (KJV)' },
+  { id: 'barley_stand', ic: '🌾', name: 'DEFENDER OF THE LENTILS', desc: 'Stand alone in the plot of ground with Shammah.', ref: '2 Samuel 23:11 (KJV)' },
+  { id: 'jericho_shofar', ic: '📯', name: 'WALLS OF JERICHO', desc: 'Sound the ram’s horn and breach the fortress with Joshua.', ref: 'Joshua 6:20 (KJV)' },
+  { id: 'gideon_torch', ic: '🏺', name: 'SWORD OF THE LORD & GIDEON', desc: 'Shatter the pitchers and rout the Midianites at night.', ref: 'Judges 7:20 (KJV)' },
+  { id: 'daniel_den', ic: '✨', name: 'MOUTHS OF LIONS', desc: 'Survive the den of lions unharmed through faithful prayer.', ref: 'Daniel 6:22 (KJV)' },
+  { id: 'carmel_fire', ic: '🔥', name: 'FIRE FROM HEAVEN', desc: 'Call down divine fire upon the altar at Mount Carmel.', ref: '1 Kings 18:38 (KJV)' },
+  { id: 'hezekiah_angel', ic: '🛡️', name: 'THE NIGHT VISIT', desc: 'Witness the angel smite the Assyrian siege at Jerusalem.', ref: '2 Kings 19:35 (KJV)' },
+  { id: 'jonah_deep', ic: '🐋', name: 'OUT OF THE DEEP', desc: 'Ascend from the belly of the great fish to dry land.', ref: 'Jonah 2:10 (KJV)' },
+  { id: 'covenant_vow', ic: '🕊️', name: 'HOLY COVENANT', desc: 'Choose a Divine Covenant to bless your crusade.', ref: 'Genesis 22:17 (KJV)' },
+  { id: 'relic_keeper', ic: '👑', name: 'SACRED RELIC', desc: 'Claim a holy relic of the prophets and kings.', ref: '2 Kings 2:13 (KJV)' },
+  { id: 'horde_100', ic: '⚔️', name: 'SLAYER OF HUNDREDS', desc: 'Reach 100 kills in David’s Ten Thousands Endless Horde.', ref: '1 Samuel 18:7 (KJV)' },
+  { id: 'adullam_sanctum', ic: '🏛️', name: 'LORD OF ADULLAM', desc: 'Enter and inspect the sanctum within the Cave of Adullam.', ref: '1 Samuel 22:1 (KJV)' }
+];
+
+function unlockFeat(id) {
+  if (!SAVE.feats) SAVE.feats = {};
+  if (SAVE.feats[id]) return;
+  SAVE.feats[id] = true;
+  writeSave();
+  const f = FEATS.find(x => x.id === id);
+  if (f) {
+    toast(`🏆 FEAT UNLOCKED: <b>${f.name}</b> · ${f.desc}`, 4500);
+    SFX.win && SFX.win();
+    bloomPulse(1.4, 0.8);
+    godRayPulse(0.2);
+  }
+}
+
+function openFeatsModal() {
+  audioInit();
+  const grid = $('feats-grid');
+  grid.innerHTML = '';
+  let unlockedCount = 0;
+  for (const f of FEATS) {
+    const isUnlocked = !!(SAVE.feats && SAVE.feats[f.id]);
+    if (isUnlocked) unlockedCount++;
+    const card = document.createElement('div');
+    card.className = 'fcard' + (isUnlocked ? ' unlocked' : '');
+    card.innerHTML = `<div class="fcard-ic">${f.ic}</div>
+      <div class="fcard-body">
+        <div class="fcard-nm">${f.name} ${isUnlocked ? '✓' : '🔒'}</div>
+        <div class="fcard-ds">${f.desc}</div>
+        <div class="fcard-ref">${f.ref}</div>
+      </div>`;
+    grid.appendChild(card);
+  }
+  $('feats-stats').innerHTML = `Unlocked: <b>${unlockedCount} / ${FEATS.length}</b> · Record Kills: <b>${SAVE.highKills || 0}</b>`;
+  show('feats-modal');
+}
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DAVID'S TEN THOUSANDS (Endless Procedural Horde Survival Mode)
+// 1 Samuel 18:7: "Saul hath slain his thousands, and David his ten thousands"
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const HORDE_RANKS = [
+  { min: 0, title: 'STRIPLING OF BETHLEHEM', verse: '“Let no man’s heart fail because of him…” (1 Sam 17:32)' },
+  { min: 50, title: 'ARMOUR-BEARER OF THE HOST', verse: '“And he became his armourbearer.” (1 Sam 16:21)' },
+  { min: 150, title: 'CAPTAIN OF A THOUSAND', verse: '“Therefore Saul removed him from him, and made him his captain over a thousand.” (1 Sam 18:13)' },
+  { min: 400, title: 'MIGHTY MAN OF VALOUR', verse: '“A mighty valiant man, and a man of war, and prudent in matters…” (1 Sam 16:18)' },
+  { min: 1000, title: 'SLAYER OF THOUSANDS', verse: '“Saul hath slain his thousands…” (1 Sam 18:7)' },
+  { min: 5000, title: 'RULER OVER ISRAEL', verse: '“Thou shalt feed my people Israel, and thou shalt be a captain…” (2 Sam 5:2)' },
+  { min: 10000, title: 'DAVID’S TEN THOUSANDS (LEGEND)', verse: '“…and David his ten thousands.” (1 Sam 18:7)' }
+];
+
+function getHordeRank(kills) {
+  let rank = HORDE_RANKS[0];
+  for (const r of HORDE_RANKS) {
+    if (kills >= r.min) rank = r;
+  }
+  return rank;
+}
+
+function generateEndlessWave(waveNum) {
+  const count = Math.min(18, 4 + Math.floor(waveNum * 1.4));
+  const list = [];
+  const cycle = waveNum % 5;
+  const isBossWave = (cycle === 0);
+
+  if (isBossWave) {
+    // Boss Wave!
+    const bossKind = waveNum <= 5 ? 'goliath' : (waveNum <= 10 ? 'ched' : 'egypt');
+    list.push([bossKind, 0, -32]);
+    // Minion escorts
+    for (let i = 0; i < 4; i++) {
+      const sx = (i % 2 === 0 ? 1 : -1) * (8 + i * 4);
+      list.push([i % 2 === 0 ? 'captain' : 'archer', sx, -28 - i * 3]);
+    }
+    return { name: `HORDE WAVE ${waveNum} · CHAMPION BOSS CHALLENGE`, list };
+  }
+
+  // Normal escalating wave
+  for (let i = 0; i < count; i++) {
+    const sx = ((i % 4) - 1.5) * 8 + (Math.random() - 0.5) * 6;
+    const sz = -24 - Math.floor(i / 4) * 8 - Math.random() * 6;
+    let kind = 'phil';
+    if (waveNum >= 2 && i % 3 === 0) kind = 'archer';
+    if (waveNum >= 3 && i % 4 === 0) kind = 'shield';
+    if (waveNum >= 4 && i === 0) kind = 'captain';
+    list.push([kind, sx, sz]);
+  }
+  return { name: `HORDE WAVE ${waveNum} · ESCALATING FORCES`, list };
+}
+
+async function startEndlessHorde() {
+  audioInit();
+  show('menu', false);
+  show('title', false);
+  show('paused', false);
+  show('win', false);
+  show('horde-over-screen', false);
+
+  LEVEL = 1; // Play on the Valley of Elah battlefield
+  G.isEndless = true;
+  G.hordeWave = 1;
+  G.kills = 0;
+  G.relics = [];
+  G.covenant = null;
+
+  buildWorld('elah');
+  makeHero();
+  updateHeroArmorVisuals();
+
+  // Pick starting Covenant
+  await covenantPanel();
+  unlockFeat('covenant_vow');
+
+  cvOnWaveStart();
+  runEndlessLoop();
+}
+
+async function runEndlessLoop() {
+  while (G.isEndless && G.phase !== 'lost') {
+    const w = generateEndlessWave(G.hordeWave);
+    G.wave = G.hordeWave;
+    G.phase = 'play';
+
+    const rank = getHordeRank(G.kills);
+    $('wave').textContent = `HORDE WAVE ${G.hordeWave} · KILLS: ${G.kills} / 10,000 (${rank.title})`;
+    toast(`<b>${w.name}</b><br>Rank: <i>${rank.title}</i>`, 2800);
+    SFX.horn();
+
+    // Spawn enemies with stat scaling
+    w.list.forEach(([k, x, z], j) => {
+      const e = spawnEnemy(k, x, z, j * 0.5);
+      if (e) {
+        const scale = 1 + (G.hordeWave - 1) * 0.08;
+        e.hp = e.maxHp = Math.round(e.maxHp * scale);
+        e.dmg = Math.round((e.dmg || 14) * (1 + (G.hordeWave - 1) * 0.04));
+      }
+    });
+
+    // Wait until wave cleared or player fell
+    await until(() => waveCleared() || G.phase === 'lost');
+    if (G.phase === 'lost') break;
+
+    await sleep(800);
+    clearDead();
+
+    // High score recording
+    if (G.kills > (SAVE.highKills || 0)) {
+      SAVE.highKills = G.kills;
+      writeSave();
+    }
+    if (G.hordeWave > (SAVE.highWave || 0)) {
+      SAVE.highWave = G.hordeWave;
+      writeSave();
+    }
+    if (G.kills >= 100) unlockFeat('horde_100');
+
+    // Upgrade & Relic milestone
+    G.coins += 10 + G.hordeWave * 2;
+    G.armour += 2;
+    if (G.hordeWave % 3 === 0 && G.relics.length < RELIC_DEFS.length) {
+      await relicPanel();
+      unlockFeat('relic_keeper');
+    }
+    await upgradePanel(`ENTER WAVE ${G.hordeWave + 1}`);
+
+    G.hordeWave++;
+  }
+
+  // Defeat in endless mode
+  handleEndlessDefeat();
+}
+
+function handleEndlessDefeat() {
+  G.isEndless = false;
+  $('hud').classList.add('hidden');
+  $('touch').classList.add('hidden');
+
+  const rank = getHordeRank(G.kills);
+  $('ho-rank').textContent = rank.title;
+  $('ho-verse').innerHTML = `“Saul hath slain his thousands, and David his ten thousands.”<span>${rank.verse}</span>`;
+  $('ho-stats').innerHTML = `<span>Wave Reached: <b>${G.hordeWave}</b></span><span>Philistines Slayed: <b>${G.kills}</b></span><span>Personal Record: <b>${SAVE.highKills || G.kills}</b></span>`;
+
+  show('horde-over-screen');
+  SFX.lose && SFX.lose();
+}
+
+
+// Endless Horde & Feats UI hooks
+if ($('btn-endless')) $('btn-endless').onclick = startEndlessHorde;
+if ($('btn-feats')) $('btn-feats').onclick = openFeatsModal;
+if ($('feats-close')) $('feats-close').onclick = () => show('feats-modal', false);
+if ($('ho-btn-again')) $('ho-btn-again').onclick = startEndlessHorde;
+if ($('ho-btn-adullam')) $('ho-btn-adullam').onclick = () => { show('horde-over-screen', false); enterAdullam(); };
+
 function boot() {
   buildDust(); buildFX(); buildSparks(); buildStones(); buildArrows(); buildSpoils(); buildPuffs(); setupInput();
   buildWorld(WORLD_OF(LEVEL));
@@ -7116,7 +7333,7 @@ function handlePerfectParry(from) { cvOnParry();
   flashAt(contact, 3.0, 0.35, 0xffe066);
   puff(contact, 1.2, 0.45, new THREE.Vector3(0, 1.8, 0));
 
-  dmgText(P.headPos(tmpV), 'DEFLECTED!', 'parry');
+  dmgText(P.headPos(tmpV), 'DEFLECTED!', 'parry'); unlockFeat('parry_master');
   gainSpirit(22); // rewarding deflect
 
   // Find attacking enemy in radius and shatter their poise!
@@ -7535,7 +7752,7 @@ function buildAdullam() {
     });
   }
 
-  toast('WELCOME TO THE CAVE OF ADULLAM · SANCTUM OF THE MIGHTY', 3500);
+  toast('WELCOME TO THE CAVE OF ADULLAM · SANCTUM OF THE MIGHTY', 3500); unlockFeat('adullam_sanctum');
 }
 
 // Update loop for Adullam Hub

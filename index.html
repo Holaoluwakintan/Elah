@@ -62,11 +62,12 @@
     <div class="tbrand">BLOSSOM PRESENTS</div>
     <div class="logo big"><span class="l1">ELAH</span><span class="l2">WARRIOR</span></div>
     <div class="mtag">A BIBLE COMBAT SAGA</div>
-    <button id="btn-play" class="gold">PLAY</button>
+    <button id="btn-play" class="gold">PLAY CAMPAIGN</button>
+    <button id="btn-endless" class="gold" style="background:linear-gradient(180deg,#8b2a1a,#4a1208);box-shadow:0 4px 18px rgba(220,60,30,.45);margin-top:2px;">⚔️ DAVID'S TEN THOUSANDS · ENDLESS</button>
     <button id="btn-adullam" class="gold" style="margin-top:2px;letter-spacing:.12em;background:linear-gradient(180deg,#7a5220,#3d240a);box-shadow:0 4px 18px rgba(180,110,30,.4);">🏛️ CAVE OF ADULLAM · SANCTUM</button>
     <button id="btn-mp" class="gold mp-btn" style="margin-top:2px;box-shadow:0 6px 24px rgba(220,150,40,.45);">⚔️ MULTIPLAYER REALM</button>
     <div class="mcont" id="mcont"></div>
-    <div class="mrow"><button id="btn-levels" class="ghost">LEVELS</button><button id="btn-settings" class="ghost">SETTINGS</button></div>
+    <div class="mrow"><button id="btn-levels" class="ghost">LEVELS</button><button id="btn-feats" class="ghost">🏆 FEATS</button><button id="btn-settings" class="ghost">SETTINGS</button></div>
     <div class="tfoot"><a href="credits.html" target="_blank" rel="noopener">Credits</a> · <a href="#" id="btn-reset">Reset progress</a></div>
   </div>
 </div>
@@ -104,6 +105,18 @@
   </div>
 </div>
 
+
+<!-- Scroll of Mighty Acts (Achievements Modal) -->
+<div id="feats-modal" class="screen">
+  <div class="fhead">
+    <div class="ftitle">SCROLL OF MIGHTY ACTS</div>
+    <div class="fsub">“These be the names of the mighty men whom David had…” · <i>2 Samuel 23:8 (KJV)</i></div>
+    <div class="fstats" id="feats-stats">Unlocked: 0 / 16 · High Kills: 0</div>
+  </div>
+  <div class="fgrid" id="feats-grid"></div>
+  <button id="feats-close" class="gold" style="margin-top:16px;">CLOSE SCROLL</button>
+</div>
+
 <div id="upgrade" class="screen">
   <div class="uphead"><div class="uptitle">SPOILS OF THE FALLEN</div><div class="upsub">Spend what you gathered. <span class="coin"></span><b id="u-coins">0</b> <span class="armour"></span><b id="u-armour">0</b></div></div>
 
@@ -125,6 +138,19 @@
 </div>
   <div class="upcards" id="upcards"></div>
   <button id="up-go" class="gold">NEXT WAVE</button>
+</div>
+
+
+<!-- Endless Horde Defeat / Summary Screen -->
+<div id="horde-over-screen" class="screen">
+  <div class="wtag" id="ho-rank">SLAYER OF THOUSANDS</div>
+  <h2 id="ho-title">The Sword Rested Not</h2>
+  <div class="wverse" id="ho-verse">“Saul hath slain his thousands, and David his ten thousands.”<span>1 Samuel 18:7 (KJV)</span></div>
+  <div class="wstats" id="ho-stats"></div>
+  <div class="cbtns">
+    <button id="ho-btn-again" class="gold">FIGHT AGAIN</button>
+    <button id="ho-btn-adullam" class="ghost">RETURN TO ADULLAM</button>
+  </div>
 </div>
 
 <div id="win" class="screen">
@@ -246,6 +272,15 @@
   <span class="hp-key">E</span>
   <span class="hp-text" id="hp-text">INTERACT</span>
 </div>
+
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+</script>
 
 </body>
 </html>

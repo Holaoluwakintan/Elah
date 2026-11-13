@@ -1,0 +1,26 @@
+{
+  "name": "ELAH WARRIOR · A Bible Combat Saga",
+  "short_name": "ELAH",
+  "description": "Epic 3D biblical combat game featuring David, Samson, Gideon, Elijah, and the Mighty Men.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0c0602",
+  "theme_color": "#d4af37",
+  "categories": ["games", "action"],
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

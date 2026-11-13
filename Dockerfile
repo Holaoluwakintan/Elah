@@ -1,0 +1,7 @@
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+COPY . .
+ENV PORT=8791
+EXPOSE 8791
+CMD ["node", "server.js"]
