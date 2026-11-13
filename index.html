@@ -25,6 +25,7 @@
 
 <!-- HUD -->
 <div id="hud" class="hidden">
+  <div id="mp-hud-roster" class="hidden"></div>
   <div id="hp-wrap">
     <div class="who"><span id="who-name">DAVID</span> <span id="angel-ico" title="Angel rescue ready">✦</span></div>
     <div class="hpbar"><div id="hp-fill"></div><div id="hp-ghost"></div></div>
@@ -58,6 +59,7 @@
     <div class="logo big"><span class="l1">ELAH</span><span class="l2">WARRIOR</span></div>
     <div class="mtag">A BIBLE COMBAT SAGA</div>
     <button id="btn-play" class="gold">PLAY</button>
+    <button id="btn-mp" class="gold mp-btn" style="margin-top:2px;box-shadow:0 6px 24px rgba(220,150,40,.45);">⚔️ MULTIPLAYER REALM</button>
     <div class="mcont" id="mcont"></div>
     <div class="mrow"><button id="btn-levels" class="ghost">LEVELS</button><button id="btn-settings" class="ghost">SETTINGS</button></div>
     <div class="tfoot"><a href="credits.html" target="_blank" rel="noopener">Credits</a> · <a href="#" id="btn-reset">Reset progress</a></div>
@@ -130,5 +132,91 @@
 <div id="dmg-layer"></div>
 <noscript>This game needs JavaScript.</noscript>
 <script type="module" src="js/game.js"></script>
+
+<div id="mp-modal" class="hidden">
+  <div class="mp-box">
+    <div class="mp-header">
+      <div class="mp-title">ELAH · MULTIPLAYER REALM</div>
+      <button id="mp-btn-close" class="mp-close-btn" aria-label="Close">✕</button>
+    </div>
+    
+    <!-- Tab 1: Lobby Browser / Create -->
+    <div id="mp-view-browser" class="mp-view">
+      <div class="mp-name-bar">
+        <label>WARRIOR NAME:</label>
+        <input type="text" id="mp-name-input" maxlength="15" value="David" placeholder="Your Name" />
+      </div>
+
+      <div class="mp-mode-cards">
+        <div class="mp-mode-card active" data-mode="coop" id="card-mode-coop">
+          <div class="mp-mode-badge">CO-OPERATIVE</div>
+          <h3>BROTHERS IN ARMS</h3>
+          <p>2–4 players join together against enemy hordes, giant champions, and legendary bosses.</p>
+        </div>
+        <div class="mp-mode-card" data-mode="pvp" id="card-mode-pvp">
+          <div class="mp-mode-badge">PVP DUEL</div>
+          <h3>TRIAL OF CHAMPIONS</h3>
+          <p>1v1 duel in the Valley of Elah. Strike, dodge, parry, and unleash divine power against your rival.</p>
+        </div>
+      </div>
+
+      <div class="mp-actions-row">
+        <button id="mp-btn-create" class="gold">CREATE REALM</button>
+        <div class="mp-join-group">
+          <input type="text" id="mp-code-input" maxlength="8" placeholder="ROOM CODE" />
+          <button id="mp-btn-join" class="ghost gold-border">JOIN</button>
+        </div>
+      </div>
+
+      <div class="mp-rooms-header">
+        <span>ACTIVE REALMS</span>
+        <button id="mp-btn-refresh" class="ghost-sm">↻ REFRESH</button>
+      </div>
+      <div id="mp-rooms-list" class="mp-rooms-list">
+        <div class="mp-empty-rooms">No open realms found. Create one to begin!</div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Inside Room Lobby -->
+    <div id="mp-view-room" class="mp-view hidden">
+      <div class="mp-room-info-bar">
+        <div>REALM CODE: <b id="mp-room-code" class="mp-code-display">ELAH</b></div>
+        <div id="mp-room-mode-tag" class="mp-mode-tag">CO-OP CAMPAIGN</div>
+      </div>
+
+      <div class="mp-lobby-cols">
+        <!-- Left Column: Players in Room -->
+        <div class="mp-players-col">
+          <h4>COVENANT WARRIORS (<span id="mp-player-count">1</span>/4)</h4>
+          <div id="mp-players-roster" class="mp-roster-list">
+            <!-- Player items rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Right Column: Settings & Hero Selection -->
+        <div class="mp-settings-col">
+          <h4>CHOOSE YOUR HERO</h4>
+          <div id="mp-hero-select" class="mp-hero-grid">
+            <!-- Hero cards: David, Benaiah, Joshua, Gideon, Elijah, Samson, Hezekiah, Jonah -->
+          </div>
+
+          <div id="mp-level-select-wrap" class="mp-select-group">
+            <label>CAMPAIGN BATTLEGROUND:</label>
+            <select id="mp-level-dropdown">
+              <!-- Populated from LEVEL_ORDER -->
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="mp-room-footer">
+        <button id="mp-btn-leave" class="ghost">LEAVE REALM</button>
+        <button id="mp-btn-ready" class="ghost gold-border">READY</button>
+        <button id="mp-btn-start" class="gold mp-host-only">START BATTLE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

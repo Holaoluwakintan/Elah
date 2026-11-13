@@ -7,6 +7,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { LEVEL_ORDER, STORY_L1, STORY_L2, STORY_L3, STORY_L4, STORY_L5, STORY_L6, STORY_L7, STORY_L8, STORY_L9, STORY_L10, STORY_L11, STORY_L12, STORY } from './data/levels.js';
+import { NET } from './net.js';
 
 // ------------------------------------------------------------------ setup
 const Q = new URLSearchParams(location.search);
@@ -48,138 +50,7 @@ function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)
 //  · STORY_L1 holds Level 1's sequences: the opening cinematic shots (seconds, words, verse), the counsel card,
 //    the jubilation, the escape tuning and the cave card. Every verse is KJV, word for word.
 // =====================================================================================================
-const LEVEL_ORDER = [
-  { key: 'david', run: 1, name: 'David', place: 'From Elah to Adullam', sub: 'FROM ELAH TO ADULLAM' },
-  { key: 'abram', run: 3, name: 'Abram rescues Lot', place: 'Dan · The night attack', sub: 'ABRAM RESCUES LOT' },
-  { key: 'benaiah', run: 4, name: 'Benaiah', place: 'Moab · The pit · The Egyptian', sub: 'BENAIAH, A VALIANT MAN' },
-  { key: 'deborah', run: 5, name: 'Deborah and Barak', place: 'Mount Tabor · The river Kishon', sub: 'DEBORAH AND BARAK' },
-  { key: 'samson', run: 2, name: 'Samson', place: 'Lehi · The house of Dagon', sub: 'THE STRENGTH OF SAMSON' },
-  { key: 'mighty', run: 6, name: 'David’s mighty men', place: 'Pasdammim · The well of Bethlehem', sub: 'DAVID AND HIS MIGHTY MEN' },
-];
-const STORY_L1 = {
-  sequences: ['The Philistine armies', 'Goliath', 'Jubilation', 'Escape to Adullam'],   // shown as "SEQUENCE n OF 4 · …"
-  // Opening cinematic (tap to skip). shot = which camera set-up plays (defy, prize, vision, resolve); sec = seconds on screen.
-  intro: [
-    { shot: 'defy', sec: 1.4, head: 'Goliath defies Israel', text: '“I defy the armies of Israel this day…”', ref: '1 Samuel 17:10' },
-    { shot: 'prize', sec: 1.4, head: 'The king’s prize', text: '“…the king will enrich him with great riches, and will give him his daughter…”', ref: '1 Samuel 17:25' },
-    { shot: 'vision', sec: 2.0, look: 'vision', head: 'If the Philistine wins…', text: '“…then shall ye be our servants, and serve us.”', ref: '1 Samuel 17:9' },
-    { shot: 'resolve', sec: 1.2, head: 'Not for the prize. For Israel.', text: '“…for the battle is the LORD’S…”', ref: '1 Samuel 17:47' },
-  ],
-  counsel: { who: 'MOSES · YOUR ADVISOR', text: 'Not for the king’s riches, David, but for Israel. First the armies of the Philistines, then their champion. Remember what you told Saul:', verse: '“The LORD that delivered me out of the paw of the lion, and out of the paw of the bear, he will deliver me out of the hand of this Philistine.”', ref: '1 SAMUEL 17:37 (KJV)', tips: '<b>Staff</b> for close fighting. <b>Sling</b> from afar. <b>Dodge</b> their blows. Gather the <b>spoils</b> of the fallen to grow stronger.', btn: 'I AM READY' },
-  jubilation: [
-    { shot: 'praise', sec: 4.6, head: 'Israel rejoices', text: '“Saul hath slain his thousands, and David his ten thousands.”', ref: '1 Samuel 18:7' },
-    { shot: 'jealous', sec: 3.0, look: 'dark', head: 'But Saul…', text: '“And Saul was very wroth… And Saul eyed David from that day and forward.”', ref: '1 Samuel 18:8–9' },
-  ],
-  escapeCard: { who: 'SEQUENCE 4 OF 4 · ESCAPE TO ADULLAM', text: 'Saul now seeks your life, and his soldiers are many. <b>Do not fight back.</b> Run for the cave of Adullam.', verse: '“…and David fled, and escaped that night.”', ref: '1 SAMUEL 19:10 (KJV)', btn: 'RUN' },
-  escapeTips: { touch: '<b>SPRINT</b> (hold) while stamina lasts · <b>ROLL</b> through their hands · <b>HIDE</b> beside a rock and they lose you · Getting caught costs health', keys: '<b>Shift / J</b> (hold) sprint · <b>Space</b> roll · <b>K / C</b> hide beside a rock · Getting caught costs health' },
-  // Escape tuning. groups: when David passes z = at, n soldiers appear, from behind him or waiting ahead on the slopes.
-  escape: {
-    runSpeed: 6.0, sprintSpeed: 8.7, stamina: 100, sprintDrain: 24, staminaRegen: 15, hunterSpeed: [5.0, 5.7],
-    catchDmg: 14, grabRange: 2.1, lungeSpeed: 7.6, sight: 19, hiddenSee: 3.2, hideNear: 1.8, maxActive: 14,
-    groups: [
-      { at: 99, n: 6, from: 'behind' }, { at: -10, n: 3, from: 'ahead' }, { at: -32, n: 4, from: 'ahead' }, { at: -48, n: 3, from: 'behind' },
-      { at: -68, n: 4, from: 'ahead' }, { at: -92, n: 4, from: 'ahead' }, { at: -108, n: 3, from: 'behind' }, { at: -122, n: 4, from: 'ahead' },
-    ],
-  },
-  cave: { who: 'THE CAVE OF ADULLAM', verse: '“David therefore departed thence, and escaped to the cave Adullam: and when his brethren and all his father’s house heard it, they went down thither to him. And every one that was in distress, and every one that was in debt, and every one that was discontented, gathered themselves unto him; and he became a captain over them: and there were with him about four hundred men.”', ref: '1 SAMUEL 22:1–2 (KJV)', btn: 'CONTINUE' },
-};
-// Level 2 on the title (run 3): Abram rescues Lot (Genesis 14). Same shape as STORY_L1.
-const STORY_L3 = {
-  sequences: ['Night raid at Dan', 'Free Lot', 'The divided attack', 'Chedorlaomer', 'The chase to Hobah'],
-  waveSeq: [1, 2, 3],   // which sequence each wave belongs to (the king is 4, the chase 5)
-  intro: [
-    { shot: 'taken', sec: 2.0, head: 'The kings of the east take Lot', text: '“And they took Lot, Abram’s brother’s son, who dwelt in Sodom, and his goods, and departed.”', ref: 'Genesis 14:12' },
-    { shot: 'escaped', sec: 1.6, head: 'One that had escaped', text: '“And there came one that had escaped, and told Abram the Hebrew…”', ref: 'Genesis 14:13' },
-    { shot: 'armed', sec: 2.0, head: 'Abram arms his servants', text: '“…he armed his trained servants, born in his own house, three hundred and eighteen…”', ref: 'Genesis 14:14' },
-  ],
-  counsel: { who: 'MOSES · YOUR ADVISOR', text: 'Lot and the people are bound in the camp of the four kings at Dan. Divide your servants and strike by night.', tips: '<b>Sword</b> up close. <b>Bow</b> from afar. <b>Dodge</b> their blows. <b>Stand by the captives</b> to cut them free. Your <b>servants</b> fight beside you. Gather the <b>spoils</b> for upgrades.', btn: 'ATTACK BY NIGHT' },
-  // difficulty: multipliers on the eastern soldiers and the king (1 = the first version)
-  hard: { hp: 1.42, dmg: 1.32, speed: 0.35, attackers: 1, kingHp: 1.2 },
-};
-// Benaiah (run 4): 2 Samuel 23:20–23 and 1 Chronicles 11:22–25. Same shape as STORY_L3, plus the lion and the Egyptian.
-const STORY_L4 = {
-  sequences: ['Two lionlike men of Moab', 'The lion in the pit', 'The Egyptian'],
-  waveSeq: [1, 1],
-  intro: [
-    { shot: 'moab', sec: 1.9, head: 'Two lionlike men of Moab', text: '“…he slew two lionlike men of Moab…”', ref: '2 Samuel 23:20' },
-    { shot: 'pit', sec: 1.9, head: 'A lion in a pit, in time of snow', text: '“…he went down also and slew a lion in the midst of a pit in time of snow:”', ref: '2 Samuel 23:20' },
-    { shot: 'egypt', sec: 2.0, head: 'An Egyptian, five cubits high', text: '“And he slew an Egyptian, a man of great stature, five cubits high; and in the Egyptian’s hand was a spear like a weaver’s beam…”', ref: '1 Chronicles 11:23' },
-  ],
-  counsel: { who: 'MOSES · YOUR ADVISOR', text: 'Benaiah son of Jehoiada, the raiders of Moab are on the border, and two lionlike men lead them. Go out and meet them.', tips: '<b>Staff</b> up close. <b>Sling</b> from afar. <b>Dodge</b> their blows. Gather the <b>spoils</b> for upgrades.', btn: 'GO OUT TO MOAB' },
-  // difficulty: multipliers on the soldiers of Moab (Benaiah comes after Abram, so it is harder)
-  hard: { hp: 1.5, dmg: 1.38, speed: 0.4, attackers: 1 },
-  lionman: { hp: 420, dmg: 26, speed: 3.2, scale: 1.22 },
-  lion: { hp: 900, scale: 1.05, leap: 3.1, ring: 2.3, win: 0.6, open: 1.25,
-    card: { who: 'THE LION IN THE PIT', text: 'Snow is falling. A lion has come down into the pit, and Benaiah goes down after it.', verse: '“…he went down also and slew a lion in the midst of a pit in time of snow:”', ref: '2 SAMUEL 23:20 (KJV)', tips: '<b>Moses:</b> Watch the ring when it crouches, then <b>dodge</b> the pounce. When it lands or strikes the wall it is open: <b>strike hard</b>.', btn: 'GO DOWN' } },
-  egypt: { hp: 1150, scale: 1.75, disarmAt: 0.5, win: 0.8, open: 1.35,
-    card: { who: 'THE EGYPTIAN · FIVE CUBITS HIGH', verse: '“And he slew an Egyptian, a goodly man: and the Egyptian had a spear in his hand; but he went down to him with a staff, and plucked the spear out of the Egyptian’s hand, and slew him with his own spear.”', ref: '2 SAMUEL 23:21 (KJV)', tips: '<b>Moses:</b> His spear is like a weaver’s beam. <b>Dodge</b> the sweep and the charge, strike when he stumbles, and wear him down: then <b>pluck the spear</b> from his hand.', btn: 'GO DOWN TO HIM' } },
-  end: { who: 'BENAIAH SON OF JEHOIADA', text: 'Over David’s guard.', verse: '“These things did Benaiah the son of Jehoiada, and had the name among three mighty men. He was more honourable than the thirty, but he attained not to the first three. And David set him over his guard.”', ref: '2 SAMUEL 23:22–23 (KJV)', btn: 'CONTINUE' },
-};
-// Deborah and Barak (run 5): Judges 4–5. Barak is played; Deborah sends him and counsels him; Jael ends it.
-const STORY_L5 = {
-  sequences: ['Down from mount Tabor', 'The chariots of iron', 'The river Kishon', 'Pursue Sisera'],
-  waveSeq: [1, 1],
-  intro: [
-    { shot: 'chariots', sec: 2.0, head: 'Nine hundred chariots of iron', text: '“…for he had nine hundred chariots of iron; and twenty years he mightily oppressed the children of Israel.”', ref: 'Judges 4:3' },
-    { shot: 'palm', sec: 2.0, head: 'Deborah sends Barak', text: '“Up; for this is the day in which the LORD hath delivered Sisera into thine hand: is not the LORD gone out before thee?”', ref: 'Judges 4:14' },
-    { shot: 'tabor', sec: 1.8, head: 'Down from mount Tabor', text: '“So Barak went down from mount Tabor, and ten thousand men after him.”', ref: 'Judges 4:14' },
-  ],
-  counsel: { who: 'DEBORAH · PROPHETESS, JUDGE OF ISRAEL', text: 'Barak, meet his foot soldiers on the plain. Do not stand before his chariots: step out of their path. The LORD will fight for you.', verse: '“And I will draw unto thee to the river Kishon Sisera, the captain of Jabin’s army, with his chariots and his multitude; and I will deliver him into thine hand.”', ref: 'JUDGES 4:7 (KJV)', tips: '<b>Sword</b> up close. <b>Bow</b> from afar. <b>Dodge</b> out of a chariot’s red lane. Your <b>men</b> fight beside you.', btn: 'DOWN FROM TABOR' },
-  hard: { hp: 1.5, dmg: 1.4, speed: 0.42, attackers: 1 },
-  // the chariots: how many run, how fast, how long the red lane warns first, and how many must sink in the mud before the river rises
-  chariots: { count: 3, passes: 5, gap: 1.5, warn: 1.35, speed: 14, mudSpeed: 8, dmg: 30, stuck: 4, tip: '<b>Chariots of iron!</b> Iron turns the sword. Watch for the <b>red lane</b> and get out of it, or <b>dodge</b>.' },
-  tent: { x: -17, z: -13 },
-  rearguard: [['phil', -10, -10], ['phil', 6, -12], ['captain', -4, -15], ['archer', 12, -16], ['shield', -14, -6], ['phil', 16, -6]],
-  jael: { who: 'JAEL · THE WIFE OF HEBER', verse: '“Then Jael Heber’s wife took a nail of the tent, and took an hammer in her hand, and went softly unto him, and smote the nail into his temples, and fastened it into the ground: for he was fast asleep and weary. So he died.”', ref: 'JUDGES 4:21 (KJV)', btn: 'CONTINUE' },
-  end: { who: 'JAEL COMES OUT TO MEET BARAK', verse: '“And, behold, as Barak pursued Sisera, Jael came out to meet him, and said unto him, Come, and I will shew thee the man whom thou seekest. And when he came into her tent, behold, Sisera lay dead, and the nail was in his temples.”', ref: 'JUDGES 4:22 (KJV)', btn: 'CONTINUE' },
-};
-// Samson (run 2): Israel under the Philistines, Samson's resolve, the Spirit of the LORD comes upon him; then Lehi and the house of Dagon
-const STORY_L2 = {
-  sequences: ['Bound at Lehi', 'A thousand men with the jawbone', 'The house of Dagon'],
-  waveSeq: [1, 2, 2],   // which sequence each Lehi wave belongs to (the temple is 3)
-  intro: [
-    { shot: 'oppress', sec: 2.1, look: 'dark', head: 'Forty years under the Philistines', text: '“…and the LORD delivered them into the hand of the Philistines forty years.”', ref: 'Judges 13:1' },
-    { shot: 'resolve', sec: 1.6, head: 'Samson will not stand by', text: '“…he shall begin to deliver Israel out of the hand of the Philistines.”', ref: 'Judges 13:5' },
-    { shot: 'spirit', sec: 2.1, head: 'The Spirit of the LORD', text: '“…and the Spirit of the LORD came mightily upon him…”', ref: 'Judges 15:14' },
-  ],
-  // harder than before: soldiers' health, damage, speed, one more attacker at a time; temple guards come faster (seconds between pulses)
-  hard: { hp: 1.32, dmg: 1.22, speed: 0.28, attackers: 1, finaleSpawn: 7.6 },
-};
-// David the mighty man (run 6): David, grown, with his three mighty men (2 Samuel 23:8–17; 1 Chronicles 11:10–19)
-const STORY_L6 = {
-  sequences: ['Adino and the eight hundred', 'Eleazar at Pasdammim', 'Shammah in the field of lentiles', 'The well of Bethlehem'],
-  waveSeq: [1, 1],
-  intro: [
-    { shot: 'mighty', sec: 2.0, head: 'David and his mighty men', text: '“These be the names of the mighty men whom David had…”', ref: '2 Samuel 23:8' },
-    { shot: 'host', sec: 1.9, head: 'The valley of Rephaim', text: '“…and the troop of the Philistines pitched in the valley of Rephaim.”', ref: '2 Samuel 23:13' },
-    { shot: 'garrison', sec: 1.9, head: 'A garrison in Bethlehem', text: '“And David was then in an hold, and the garrison of the Philistines was then in Bethlehem.”', ref: '2 Samuel 23:14' },
-  ],
-  counsel: { who: 'COUNSEL · DAVID AND HIS MIGHTY MEN', text: 'David, you are a man of war now, and your three mighty men fight beside you: Adino, Eleazar and Shammah. When one falls, he rises again.', verse: '“He teacheth my hands to war, so that a bow of steel is broken by mine arms.”', ref: 'PSALM 18:34 (KJV)', tips: '<b>Sword</b> up close, <b>bow</b> at range, <b>dodge</b> their blows. Each mighty man has his own battle: stay with him.', btn: 'TO BATTLE' },
-  // the three, in the order they fight beside David; dmg multiplies their sword
-  men: [{ look: 'adino', name: 'ADINO', dmg: 1.35 }, { look: 'eleazar', name: 'ELEAZAR', dmg: 1.25 }, { look: 'shammah', name: 'SHAMMAH', dmg: 1.25 }],
-  hard: { hp: 1.45, dmg: 1.3, speed: 0.4, attackers: 1 },
-  // Sequence 1: the host comes in great numbers but each man is weaker; the counter runs to eight hundred
-  horde: { total: 800, hp: 0.5, verse: '“…the same was Adino the Eznite: he lift up his spear against eight hundred, whom he slew at one time.”', ref: '2 SAMUEL 23:8' },
-  // Sequence 2: the people flee; David and Eleazar hold the barley for `secs` seconds (the clock runs only while David stands in it)
-  barley: { x: -11, z: -5, r: 6.5, secs: 38, every: 2.4, max: 7,
-    start: '“…when they defied the Philistines that were there gathered together to battle, and the men of Israel were gone away:”', startRef: '2 SAMUEL 23:9',
-    end: '“He arose, and smote the Philistines until his hand was weary, and his hand clave unto the sword: and the LORD wrought a great victory that day…”', endRef: '2 SAMUEL 23:10' },
-  // Sequence 3: Philistine raiders run for the lentiles; each one standing in the field tramples it (`trample` per second)
-  lentiles: { x: 11, z: -5, r: 6, trample: 3.2,
-    groups: [[['phil', 26, -16], ['phil', 28, -10], ['captain', 27, -20]], [['phil', -6, -22], ['phil', 4, -23], ['shield', 0, -24], ['archer', 10, -22]], [['phil', 27, 6], ['phil', 26, 12], ['captain', 26, -2], ['phil', 18, -22], ['shield', 24, -18]]],
-    gap: 9,
-    start: '“And the Philistines were gathered together into a troop, where was a piece of ground full of lentiles: and the people fled from the Philistines.”', startRef: '2 SAMUEL 23:11',
-    end: '“But he stood in the midst of the ground, and defended it, and slew the Philistines: and the LORD wrought a great victory.”', endRef: '2 SAMUEL 23:12' },
-  // Sequence 4: you are the three. Break through the host to the well by the gate, draw water, bring it to David in the hold
-  well: { x: 0, z: -20.5, hold: { x: 0, z: 13 }, draw: 1.6,
-    lines: [['phil', -5, -2], ['phil', 4, -3], ['shield', 0, -6], ['phil', 9, -10], ['captain', 0, -12], ['archer', -14, -15], ['archer', 14, -15], ['shield', -4, -16], ['shield', 5, -16], ['phil', -2, -19]],
-    pursuers: [['phil', -20, -18], ['phil', 20, -18], ['captain', 0, -24], ['phil', -24, -4], ['phil', 24, -2]],
-    longed: { who: 'DAVID IN THE HOLD', verse: '“And David longed, and said, Oh that one would give me drink of the water of the well of Bethlehem, which is by the gate!”', ref: '2 SAMUEL 23:15', tips: 'You are now <b>the three</b>: Adino leads, Eleazar and Shammah fight beside him. <b>Break through</b> the host to the well by the gate, draw water, and bring it back to David.', btn: 'BREAK THROUGH' },
-    drawn: '“And the three mighty men brake through the host of the Philistines, and drew water out of the well of Bethlehem, that was by the gate…”', drawnRef: '2 SAMUEL 23:16',
-    poured: { who: 'DAVID POURS IT OUT UNTO THE LORD', verse: '“…and took it, and brought it to David: nevertheless he would not drink thereof, but poured it out unto the LORD.”', ref: '2 SAMUEL 23:16 (KJV)', btn: 'CONTINUE' },
-    blood: { who: 'DAVID', verse: '“And he said, Be it far from me, O LORD, that I should do this: is not this the blood of the men that went in jeopardy of their lives? therefore he would not drink it. These things did these three mighty men.”', ref: '2 SAMUEL 23:17 (KJV)', btn: 'AMEN' } },
-};
-const STORY = { 1: STORY_L1, 2: STORY_L2, 3: STORY_L3, 4: STORY_L4, 5: STORY_L5, 6: STORY_L6 };
+// Level and Story Data extracted to ./data/levels.js
 const PLAYABLE = LEVEL_ORDER.filter(x => !x.soon);
 const ORD = (run) => PLAYABLE.find(x => x.run === run);
 const NUM = (run) => PLAYABLE.findIndex(x => x.run === run) + 1;   // the level number the player sees
@@ -188,7 +59,7 @@ const PREV = (run) => { const i = PLAYABLE.findIndex(x => x.run === run); return
 const isOpen = (run) => { const i = PLAYABLE.findIndex(x => x.run === run); return i <= 0 || !!SAVE.open[PLAYABLE[i].key] || !!SAVE.done[PLAYABLE[i - 1].run]; };
 const LQ = Q.get('l'), LQO = LQ ? (/^\d+$/.test(LQ) ? PLAYABLE[+LQ - 1] : PLAYABLE.find(x => x.key === LQ)) : null;
 let LEVEL = LQO ? LQO.run : (BOT ? 1 : (ORD(SAVE.level) && isOpen(SAVE.level) ? SAVE.level : 1));
-const WORLD_OF = (l) => l === 6 ? 'beth' : l === 5 ? 'kishon' : l === 4 ? 'moab' : l === 3 ? 'dan' : l === 2 ? 'lehi' : 'elah';
+const WORLD_OF = (l) => l === 11 ? 'jerusalem' : l === 12 ? 'belly' : l === 10 ? 'carmel' : l === 9 ? 'den' : l === 8 ? 'moreh' : l === 7 ? 'jericho' : l === 6 ? 'beth' : l === 5 ? 'kishon' : l === 4 ? 'moab' : l === 3 ? 'dan' : l === 2 ? 'lehi' : 'elah';
 const $ = (id) => document.getElementById(id);
 const isTouch = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
 const canvas = $('c');
@@ -291,7 +162,7 @@ function hgtElah(x, z) {
 }
 const ARENA = { x0: -30, x1: 30, z0: -16, z1: 17 };
 const PITH = 10.5, PITD = 3.6;   // Benaiah's pit: half its width, and its depth
-const ARENA_BY = { elah: { x0: -30, x1: 30, z0: -16, z1: 17 }, lehi: { x0: -26, x1: 26, z0: -20, z1: 18 }, temple: { x0: -8.4, x1: 8.4, z0: -9.5, z1: 10 }, dan: { x0: -24, x1: 24, z0: -21, z1: 18 }, wild: { x0: -70, x1: 70, z0: -156, z1: 24 }, moab: { x0: -26, x1: 26, z0: -19, z1: 18 }, kishon: { x0: -28, x1: 28, z0: -19, z1: 18 }, beth: { x0: -28, x1: 28, z0: -23, z1: 18 }, pit: { x0: -PITH + 1.1, x1: PITH - 1.1, z0: -PITH + 1.1, z1: PITH - 1.1 } };
+const ARENA_BY = { elah: { x0: -30, x1: 30, z0: -16, z1: 17 }, lehi: { x0: -26, x1: 26, z0: -20, z1: 18 }, temple: { x0: -8.4, x1: 8.4, z0: -9.5, z1: 10 }, jericho: { x0: -32, x1: 32, z0: -48, z1: 22 }, moreh: { x0: -38, x1: 38, z0: -50, z1: 26 }, dan: { x0: -24, x1: 24, z0: -21, z1: 18 }, wild: { x0: -70, x1: 70, z0: -156, z1: 24 }, moab: { x0: -26, x1: 26, z0: -19, z1: 18 }, kishon: { x0: -28, x1: 28, z0: -19, z1: 18 }, beth: { x0: -28, x1: 28, z0: -23, z1: 18 }, pit: { x0: -PITH + 1.1, x1: PITH - 1.1, z0: -PITH + 1.1, z1: PITH - 1.1 } };
 
 // ------------------------------------------------------------------ sky (also used for env map)
 const skyMat = new THREE.ShaderMaterial({
@@ -659,7 +530,7 @@ function buildTemple() {
 }
 
 // ---- Level 3 world: the camp of the four kings at Dan, by night (Genesis 14:14–15)
-let DAN = null;
+let DAN = null, JERICHO = null, MOREH = null, DEN = null, CARMEL = null, BELLY = null, HEZEKIAH = null;
 function hgtDan(x, z) {
   const r = Math.hypot(x * 0.9, z + 2);
   let h = Math.max(0, r - 27); h = h * h * 0.026 + h * 0.3;
@@ -784,6 +655,7 @@ const ENV = {
   elah: { fog: 0xd6a57a, near: 42, far: 240, hemi: [0xffdcae, 0x4a3018, 0.78], sun: [0xffc47e, 3.5], dir: [-0.58, 0.31, -0.75], zen: [0.26, 0.42, 0.68], hor: [0.98, 0.74, 0.5], low: [0.85, 0.66, 0.48], sunC: [1.0, 0.62, 0.28], exp: 1.05, dust: 0xffd9a0 },
   lehi: { fog: 0xa88078, near: 50, far: 250, hemi: [0xb4b0dc, 0x6a4a30, 1.25], sun: [0xffae74, 3.4], dir: [0.62, 0.24, -0.75], zen: [0.16, 0.2, 0.42], hor: [1.0, 0.56, 0.36], low: [0.52, 0.38, 0.4], sunC: [1.0, 0.45, 0.2], exp: 1.22, dust: 0xffb070 },
   dan: { fog: 0x111a2e, near: 16, far: 125, hemi: [0x6a80bc, 0x2a1e16, 0.55], sun: [0xb4c6f0, 1.25], dir: [0.3, 0.42, -0.86], zen: [0.012, 0.02, 0.055], hor: [0.07, 0.1, 0.19], low: [0.035, 0.035, 0.05], sunC: [0.22, 0.28, 0.45], exp: 1.08, dust: 0xffa060, warm: 0, stars: 1.4 },
+  moreh: { fog: 0x0a101e, near: 18, far: 140, hemi: [0x506894, 0x1e1610, 0.52], sun: [0x9ab0dc, 1.3], dir: [0.25, 0.5, -0.82], zen: [0.01, 0.018, 0.048], hor: [0.06, 0.08, 0.16], low: [0.03, 0.03, 0.04], sunC: [0.2, 0.26, 0.42], exp: 1.1, dust: 0xffa040, warm: 0, stars: 1.9 },
   wild: { fog: 0xcf9c70, near: 34, far: 185, hemi: [0xffd8a8, 0x5a3a22, 0.82], sun: [0xffb070, 3.3], dir: [-0.6, 0.27, 0.75], zen: [0.3, 0.4, 0.64], hor: [1.0, 0.68, 0.44], low: [0.84, 0.6, 0.44], sunC: [1.0, 0.56, 0.25], exp: 1.07, dust: 0xffc890 },
   moab: { fog: 0xb8b4bc, near: 40, far: 210, hemi: [0xdfe6f6, 0x5a4a3a, 0.95], sun: [0xffe0bc, 2.7], dir: [-0.5, 0.34, -0.78], zen: [0.32, 0.42, 0.6], hor: [0.86, 0.8, 0.78], low: [0.68, 0.64, 0.62], sunC: [1.0, 0.78, 0.55], exp: 1.05, dust: 0xffffff },
   pit: { fog: 0xc6ccd8, near: 18, far: 110, hemi: [0xe2eaff, 0x5a5450, 1.15], sun: [0xe8eeff, 1.7], dir: [0.35, 0.72, -0.5], zen: [0.5, 0.55, 0.65], hor: [0.8, 0.83, 0.88], low: [0.68, 0.7, 0.74], sunC: [0.9, 0.9, 0.95], exp: 1.0, dust: 0xffffff },
@@ -791,15 +663,18 @@ const ENV = {
   kishon: { fog: 0xd2d6d2, near: 42, far: 230, hemi: [0xeef2f8, 0x6a5a40, 1.05], sun: [0xffe6bc, 3.1], dir: [-0.45, 0.5, 0.74], zen: [0.22, 0.4, 0.72], hor: [0.8, 0.84, 0.86], low: [0.72, 0.72, 0.68], sunC: [1.0, 0.75, 0.45], exp: 1.05, dust: 0xffe6b0 },
   storm: { fog: 0x5e666e, near: 22, far: 140, hemi: [0xb4c0d4, 0x3a3a34, 1.0], sun: [0xc8d4e8, 1.2], dir: [-0.4, 0.6, 0.7], zen: [0.18, 0.21, 0.26], hor: [0.4, 0.43, 0.48], low: [0.3, 0.32, 0.35], sunC: [0.5, 0.55, 0.6], exp: 1.0, dust: 0xc8d8ff },
   temple: { fog: 0x4a3226, near: 22, far: 90, hemi: [0xffd2a0, 0x3a2618, 1.05], sun: [0xffb070, 2.6], dir: [0.3, 0.42, 0.86], zen: [0.15, 0.17, 0.36], hor: [1.0, 0.5, 0.3], low: [0.5, 0.3, 0.26], sunC: [1.0, 0.42, 0.18], exp: 1.12, dust: 0xffc890 },
+  jericho: { fog: 0xd89e68, near: 36, far: 210, hemi: [0xffe4b8, 0x58341e, 1.05], sun: [0xffc66e, 3.8], dir: [-0.4, 0.45, -0.8], zen: [0.22, 0.38, 0.65], hor: [0.98, 0.72, 0.44], low: [0.82, 0.60, 0.40], sunC: [1.0, 0.65, 0.25], exp: 1.12, dust: 0xffd290 },
 };
 // colour grade per world: shadow tint, highlight tint, saturation, contrast, vignette
 const GRADE = {
   def: { sh: [0.95, 0.99, 1.06], hi: [1.06, 1.0, 0.92], sat: 1.1, con: 1.08, vig: 0.34 },
   dan: { sh: [0.9, 0.97, 1.12], hi: [1.08, 0.98, 0.88], sat: 1.05, con: 1.1, vig: 0.42 },
+  moreh: { sh: [0.9, 0.96, 1.14], hi: [1.12, 1.0, 0.86], sat: 1.1, con: 1.15, vig: 0.44 },
   pit: { sh: [0.94, 0.98, 1.08], hi: [1.02, 1.0, 0.97], sat: 1.0, con: 1.08, vig: 0.38 },
   moab: { sh: [0.94, 0.98, 1.08], hi: [1.03, 1.0, 0.96], sat: 1.02, con: 1.07, vig: 0.32 },
   storm: { sh: [0.92, 0.98, 1.08], hi: [1.0, 1.0, 1.0], sat: 0.92, con: 1.12, vig: 0.42 },
   temple: { sh: [0.92, 0.95, 1.06], hi: [1.1, 0.98, 0.86], sat: 1.08, con: 1.1, vig: 0.42 },
+  jericho: { sh: [0.96, 0.98, 1.05], hi: [1.12, 1.02, 0.88], sat: 1.15, con: 1.12, vig: 0.36 },
 };
 function setGrade(name) { if (!gradePass) return; const g = GRADE[name] || GRADE.def, u = gradePass.uniforms; u.uShadow.value.set(...g.sh); u.uHigh.value.set(...g.hi); u.uSat.value = g.sat; u.uCon.value = g.con; u.uVig.value = g.vig; }
 function setEnv(name) {
@@ -814,11 +689,11 @@ function setEnv(name) {
 function buildWorld(name) {
   if (WORLD === name) return;
   scene.remove(W); W.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); } });
-  W = new THREE.Group(); scene.add(W); COL.length = 0; FIRES.length = 0; SNOW = null; KISHON = null; TEMPLE = null; DAN = null; WILD = null; WORLD = name; musicMode(name);
-  Object.assign(ARENA, ARENA_BY[name]); HGT = name === 'elah' ? hgtElah : name === 'lehi' ? hgtLehi : name === 'dan' ? hgtDan : name === 'wild' ? hgtWild : name === 'moab' ? hgtMoab : name === 'pit' ? hgtPit : name === 'kishon' ? hgtKishon : name === 'beth' ? hgtBeth : () => 0;
+  W = new THREE.Group(); scene.add(W); COL.length = 0; FIRES.length = 0; SNOW = null; KISHON = null; TEMPLE = null; DAN = null; WILD = null; JERICHO = null; MOREH = null; DEN = null; CARMEL = null; BELLY = null; HEZEKIAH = null; WORLD = name; musicMode(name);
+  Object.assign(ARENA, ARENA_BY[name]); HGT = name === 'elah' ? hgtElah : name === 'lehi' ? hgtLehi : name === 'dan' ? hgtDan : name === 'wild' ? hgtWild : name === 'moab' ? hgtMoab : name === 'pit' ? hgtPit : name === 'kishon' ? hgtKishon : name === 'beth' ? hgtBeth : name === 'moreh' ? hgtMoreh : name === 'jericho' ? hgtJericho : name === 'den' ? hgtDen : name === 'carmel' ? hgtCarmel : name === 'belly' ? hgtBelly : name === 'jerusalem' ? hgtJerusalem : () => 0;
   RS = name === 'elah' ? 1234567 : name === 'lehi' ? 7654321 : name === 'dan' ? 3141592 : name === 'wild' ? 2718281 : 424242;
   setEnv(name);
-  if (name === 'elah') { buildTerrain(); buildProps(); } else if (name === 'lehi') buildLehi(); else if (name === 'dan') buildDan(); else if (name === 'wild') buildWild(); else if (name === 'moab') buildMoab(); else if (name === 'pit') buildPit(); else if (name === 'kishon') buildKishon(); else if (name === 'beth') buildBeth(); else buildTemple();
+  if (name === 'elah') { buildTerrain(); buildProps(); } else if (name === 'lehi') buildLehi(); else if (name === 'dan') buildDan(); else if (name === 'wild') buildWild(); else if (name === 'moab') buildMoab(); else if (name === 'pit') buildPit(); else if (name === 'kishon') buildKishon(); else if (name === 'beth') buildBeth(); else if (name === 'jericho') buildJericho(); else if (name === 'moreh') buildMoreh(); else if (name === 'den') buildDen(); else if (name === 'carmel') buildCarmel(); else if (name === 'belly') buildBelly(); else if (name === 'jerusalem') buildJerusalem(); else buildTemple();
   LOG('world', { name });
 }
 function collide(p, r) { let hit = false; for (const c of COL) { const dx = p.x - c.x, dz = p.z - c.z, R = r + c.r, d2 = dx * dx + dz * dz; if (d2 < R * R) { const d = Math.sqrt(d2) || 0.001; p.x = c.x + dx / d * R; p.z = c.z + dz / d * R; hit = true; } } return hit; }
@@ -828,6 +703,12 @@ function updateWorld(dt) {
   if (DAN) updateDan(dt);
   if (SNOW) updateSnow(dt);
   if (KISHON && KISHON.rain && KISHON.rain.visible) updatePrecip(KISHON.rain, dt);
+  if (MOREH) updateMoreh(dt);
+  if (DEN) updateDen(dt);
+  if (CARMEL) updateCarmel(dt);
+  if (BELLY) updateBelly(dt);
+  if (HEZEKIAH) updateJerusalem(dt);
+  if (JERICHO) updateJericho(dt);
   if (WILD) { WILD.t += dt; WILD.light.intensity = 30 + Math.sin(t * 11) * 4 + Math.sin(t * 23) * 3; WILD.beam.material.opacity = 0.13 + 0.05 * Math.sin(t * 1.7); }
   const T = TEMPLE; if (!T) return; T.t += dt;
   if (T.light) T.light.intensity = 26 + Math.sin(t * 9) * 3 + Math.sin(t * 17) * 2;
@@ -1177,6 +1058,10 @@ const LOOKS = {
   woman2: { hairStyle: 'Long', skin: 0xa86e4a, tunic: 0x2a5a8a, trim: 0xf0e0b0, hair: 0x140d08, veil: 0xd8b860, shoe: 0x5a3a1e, skirt: 0.04, sleeve: 0.85, gear: 'woman' },
   woman3: { hairStyle: 'Long', skin: 0xba825a, tunic: 0xd8a040, trim: 0x7a2a20, hair: 0x100a06, veil: 0x8a2a40, shoe: 0x5a3a1e, skirt: 0.04, sleeve: 0.85, gear: 'woman' },
   angel: { hairStyle: 'SimpleParted', skin: 0xfff4e0, tunic: 0xfffaf0, trim: 0xffe39a, hair: 0xfff0c0, curls: 18, eye: 0x6a5a3a, shoe: 0xfff4e0, skirt: 0.04, sleeve: 0.9, glow: 0.9 },
+  joshua: { hairStyle: 'SimpleParted', beardS: 1.25, skin: 0xb47850, tunic: 0x1f3c64, trim: 0xe2ba58, hair: 0x18120c, cloak: 0x7c2020, metal: 0xd4a84e, shoe: 0x4a321c, skirt: 0.44, sleeve: 0.35, armor: true, greaves: true, aura: 0.7, gear: 'joshua' },
+  gideon: { hairStyle: 'SimpleParted', beardS: 1.2, skin: 0xb47c52, tunic: 0x364832, trim: 0xd4a850, hair: 0x18110b, cloak: 0x242e22, shoe: 0x4a321c, skirt: 0.46, sleeve: 0.35, armor: true, greaves: true, aura: 0.55, gear: 'gideon' },
+  mid_king: { hairStyle: 'Buzzed', beardS: 1.45, skin: 0x905838, tunic: 0x5a1838, trim: 0xe0b850, hair: 0x100b08, cloak: 0x3c1228, metal: 0xc89848, skirt: 0.42, sleeve: 0.35, armor: true, greaves: true, gear: 'ched' },
+  j_king: { hairStyle: 'Buzzed', beardS: 1.5, skin: 0x8e5836, tunic: 0x4a1820, trim: 0xe8c060, hair: 0x0c0806, cloak: 0x3a1018, metal: 0xd09c48, skirt: 0.4, sleeve: 0.35, armor: true, greaves: true, gear: 'ched' },
 };
 
 // ------------------------------------------------------------------ weapon / gear meshes
@@ -1567,6 +1452,18 @@ class Actor {
       this.weapon = attach(root, 'DEF-handR', G_sword(), MAT.iron, grip, { shadow: true });
       if (!headgear(root, this.look, L0, kind)) attach(root, 'DEF-head', G_helmet(), MAT.bronze, new THREE.Vector3(0, 1.7, -0.005));
       this.shieldMesh = attach(root, 'DEF-spine003', mergeGeometries([new THREE.BoxGeometry(0.62, 0.98, 0.05).toNonIndexed(), new THREE.SphereGeometry(0.09, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2).translate(0, 0.05, 0.02).toNonIndexed()]).rotateY(0.3), MAT.bronze, new THREE.Vector3(Math.sign(hLp.x) * 0.2, 1.08, 0.3), { shadow: true }); // tower shield carried before the body
+    } else if (kind === 'gideon') {
+      this.weapon = attach(root, 'DEF-handR', G_sword().scale(1.15, 1.15, 1.25), MAT.iron, grip, { shadow: true });
+      const tp = hLp.clone().add(new THREE.Vector3(-0.02 * Math.sign(hLp.x), 0, 0.02));
+      attach(root, 'DEF-handL', new THREE.CylinderGeometry(0.022, 0.03, 0.62, 5).rotateX(Math.PI / 2 - 0.75).translate(0, 0.12, 0.18), MAT.wood, tp);
+      const fl = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xffd0a0 }));
+      fl.center.set(0.5, 0.1); fl.scale.set(0.28, 0.52, 1); fl.position.copy(tp).add(new THREE.Vector3(0, 0.34, 0.41)); root.add(fl); root.updateMatrixWorld(true); hL.attach(fl); this.flame = fl;
+      // The earthenware pitcher slung on the hip
+      attach(root, 'DEF-hips', new THREE.CylinderGeometry(0.12, 0.14, 0.28, 8).translate(-0.18, 0.9, 0), MAT.stone, new THREE.Vector3(), { shadow: true });
+    } else if (kind === 'joshua') {
+      this.weapon = attach(root, 'DEF-handR', G_sword().scale(1.22, 1.22, 1.3), MAT.iron, grip, { shadow: true });
+      attach(root, 'DEF-spine003', G_bow().rotateY(Math.PI / 2).rotateZ(0.5).translate(-0.02, 1.32, -0.18), MAT.bow, new THREE.Vector3(), { shadow: true });
+      attach(root, 'DEF-hips', new THREE.TorusGeometry(0.11, 0.026, 6, 16, Math.PI * 0.85).rotateZ(0.6).translate(0.18, 0.95, 0.08), MAT.bone, new THREE.Vector3(), { shadow: true });
     } else if (kind === 'abram' || kind === 'barak') {
       this.weapon = attach(root, 'DEF-handR', G_sword().scale(1.15, 1.15, 1.25), MAT.iron, grip, { shadow: true });
       // the bow slung across the back
@@ -1605,26 +1502,39 @@ class Actor {
       attach(root, 'DEF-spine003', G_wing(-1), MAT.wing, sp0.clone().add(new THREE.Vector3(-0.05, 0.05, -0.12)));
       const halo = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.012, 4, 20), new THREE.MeshBasicMaterial({ color: 0xffe9a0 }));
       halo.rotation.x = Math.PI / 2; halo.position.set(0, 1.95, -0.02); root.add(halo); root.updateMatrixWorld(true); head.attach(halo);
+    } else if (kind === 'elijah') {
+      this.weapon = attach(root, 'DEF-handR', G_staff(1.85), MAT.wood, grip, { shadow: true });
+    } else if (kind === 'daniel') {
+      // Daniel in prayer (unarmed, hands free)
+    } else if (kind === 'hezekiah') {
+      this.weapon = attach(root, 'DEF-handR', G_sword().scale(1.2, 1.2, 1.28), MAT.iron, grip, { shadow: true });
+      attach(root, 'DEF-handL', G_shield(0.32), MAT.bronze, hLp.clone().add(new THREE.Vector3(-0.13 * Math.sign(hLp.x), 0.07, 0)), { shadow: true });
+      attach(root, 'DEF-spine003', G_bow().rotateY(Math.PI / 2).rotateZ(0.5).translate(-0.02, 1.32, -0.18), MAT.bow, new THREE.Vector3(), { shadow: true });
+    } else if (kind === 'rabshakeh') {
+      this.weapon = attach(root, 'DEF-handR', mergeGeometries(G_spear(2.3, 0.024, 0.32)), MAT.iron, grip, { shadow: true });
+      attach(root, 'DEF-handL', G_shield(0.34), MAT.iron, hLp.clone().add(new THREE.Vector3(-0.14 * Math.sign(hLp.x), 0.07, 0)), { shadow: true });
+    } else if (kind === 'jonah') {
+      this.weapon = attach(root, 'DEF-handR', G_jaw().scale(1.05, 1.05, 1.05), MAT.bone, grip, { shadow: true });
     }
     // cloth skirt / robe (gives each character a costume silhouette) and beards
     const L = L0;
-    const SK = { samson: [0.17, 0.28, 0.4, 0.98], archer: [0.17, 0.27, 0.44, 0.98], shield: [0.17, 0.28, 0.46, 0.98], david: [0.17, 0.27, 0.42, 0.98], phil: [0.17, 0.27, 0.44, 0.98], captain: [0.17, 0.28, 0.46, 0.98], goliath: [0.18, 0.3, 0.5, 0.98], moses: [0.17, 0.4, 0.9, 1.0], angel: [0.17, 0.42, 0.95, 1.0], abram: [0.17, 0.3, 0.56, 0.98], servant: [0.17, 0.27, 0.42, 0.98], captive: [0.17, 0.3, 0.6, 0.98], runner: [0.17, 0.28, 0.5, 0.98], ched: [0.18, 0.3, 0.56, 0.98], melch: [0.17, 0.42, 0.95, 1.0], saul: [0.18, 0.3, 0.56, 0.98], isr: [0.17, 0.27, 0.44, 0.98], woman: [0.17, 0.4, 0.92, 1.0], benaiah: [0.17, 0.28, 0.46, 0.98], barak: [0.17, 0.28, 0.46, 0.98], egypt: [0.18, 0.28, 0.5, 0.98] }[kind];
+    const SK = { samson: [0.17, 0.28, 0.4, 0.98], archer: [0.17, 0.27, 0.44, 0.98], shield: [0.17, 0.28, 0.46, 0.98], david: [0.17, 0.27, 0.42, 0.98], phil: [0.17, 0.27, 0.44, 0.98], captain: [0.17, 0.28, 0.46, 0.98], goliath: [0.18, 0.3, 0.5, 0.98], moses: [0.17, 0.4, 0.9, 1.0], angel: [0.17, 0.42, 0.95, 1.0], abram: [0.17, 0.3, 0.56, 0.98], servant: [0.17, 0.27, 0.42, 0.98], captive: [0.17, 0.3, 0.6, 0.98], runner: [0.17, 0.28, 0.5, 0.98], ched: [0.18, 0.3, 0.56, 0.98], melch: [0.17, 0.42, 0.95, 1.0], saul: [0.18, 0.3, 0.56, 0.98], isr: [0.17, 0.27, 0.44, 0.98], woman: [0.17, 0.4, 0.92, 1.0], benaiah: [0.17, 0.28, 0.46, 0.98], barak: [0.17, 0.28, 0.46, 0.98], egypt: [0.18, 0.28, 0.5, 0.98], joshua: [0.17, 0.28, 0.46, 0.98], gideon: [0.17, 0.28, 0.46, 0.98], elijah: [0.17, 0.38, 0.88, 1.0], daniel: [0.17, 0.38, 0.88, 1.0], hezekiah: [0.17, 0.28, 0.46, 0.98], rabshakeh: [0.18, 0.28, 0.5, 0.98], jonah: [0.17, 0.28, 0.44, 0.98] }[kind];
     if (SK) {
       const [rt, rb, h, top] = SK; const cm = new THREE.MeshStandardMaterial({ color: L.tunic, roughness: 0.92, side: THREE.DoubleSide, emissive: kind === 'angel' ? 0xfff2d0 : 0x000000, emissiveIntensity: kind === 'angel' ? 0.7 : 0 });
-      const robe = kind === 'moses' || kind === 'angel' || kind === 'melch' || kind === 'woman'; const rbx = robe ? rb : rb * 1.24, hx = robe ? h : h * 0.92; // wider, shorter hem: less leg poke-through
+      const robe = kind === 'moses' || kind === 'angel' || kind === 'melch' || kind === 'woman' || kind === 'elijah' || kind === 'daniel'; const rbx = robe ? rb : rb * 1.24, hx = robe ? h : h * 0.92; // wider, shorter hem: less leg poke-through
       const sg = new THREE.CylinderGeometry(rt, rbx, hx, 14, 2, true).translate(0, top - hx / 2, 0.0);
       if (kind === 'phil' || kind === 'captain' || kind === 'goliath' || kind === 'archer' || kind === 'shield' || kind === 'ched') { const p = sg.attributes.position; for (let i = 0; i < p.count; i++) if (p.getY(i) < top - hx + 0.01) p.setY(i, p.getY(i) + Math.sin(Math.atan2(p.getZ(i), p.getX(i)) * 7) * 0.035); }
       const sk = attach(root, 'DEF-hips', sg, cm, new THREE.Vector3(0, 0, 0.0), { shadow: true }); this.skirt = sk;
       const belt = attach(root, 'DEF-hips', new THREE.CylinderGeometry(rt + 0.012, rt + 0.014, 0.06, 14, 1, true).translate(0, top - 0.02, 0), new THREE.MeshStandardMaterial({ color: L.trim, roughness: 0.6, side: THREE.DoubleSide }), new THREE.Vector3());
     }
     { let seed = (kind.length * 9301 + (Actor.n = (Actor.n || 0) + 1) * 49297) % 233280; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280; armourKit(root, kind, L, rnd, this.look); }
-    this.obj = new THREE.Group(); this.obj.add(root); root.scale.setScalar(scale); if (kind === 'samson') root.scale.set(scale * 1.1, scale, scale * 1.08); if (kind === 'david') root.scale.set(scale * 0.95, scale * 0.985, scale * 0.95); if (kind === 'woman') root.scale.set(scale * 0.92, scale, scale * 0.93); if (kind === 'benaiah' || kind === 'barak') root.scale.set(scale * 1.04, scale, scale * 1.03); this.scale = scale; this.root = root;
+    this.obj = new THREE.Group(); this.obj.add(root); root.scale.setScalar(scale); if (kind === 'samson') root.scale.set(scale * 1.1, scale, scale * 1.08); if (kind === 'david') root.scale.set(scale * 0.95, scale * 0.985, scale * 0.95); if (kind === 'woman') root.scale.set(scale * 0.92, scale, scale * 0.93); if (kind === 'benaiah' || kind === 'barak') root.scale.set(scale * 1.04, scale, scale * 1.03); if (kind === 'joshua') root.scale.set(scale * 1.08, scale * 1.04, scale * 1.06); if (kind === 'gideon') root.scale.set(scale * 1.04, scale * 1.02, scale * 1.03); this.scale = scale; this.root = root;
     scene.add(this.obj);
     { const b = new THREE.Mesh(blobGeo(), blobMat()); b.position.y = 0.035; b.scale.setScalar(scale); b.renderOrder = 2; this.obj.add(b); this.blob = b; }
     this.mixer = new THREE.AnimationMixer(root);
     this.actions = {}; this.cur = null; this.curName = '';
     this.pos = this.obj.position; this.yaw = 0; this.vel = new THREE.Vector3();
-    this.state = 'idle'; this.st = 0; this.flash = 0; this.alive = true;
+    this.state = 'idle'; this.st = 0; this.flash = 0; this.alive = true; this.maxPoise = (kind === 'joshua') ? 140 : (kind === 'captain' || kind === 'shield') ? 80 : 50; this.poise = this.maxPoise; this.stagger = 0;
     if (!Q.has('nomerge')) mergeGear(this); this.obj.userData.actor = true;
   }
   act(name) {
@@ -1984,6 +1894,12 @@ const SFX = {
   shout: () => { for (let i = 0; i < 6; i++) noise(0.7 + Math.random() * 0.4, 500 + Math.random() * 400, 300, 0.07, 'bandpass', 3, i * 0.08); },
   burn: () => { noise(0.9, 3000, 600, 0.3, 'highpass', 0.5); tone('sawtooth', 120, 400, 0.5, 0.06); },
   horn: () => { tone('sawtooth', 220, 220, 1.0, 0.07); tone('sawtooth', 330, 330, 1.0, 0.05, 0.05); },
+  shofar: () => {
+    tone('sawtooth', 174.6, 174.6, 2.8, 0.25);
+    tone('sawtooth', 261.6, 261.6, 2.7, 0.18, 0.08);
+    tone('sine', 87.3, 87.3, 3.2, 0.35);
+    noise(2.5, 450, 180, 0.18, 'bandpass', 1.8);
+  },
 };
 
 // ------------------------------------------------------------------ game state
@@ -1991,17 +1907,29 @@ const G = { captives: [], divided: false, phase: 'loading', wave: 0, coins: 0, a
 const LOG = (type, data = {}) => { G.log.push({ t: +(performance.now() / 1000).toFixed(2), type, ...data }); if (G.log.length > 400) G.log.shift(); };
 let P, MOSES, ANGEL, MELCH;
 const CAM = { yaw: 0, pitch: 0.33, dist: 6.9, tgt: new THREE.Vector3(), lastDrag: -10, pos: new THREE.Vector3(0, 6, 14) };
-const STATS = () => LEVEL === 6
+const STATS = () => LEVEL === 11
+  ? ({ maxHp: 150 + 30 * G.up.bronze, staff: 32 * (1 + 0.3 * (G.up.sword || 0)), sling: 28 * (1 + 0.4 * (G.up.bow || 0)), slingCd: 0.75, spiritGain: 1.15, wave: 55, ally: 16 * (1 + 0.3 * (G.up.men || 0)), allyHp: 160 * (1 + 0.3 * (G.up.men || 0)) })
+  : LEVEL === 12
+  ? ({ maxHp: 120 + 30 * G.up.bronze, staff: 28 * (1 + 0.3 * (G.up.staff || 0)), sling: 0, slingCd: 1, spiritGain: 1.3, wave: 45 })
+  : LEVEL === 10
+  ? ({ maxHp: 130 + 30 * G.up.bronze, staff: 30 * (1 + 0.3 * (G.up.staff || 0)), sling: 25, slingCd: 0.85, spiritGain: 1.1, wave: 55 })
+  : LEVEL === 9
+  ? ({ maxHp: 100 + 30 * G.up.bronze, staff: 18, sling: 0, slingCd: 1, spiritGain: 1.2, wave: 35 })
+  : LEVEL === 8
+  ? ({ maxHp: 130 + 30 * G.up.bronze, staff: 28 * (1 + 0.3 * G.up.sword), sling: 25 * (1 + 0.4 * G.up.bow), slingCd: Math.max(0.4, 0.85 - 0.14 * G.up.bow), spiritGain: 0.85, wave: 42, ally: 12 * (1 + 0.3 * G.up.men), allyHp: 110 * (1 + 0.3 * G.up.men) })
+  : LEVEL === 7
+  ? ({ maxHp: 135 + 30 * G.up.bronze, staff: 29 * (1 + 0.3 * G.up.sword), sling: 26 * (1 + 0.4 * G.up.bow), slingCd: Math.max(0.4, 0.85 - 0.14 * G.up.bow), spiritGain: 0.8, wave: 44, ally: 13 * (1 + 0.3 * G.up.men), allyHp: 120 * (1 + 0.3 * G.up.men) })
+  : LEVEL === 6
   ? ({ maxHp: 160 + 30 * G.up.bronze, staff: 32 * (1 + 0.3 * G.up.sword), sling: 28 * (1 + 0.4 * G.up.bow), slingCd: Math.max(0.4, 0.85 - 0.14 * G.up.bow), ally: 16 * (1 + 0.3 * G.up.men), allyHp: 170 * (1 + 0.3 * G.up.men) })
   : LEVEL === 5
-  ? ({ maxHp: 140 + 30 * G.up.bronze, staff: 30 * (1 + 0.3 * G.up.sword), sling: 27 * (1 + 0.4 * G.up.bow), slingCd: Math.max(0.4, 0.85 - 0.14 * G.up.bow), ally: 14 * (1 + 0.3 * G.up.men), allyHp: 130 * (1 + 0.3 * G.up.men) })
+  ? ({ maxHp: 140 + 30 * G.up.bronze, staff: 30 * (1 + 0.3 * G.up.sword), sling: 27 * (1 + 0.4 * G.up.bow), slingCd: Math.max(0.4, 0.85 - 0.14 * G.up.bow), ally: 14 * (1 + 0.3 * G.up.men), allyHp: 130 * (1 + 0.3 * G.up.men), spiritGain: 0.75, wave: 42 })
   : LEVEL === 4
-  ? ({ maxHp: 130 + 30 * G.up.bronze, staff: 30 * (1 + 0.3 * G.up.staff), sling: 24 * (1 + 0.4 * G.up.sling), slingCd: Math.max(0.45, 0.9 - 0.15 * G.up.sling) })
+  ? ({ maxHp: 130 + 30 * G.up.bronze, staff: 30 * (1 + 0.3 * G.up.staff), sling: 24 * (1 + 0.4 * G.up.sling), slingCd: Math.max(0.45, 0.9 - 0.15 * G.up.sling), spiritGain: 0.8, wave: 45 })
   : LEVEL === 3
-  ? ({ maxHp: 110 + 30 * G.up.bronze, staff: 27 * (1 + 0.3 * G.up.sword), sling: 26 * (1 + 0.4 * G.up.bow), slingCd: Math.max(0.4, 0.85 - 0.14 * G.up.bow), ally: 13 * (1 + 0.3 * G.up.men), allyHp: 120 * (1 + 0.3 * G.up.men) })
+  ? ({ maxHp: 110 + 30 * G.up.bronze, staff: 27 * (1 + 0.3 * G.up.sword), sling: 26 * (1 + 0.4 * G.up.bow), slingCd: Math.max(0.4, 0.85 - 0.14 * G.up.bow), ally: 13 * (1 + 0.3 * G.up.men), allyHp: 120 * (1 + 0.3 * G.up.men), spiritGain: 0.75, wave: 40 })
   : LEVEL === 2
   ? ({ maxHp: 120 + 30 * G.up.bronze, staff: 30 * (1 + 0.3 * G.up.jaw) * (P && P.hasJaw === false ? 0.5 : 1), sling: 0, slingCd: 1, spiritGain: 1 + 0.3 * G.up.spirit, wave: 48 * (1 + 0.3 * G.up.spirit), push: (1 / 13) * (1 + 0.15 * G.up.spirit) })
-  : ({ maxHp: 100 + 30 * G.up.bronze, staff: 24 * (1 + 0.3 * G.up.staff), sling: 30 * (1 + 0.4 * G.up.sling), slingCd: Math.max(0.45, 0.95 - 0.17 * G.up.sling) });
+  : ({ maxHp: 100 + 30 * G.up.bronze, staff: 24 * (1 + 0.3 * G.up.staff), sling: 30 * (1 + 0.4 * G.up.sling), slingCd: Math.max(0.45, 0.95 - 0.17 * G.up.sling), spiritGain: 0.7, wave: 38 });
 
 // ------------------------------------------------------------------ input
 const IN = { x: 0, y: 0, kx: 0, ky: 0, q: { attack: -9, sling: -9, dodge: -9 }, keys: {}, push: false };
@@ -2081,7 +2009,7 @@ function damagePlayer(dmg, from) {
   dmgText(P.headPos(new THREE.Vector3()), '-' + Math.round(dmg));
   const st = STATS();
   if (P.hp <= st.maxHp * 0.25 && !G.angelUsed && P.hp > -999) { if (P.hp < 1) P.hp = 1; startAngel(); return; }
-  if (P.hp <= 0) { P.hp = 0; P.state = 'dead'; P.st = 0; P.play('Death01', { loop: false, fade: 0.1 }); LOG('player_dead'); setTimeout(() => { if (P.state === 'dead') { G.phase = 'lost'; $('lverse').innerHTML = LEVEL === 1 && G.stage === 'escape' ? '“…and David fled, and escaped that night.”<span>1 Samuel 19:10 (KJV) · Rise and run again</span>' : LEVEL === 6 ? '“For by thee I have run through a troop; and by my God have I leaped over a wall.”<span>Psalm 18:29 (KJV)</span>' : LEVEL === 5 ? '“…is not the LORD gone out before thee?”<span>Judges 4:14 (KJV)</span>' : LEVEL === 4 ? '“Be strong and of a good courage, fear not, nor be afraid of them: for the LORD thy God, he it is that doth go with thee…”<span>Deuteronomy 31:6 (KJV)</span>' : LEVEL === 3 ? '“But thou, O LORD, art a shield for me; my glory, and the lifter up of mine head.”<span>Psalm 3:3 (KJV)</span>' : LEVEL === 2 ? '“Not by might, nor by power, but by my spirit, saith the LORD of hosts.”<span>Zechariah 4:6 (KJV)</span>' : '“The LORD that delivered me out of the paw of the lion, and out of the paw of the bear, he will deliver me out of the hand of this Philistine.”<span>1 Samuel 17:37 (KJV)</span>'; show('lose'); } }, 2200); return; }
+  if (P.hp <= 0) { P.hp = 0; P.state = 'dead'; P.st = 0; P.play('Death01', { loop: false, fade: 0.1 }); LOG('player_dead'); setTimeout(() => { if (P.state === 'dead') { G.phase = 'lost'; $('lverse').innerHTML = LEVEL === 1 && G.stage === 'escape' ? '“…and David fled, and escaped that night.”<span>1 Samuel 19:10 (KJV) · Rise and run again</span>' : LEVEL === 6 ? '“For by thee I have run through a troop; and by my God have I leaped over a wall.”<span>Psalm 18:29 (KJV)</span>' : LEVEL === 5 ? '“…is not the LORD gone out before thee?”<span>Judges 4:14 (KJV)</span>' : LEVEL === 4 ? '“Be strong and of a good courage, fear not, nor be afraid of them: for the LORD thy God, he it is that doth go with thee…”<span>Deuteronomy 31:6 (KJV)</span>' : LEVEL === 9 ? '“When thou passest through the waters, I will be with thee.”<span>Isaiah 43:2 (KJV)</span>' : LEVEL === 8 ? '“The LORD is my light and my salvation; whom shall I fear?”<span>Psalm 27:1 (KJV)</span>' : LEVEL === 7 ? '“Be strong and of a good courage; be not afraid…for the LORD thy God is with thee whithersoever thou goest.”<span>Joshua 1:9 (KJV)</span>' : LEVEL === 3 ? '“But thou, O LORD, art a shield for me; my glory, and the lifter up of mine head.”<span>Psalm 3:3 (KJV)</span>' : LEVEL === 2 ? '“Not by might, nor by power, but by my spirit, saith the LORD of hosts.”<span>Zechariah 4:6 (KJV)</span>' : '“The LORD that delivered me out of the paw of the lion, and out of the paw of the bear, he will deliver me out of the hand of this Philistine.”<span>1 Samuel 17:37 (KJV)</span>'; show('lose'); } }, 2200); return; }
   if (P.state !== 'attack' || dmg > 20) { P.state = 'hit'; P.st = 0; P.play('Hit_Chest', { loop: false, ts: 1.4, restart: true, fade: 0.08 }); }
 }
 function inputVec() {
@@ -2113,6 +2041,7 @@ function staffHit() {
     hits++; const dmg = st.staff * (strong ? 1.5 : 1) * (0.9 + Math.random() * 0.2);
     hurtEnemy(e, dmg, new THREE.Vector3(dx, 0, dz).normalize(), 'staff', strong);
   }
+  if (NET && NET.isMultiplayer) handleMultiplayerMelee(strong);
   if (hits) { hitstop(strong ? 0.09 : 0.055); shake(strong ? 0.25 : 0.14); gainSpirit(6 * hits); }
 }
 function startSling() {
@@ -2157,7 +2086,7 @@ function updateStones(dt) {
 function updatePlayer(dt) {
   const p = P, st = STATS(); p.st += dt; p.slingCd = Math.max(0, (p.slingCd || 0) - dt); const ox = p.pos.x, oz = p.pos.z;
   if (p.state !== 'push' && !p.keepPose) p.poseT = 0;
-  if (LEVEL === 2 && G.phase === 'play' && !p.bound) gainSpirit(1.5 * dt);
+  if (G.phase === 'play' && !p.bound) gainSpirit((LEVEL === 2 ? 1.5 : 0.8) * dt);
   const iv = (G.phase === 'play' && p.state !== 'cine') ? inputVec() : { x: 0, z: 0, m: 0 };
   p.vel.multiplyScalar(Math.pow(0.002, dt));
   const canAct = G.phase === 'play' && !G.cine;
@@ -2166,8 +2095,11 @@ function updatePlayer(dt) {
       if (G.stage === 'escape' && ESC) { escapeControl(p, iv, dt, canAct); break; }
       if (canAct && take('dodge')) { startDodge(iv); break; }
       if (canAct && take('attack')) { startAttack(); break; }
-      if (LEVEL === 2) { if (canAct && take('sling') && trySpirit()) break; if (canAct && G.fin && !G.fin.collapsing && pushHeld() && nearSpot()) { startPush(); break; } }
-      else if (canAct && (now() - IN.q.sling < 0.32) && p.slingCd <= 0) { IN.q.sling = -9; startSling(); break; }
+      if (canAct && take('sling')) {
+        if (G.spirit >= 100 && trySpirit()) break;
+        if (LEVEL === 2 && G.fin && !G.fin.collapsing && pushHeld() && nearSpot()) { startPush(); break; }
+        if (LEVEL !== 2 && p.slingCd <= 0) { startSling(); break; }
+      }
       const sp = iv.m > 0.7 ? 6.0 : 2.4 + 3.6 * iv.m;
       if (iv.m > 0) { p.pos.x += iv.x * sp * dt; p.pos.z += iv.z * sp * dt; p.yaw = turnTo(p.yaw, Math.atan2(iv.x, iv.z), dt * 12); p.play(iv.m > 0.7 ? 'Jog_Fwd_Loop' : 'Walk_Loop', { ts: iv.m > 0.7 ? 1.05 : 0.8 + iv.m * 0.6 }); p.state = 'move'; }
       else { p.play('Idle_Loop'); p.state = 'idle'; }
@@ -2223,6 +2155,7 @@ function updatePlayer(dt) {
   if (p.stoneInHand) p.stoneInHand.visible = p.slingCd <= 0 || p.state === 'sling' && !p.released;
   if (G.jawItem) { const J = G.jawItem; J.t += dt; J.gl.material.opacity = 0.55 + 0.4 * Math.sin(J.t * 6); if (Math.hypot(p.pos.x - J.m.position.x, p.pos.z - J.m.position.z) < 1.2 && G.phase === 'play' && !p.bound) pickJaw(); }
   p.update(dt);
+  for (const a of ALLIES) { if (a.rallyBuff > 0) a.rallyBuff -= dt; }
 }
 function startDodge(iv) {
   const p = P; p.state = 'dodge'; p.st = 0; const ts = 1.55; p.atkDur = p.dur('Roll') / ts;
@@ -2233,7 +2166,7 @@ function startDodge(iv) {
 
 
 // ------------------------------------------------------------------ Samson: Spirit, cords, jawbone, pillars
-function gainSpirit(v) { if (LEVEL !== 2 || !P || P.bound) return; const was = G.spirit; G.spirit = Math.min(100, G.spirit + v * STATS().spiritGain); if (was < 100 && G.spirit >= 100) { SFX.buy(); dmgText(P.headPos(new THREE.Vector3()), 'SPIRIT READY', 'heal'); LOG('spirit_ready'); } }
+function gainSpirit(v) { if (!P || P.bound) return; const was = G.spirit; G.spirit = Math.min(100, G.spirit + v * STATS().spiritGain); if (was < 100 && G.spirit >= 100) { SFX.buy(); dmgText(P.headPos(new THREE.Vector3()), 'SPIRIT READY', 'heal'); LOG('spirit_ready'); } }
 function trySpirit() {
   if (G.spirit < 100) { if (now() - (G.spNag || 0) > 1.5) { G.spNag = now(); dmgText(P.headPos(new THREE.Vector3()), 'SPIRIT ' + Math.floor(G.spirit) + '%', ''); } return false; }
   const p = P; p.heave = p.state === 'push'; p.state = 'spirit'; p.st = 0; p.blasted = false; p.poseT = 0;
@@ -2241,6 +2174,21 @@ function trySpirit() {
   flashAt(p.pos.clone().setY(p.pos.y + 1.2), 3, 0.5, 0xffd36a); SFX.spirit(); return true;
 }
 function spiritBlast() {
+  if (LEVEL === 11) spiritHezekiahAngel();
+  else if (LEVEL === 12) spiritJonahPrayer();
+  else if (LEVEL === 10) spiritElijahFire();
+  else if (LEVEL === 1) spiritDavidRicochet();
+  else if (LEVEL === 2) samsonSpiritBlast();
+  else if (LEVEL === 3) spiritAbramRally();
+  else if (LEVEL === 4) spiritBenaiahSeize();
+  else if (LEVEL === 5) spiritBarakStorm();
+  else if (LEVEL === 6) spiritMightyCharge();
+  else if (LEVEL === 7) spiritJoshuaShofar();
+  else if (LEVEL === 8) spiritGideonBlaze();
+  else if (LEVEL === 9) spiritDanielPrayer();
+  else samsonSpiritBlast();
+}
+function samsonSpiritBlast() {
   const st = STATS(); G.spirit = 0; LOG('spirit', { heave: !!P.heave, bound: !!P.bound });
   shake(0.9); hitstop(0.06); G.slow = 0.4; G.slowT = 0.45;
   FX.sring.visible = true; FX.sringT = 0; FX.sring.position.set(P.pos.x, P.pos.y + 0.08, P.pos.z);
@@ -2256,6 +2204,121 @@ function spiritBlast() {
   }
   for (const a of arrows) if (a.life > 0 && a.m.position.distanceTo(P.pos) < R) { a.life = 0; a.m.visible = false; }
   if (P.heave && G.fin && !G.fin.collapsing) { G.fin.prog = Math.min(1, G.fin.prog + 0.2); dmgText(P.pos.clone().setY(P.pos.y + 2.4), 'MIGHTY HEAVE', 'crit'); SFX.rumble(); }
+}
+function spiritDavidRicochet() {
+  const st = STATS(); G.spirit = 0; LOG('spirit', { hero: 'david' });
+  shake(0.5); hitstop(0.04); G.slow = 0.5; G.slowT = 0.35;
+  flashAt(P.pos.clone().setY(P.pos.y + 1.2), 5, 0.4, 0xffd700);
+  dmgText(P.headPos(new THREE.Vector3()), 'DIVINE STONE', 'crit'); SFX.spirit();
+  const hit = new Set(); let cur = P.pos.clone(); const R = 14;
+  for (let bounce = 0; bounce < 5; bounce++) {
+    let best = null, bd = R;
+    for (const e of G.enemies) { if (!e.alive || !e.obj.visible || hit.has(e)) continue; const d = cur.distanceTo(e.pos); if (d < bd) { bd = d; best = e; } }
+    if (!best) break; hit.add(best);
+    const dmg = st.sling * 1.3 * (1 - bounce * 0.1);
+    const dir = new THREE.Vector3(best.pos.x - cur.x, 0, best.pos.z - cur.z).normalize();
+    hurtEnemy(best, dmg, dir, 'spirit', true);
+    flashAt(best.pos.clone().setY(best.pos.y + 1.0), 2.5, 0.25, 0xffd700);
+    if (best.alive) { best.state = 'hit'; best.st = 0; best.stun = 1.2; best.play('Hit_Chest', { loop: false, restart: true, ts: 0.9 }); }
+    cur = best.pos.clone();
+  }
+}
+function spiritAbramRally() {
+  G.spirit = 0; LOG('spirit', { hero: 'abram' });
+  shake(0.4); G.slow = 0.6; G.slowT = 0.3;
+  flashAt(P.pos.clone().setY(P.pos.y + 1.5), 8, 0.5, 0xffd36a);
+  dmgText(P.headPos(new THREE.Vector3()), 'RALLY THE SERVANTS', 'crit'); SFX.spirit(); SFX.shout();
+  FX.sring.visible = true; FX.sringT = 0; FX.sring.position.set(P.pos.x, P.pos.y + 0.08, P.pos.z);
+  for (const a of ALLIES) { if (a.down) continue; a.hp = Math.min(a.maxHp, a.hp + a.maxHp * 0.4); flashAt(a.pos.clone().setY(a.pos.y + 1.0), 2, 0.3, 0xffd36a); a.rallyBuff = 8.0; }
+  const st = STATS(); P.hp = Math.min(st.maxHp, P.hp + st.maxHp * 0.2); dmgText(P.pos.clone().setY(P.pos.y + 0.5), '+HEAL', 'heal');
+  const R = 6; for (const e of G.enemies) { if (!e.alive || !e.obj.visible) continue; const d = Math.hypot(e.pos.x - P.pos.x, e.pos.z - P.pos.z); if (d > R) continue; e.stun = Math.max(e.stun || 0, 1.0); }
+}
+function spiritBenaiahSeize() {
+  const st = STATS(); G.spirit = 0; LOG('spirit', { hero: 'benaiah' });
+  shake(0.7); hitstop(0.08); G.slow = 0.35; G.slowT = 0.4;
+  flashAt(P.pos.clone().setY(P.pos.y + 1.2), 6, 0.4, 0xff9a40);
+  dmgText(P.headPos(new THREE.Vector3()), 'SPEAR SEIZE', 'crit'); SFX.spirit(); SFX.clang();
+  let best = null, bd = 10; const all = [...G.enemies]; if (G.boss && G.boss.alive) all.push(G.boss);
+  for (const e of all) { if (!e.alive || !e.obj.visible) continue; const d = Math.hypot(e.pos.x - P.pos.x, e.pos.z - P.pos.z); if (d < bd) { bd = d; best = e; } }
+  if (best) {
+    const dmg = st.staff * 3.0; const dir = new THREE.Vector3(best.pos.x - P.pos.x, 0, best.pos.z - P.pos.z).normalize();
+    P.pos.x = best.pos.x - dir.x * 1.5; P.pos.z = best.pos.z - dir.z * 1.5; P.yaw = Math.atan2(dir.x, dir.z);
+    hurtEnemy(best, dmg, dir, 'spirit', true); flashAt(best.pos.clone().setY(best.pos.y + 1.0), 4, 0.3, 0xff9a40);
+    if (best.shieldHp > 0) breakShield(best);
+    if (best.alive) { best.state = 'hit'; best.st = 0; best.stun = 2.0; best.play('Hit_Chest', { loop: false, restart: true, ts: 0.7 }); }
+  }
+}
+function spiritBarakStorm() {
+  const st = STATS(); G.spirit = 0; LOG('spirit', { hero: 'barak' });
+  shake(1.0); hitstop(0.06); G.slow = 0.3; G.slowT = 0.5; SFX.spirit();
+  dmgText(P.headPos(new THREE.Vector3()), 'STORM OF KISHON', 'crit');
+  let cx = 0, cz = 0, count = 0;
+  for (const e of G.enemies) { if (!e.alive || !e.obj.visible) continue; cx += e.pos.x; cz += e.pos.z; count++; }
+  if (count > 0) { cx /= count; cz /= count; } else { cx = P.pos.x; cz = P.pos.z - 5; }
+  flashAt(new THREE.Vector3(cx, 6, cz), 12, 0.6, 0xeeeeff); flashAt(new THREE.Vector3(cx, 1, cz), 8, 0.4, 0xaaccff); hurtFlash();
+  const R = 9;
+  for (const e of G.enemies) {
+    if (!e.alive || !e.obj.visible) continue; const dx = e.pos.x - cx, dz = e.pos.z - cz, d = Math.hypot(dx, dz); if (d > R) continue;
+    const dmg = st.wave * 1.2 * (1 - d / R * 0.3); const dir = new THREE.Vector3(dx, 0, dz).normalize();
+    hurtEnemy(e, dmg, dir, 'spirit', true); e.vel.addScaledVector(dir, 10 * (1 - d / R * 0.5));
+    if (e.alive) { e.state = 'hit'; e.st = 0; e.stun = 2.5; e.play('Hit_Chest', { loop: false, restart: true, ts: 0.7 }); }
+  }
+  for (const a of arrows) if (a.life > 0 && a.m.position.distanceTo(new THREE.Vector3(cx, 0, cz)) < R) { a.life = 0; a.m.visible = false; }
+}
+function spiritMightyCharge() {
+  G.spirit = 0; LOG('spirit', { hero: 'mighty_men' });
+  shake(0.6); G.slow = 0.5; G.slowT = 0.3;
+  flashAt(P.pos.clone().setY(P.pos.y + 1.5), 6, 0.5, 0xffd700);
+  dmgText(P.headPos(new THREE.Vector3()), 'MIGHTY CHARGE', 'crit'); SFX.spirit(); SFX.shout();
+  for (const a of ALLIES) { if (a.down) continue; flashAt(a.pos.clone().setY(a.pos.y + 1.0), 3, 0.4, 0xffd700); a.rallyBuff = 6.0; a.hp = Math.min(a.maxHp, a.hp + a.maxHp * 0.3); }
+  const st = STATS(); const R = 7;
+  for (const e of G.enemies) {
+    if (!e.alive || !e.obj.visible) continue; const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z, d = Math.hypot(dx, dz); if (d > R) continue;
+    const dir = new THREE.Vector3(dx, 0, dz).normalize(); hurtEnemy(e, st.staff * 1.5, dir, 'spirit', true); e.vel.addScaledVector(dir, 8);
+    if (e.alive) { e.state = 'hit'; e.st = 0; e.stun = 1.5; }
+  }
+}
+function spiritJoshuaShofar() {
+  G.spirit = 0; LOG('spirit', { hero: 'joshua' });
+  shake(0.8); hitstop(0.05); G.slow = 0.4; G.slowT = 0.4; SFX.shofar(); SFX.spirit();
+  dmgText(P.headPos(new THREE.Vector3()), 'SHOFAR BLAST', 'crit');
+  FX.sring.visible = true; FX.sringT = 0; FX.sring.position.set(P.pos.x, P.pos.y + 0.08, P.pos.z);
+  flashAt(P.pos.clone().setY(P.pos.y + 1.0), 10, 0.5, 0xffd36a);
+  const R = 12;
+  for (const e of G.enemies) {
+    if (!e.alive || !e.obj.visible) continue; const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z, d = Math.hypot(dx, dz); if (d > R) continue;
+    e.poise = 0; e.stagger = 3.0; e.stun = 3.0;
+    const dir = new THREE.Vector3(dx, 0, dz).normalize(); e.vel.addScaledVector(dir, 6 * (1 - d / R * 0.5));
+    if (e.alive) { e.state = 'hit'; e.st = 0; e.play('Hit_Chest', { loop: false, restart: true, ts: 0.6 }); }
+  }
+  for (const a of arrows) if (a.life > 0 && a.m.position.distanceTo(P.pos) < R) { a.life = 0; a.m.visible = false; }
+}
+function spiritGideonBlaze() {
+  G.spirit = 0; LOG('spirit', { hero: 'gideon' });
+  shake(0.6); G.slow = 0.5; G.slowT = 0.35; SFX.spirit(); SFX.burn();
+  dmgText(P.headPos(new THREE.Vector3()), 'TORCH BLAZE', 'crit');
+  flashAt(P.pos.clone().setY(P.pos.y + 1.5), 12, 0.6, 0xff6a00); hurtFlash();
+  const R = 10; const st = STATS();
+  for (const e of G.enemies) {
+    if (!e.alive || !e.obj.visible) continue; const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z, d = Math.hypot(dx, dz); if (d > R) continue;
+    e.stun = 4.0; const dir = new THREE.Vector3(dx, 0, dz).normalize(); e.vel.addScaledVector(dir, 12 * (1 - d / R * 0.4));
+    if (e.alive) { if (e.attacking) { attackers--; e.attacking = false; } e.state = 'hit'; e.st = 0; e.play('Hit_Chest', { loop: false, restart: true, ts: 0.5 }); }
+    hurtEnemy(e, st.staff * 0.8, dir, 'spirit', false);
+  }
+}
+function spiritDanielPrayer() {
+  G.spirit = 0; LOG('spirit', { hero: 'daniel' });
+  shake(0.3); G.slow = 0.6; G.slowT = 0.3; SFX.spirit(); SFX.angel();
+  dmgText(P.headPos(new THREE.Vector3()), 'PRAYER OF FAITH', 'crit');
+  flashAt(P.pos.clone().setY(P.pos.y + 2.0), 10, 0.8, 0xffffff);
+  FX.sring.visible = true; FX.sringT = 0; FX.sring.position.set(P.pos.x, P.pos.y + 0.08, P.pos.z);
+  const R = 10;
+  for (const e of G.enemies) {
+    if (!e.alive || !e.obj.visible) continue; const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z, d = Math.hypot(dx, dz); if (d > R) continue;
+    e.stun = 4.5; const dir = new THREE.Vector3(dx, 0, dz).normalize(); e.vel.addScaledVector(dir, 14 * (1 - d / R * 0.3));
+    if (e.alive) { if (e.attacking) { attackers--; e.attacking = false; } e.state = 'hit'; e.st = 0; }
+  }
+  const st = STATS(); P.hp = Math.min(st.maxHp, P.hp + st.maxHp * 0.3); dmgText(P.pos.clone().setY(P.pos.y + 0.5), '+HEAL', 'heal');
 }
 function breakBonds() {
   const p = P; p.bound = false;
@@ -2312,6 +2375,13 @@ function hurtEnemy(e, dmg, dir, src, crit = false, from = P) {
     }
   }
   e.hp -= dmg; e.flash = 1; LOG('enemy_hit', { src, dmg: Math.round(dmg), hp: Math.round(e.hp), kind: e.kind }); if (from === P) comboHit();
+  const poiseDmg = (src === 'staff' ? 35 : src === 'sling' ? 25 : src === 'spirit' ? 100 : 22) * (crit ? 1.8 : 1.0);
+  e.poise = Math.max(0, (e.poise ?? e.maxPoise) - poiseDmg);
+  if (e.poise <= 0 && e.stagger <= 0 && e.alive) {
+    e.stagger = 1.6; e.poise = e.maxPoise; SFX.clang(); hitstop(0.12); shake(0.35);
+    dmgText(e.pos.clone().setY(e.pos.y + 2.2), 'STAGGERED!', 'crit');
+    e.state = 'hit'; e.st = 0; e.play('Hit_Chest', { loop: false, ts: 0.6, restart: true, fade: 0.05 });
+  }
   const hp = e.pos.clone().setY(e.pos.y + 1.3); blood(hp, dir, crit ? 24 : 14, crit ? 1.3 : 0.95); flashAt(hp, crit ? 1.9 : 1.3, crit ? 0.2 : 0.14, 0xfff0d0); flashAt(hp.clone().addScaledVector(dir, 0.15), crit ? 1.1 : 0.7, 0.09, 0xff7a40); SFX.hit();
   if (crit) { hitstop(0.11); shake(0.32); }
   dmgText(hp.setY(hp.y + 0.6), Math.round(dmg) + (crit ? '!' : ''), crit ? 'crit' : '');
@@ -2329,6 +2399,8 @@ function killEnemy(e) {
 }
 const sepV = new THREE.Vector3();
 function updateEnemy(e, dt) {
+  if (e.stagger > 0) { e.stagger -= dt; if (e.stagger > 0) { e.update(dt); return; } }
+  if (e.poise < e.maxPoise) { e.poise = Math.min(e.maxPoise, e.poise + dt * 18); }
   e.st += dt; e.atkCd -= dt; e.vel.multiplyScalar(Math.pow(0.003, dt));
   let T = P;
   if ((LEVEL === 3 || LEVEL >= 5) && ALLIES.length && e.alive) {
@@ -2749,6 +2821,20 @@ const UPG5 = [
   { k: 'men', ic: '🛡️', nm: 'TEN THOUSAND MEN', ds: 'Your men hit harder and stand longer', cost: { coin: 7 }, max: 3 },
   { k: 'bronze', ic: '🛡️', nm: 'BRONZE OF ISRAEL', ds: '+30 max health, full heal (carries over)', cost: { armour: 3 }, max: 5 },
 ];
+const UPG7 = [
+  { k: 'sword', ic: '⚔️', nm: 'JOSHUA\'S SWORD', ds: '+30% sword damage', cost: { coin: 6 }, max: 3 },
+  { k: 'bow', ic: '🏹', nm: 'THE BOW', ds: '+40% arrow damage, faster draw', cost: { coin: 6 }, max: 3 },
+  { k: 'men', ic: '🛡️', nm: 'MEN OF ISRAEL', ds: 'Your men hit harder and stand longer', cost: { coin: 7 }, max: 3 },
+  { k: 'spirit', ic: '🔥', nm: 'THE ARK\'S POWER', ds: 'Spirit fills faster, shofar stun lasts longer', cost: { coin: 8 }, max: 3 },
+  { k: 'bronze', ic: '🛡️', nm: 'BRONZE OF CANAAN', ds: '+30 max health, full heal', cost: { armour: 3 }, max: 5 },
+];
+const UPG8 = [
+  { k: 'sword', ic: '⚔️', nm: 'GIDEON\'S SWORD', ds: '+30% sword damage', cost: { coin: 6 }, max: 3 },
+  { k: 'bow', ic: '🏹', nm: 'THE BOW', ds: '+40% arrow damage, faster draw', cost: { coin: 6 }, max: 3 },
+  { k: 'men', ic: '🛡️', nm: 'THE THREE HUNDRED', ds: 'Your men hit harder and stand longer', cost: { coin: 7 }, max: 3 },
+  { k: 'spirit', ic: '🔥', nm: 'TORCH OF THE LORD', ds: 'Spirit fills faster, torch blaze panic lasts longer', cost: { coin: 8 }, max: 3 },
+  { k: 'bronze', ic: '🛡️', nm: 'BRONZE OF MIDIAN', ds: '+30 max health, full heal', cost: { armour: 3 }, max: 5 },
+];
 let UPG = UPG1;
 function saveProgress() { SAVE.coins = G.coins; SAVE.armour = G.armour; SAVE.up = Object.assign(UP0(), G.up); writeSave(); }
 function canBuy(u) { return (u.cost.coin || 0) <= G.coins && (u.cost.armour || 0) <= G.armour && G.up[u.k] < (u.max || 3); }
@@ -2858,20 +2944,83 @@ async function bossFight() {
 }
 function clearDead() { for (const e of G.enemies) if (!e.gone) { e.remove(); scene.remove(e.bar); } G.enemies = []; attackers = 0; }
 const WIN_TXT = {
-  // the level number, the "next" line and the button come from LEVEL_ORDER
-  1: { h2: 'Safe in the cave of Adullam', verse: '“I cried unto thee, O LORD: I said, Thou art my refuge and my portion in the land of the living.”<span>Psalm 142:5 (KJV) · A prayer of David when he was in the cave</span>' },
-  2: { h2: 'Strengthened only this once', verse: '“And Samson called unto the LORD, and said, O Lord GOD, remember me, I pray thee, and strengthen me, I pray thee, only this once, O God…”<span>Judges 16:28 (KJV)</span>' },
-  5: { h2: 'The land had rest forty years', verse: '“So let all thine enemies perish, O LORD: but let them that love him be as the sun when he goeth forth in his might. And the land had rest forty years.”<span>Judges 5:31 (KJV)</span>' },
-  4: { h2: 'Over David’s guard', verse: '“…and had the name among three mighty men.”<span>2 Samuel 23:22 (KJV)</span>' },
-  6: { h2: 'The LORD wrought a great victory', verse: '“But he stood in the midst of the ground, and defended it, and slew the Philistines: and the LORD wrought a great victory.”<span>2 Samuel 23:12 (KJV)</span>' },
-  3: { h2: 'Thine enemies into thy hand', verse: '“And blessed be the most high God, which hath delivered thine enemies into thy hand.”<span>Genesis 14:20 (KJV)</span>' },
+  11: {
+    h2: 'The angel went out that night',
+    verse: '“And it came to pass that night, that the angel of the LORD went out, and smote in the camp of the Assyrians an hundred fourscore and five thousand.”<span>2 Kings 19:35 (KJV)</span>',
+    bridge: 'The angel of the LORD defended Jerusalem and slew the one hundred and eighty-five thousand in a single night. Through the centuries of exile and storm, God proved that salvation belongs to Him alone…'
+  },
+  12: {
+    h2: 'Out of the belly of hell',
+    verse: '“Salvation is of the LORD. And the LORD spake unto the fish, and it vomited out Jonah upon the dry land.”<span>Jonah 2:9–10 (KJV)</span>',
+    bridge: 'Jonah was vomited upon the dry land, alive and delivered from the belly of the deep. His journey revealed that God’s salvation extends from the greatest armies to the darkest abyss of the sea…'
+  },
+  10: {
+    h2: 'The fire of the LORD fell',
+    verse: '“The LORD, he is the God; the LORD, he is the God.”<span>1 Kings 18:39 (KJV)</span>',
+    bridge: 'The fire fell from heaven on Mount Carmel, and the drought of three years was broken in a great rain. Centuries later in Babylon, Daniel’s faith in the same God would shut the mouths of the hungry lions in the pit…'
+  },
+  1: {
+    h2: 'Safe in the cave of Adullam',
+    verse: '“I cried unto thee, O LORD: I said, Thou art my refuge and my portion in the land of the living.”<span>Psalm 142:5 (KJV) · A prayer of David when he was in the cave</span>',
+    bridge: 'David escaped to the cave of Adullam, and every one in distress gathered unto him. Among them rose Benaiah son of Jehoiada, a valiant man of Kabzeel, who went down and slew a lion in a pit on a snowy day…'
+  },
+  4: {
+    h2: 'Over David’s guard',
+    verse: '“…and had the name among three mighty men.”<span>2 Samuel 23:22 (KJV)</span>',
+    bridge: 'David set Benaiah over his guard. Beside him stood the three mighty men—Adino, Eleazar, and Shammah—who broke through the host of the Philistines to draw water from the well of Bethlehem…'
+  },
+  6: {
+    h2: 'The LORD wrought a great victory',
+    verse: '“But he stood in the midst of the ground, and defended it, and slew the Philistines: and the LORD wrought a great victory.”<span>2 Samuel 23:12 (KJV)</span>',
+    bridge: 'The three mighty men struck down hundreds by their strength, but in the days of Midian, the LORD taught Israel that deliverance comes not by thousands, but by three hundred men with shattered jars and burning torches…'
+  },
+  8: {
+    h2: 'The sword of the LORD and of Gideon',
+    verse: '“And the three hundred blew the trumpets, and the LORD set every man’s sword against his fellow, even throughout all the host.”<span>Judges 7:22 (KJV)</span>',
+    bridge: 'The torches of Moreh have burned out, but the land has not forgotten the trumpet. Before Gideon sifted his army, Deborah sat beneath the palm tree, summoning Barak against nine hundred chariots of iron…'
+  },
+  5: {
+    h2: 'The land had rest forty years',
+    verse: '“So let all thine enemies perish, O LORD: but let them that love him be as the sun when he goeth forth in his might. And the land had rest forty years.”<span>Judges 5:31 (KJV)</span>',
+    bridge: 'The river Kishon swept away Sisera’s host, but forty years later, Israel did evil again. The Philistines ruled until the Nazarite of Zorah was strengthened to pull down the house of Dagon…'
+  },
+  2: {
+    h2: 'Strengthened only this once',
+    verse: '“And Samson called unto the LORD, and said, O Lord GOD, remember me, I pray thee, and strengthen me, I pray thee, only this once, O God…”<span>Judges 16:28 (KJV)</span>',
+    bridge: 'Samson broke the pillars of Gaza in his death. But before the judges ruled, the captain of the LORD’s host stood before Joshua with drawn sword, and the double walls of Jericho fell flat before the Ark…'
+  },
+  7: {
+    h2: 'The city was utterly destroyed',
+    verse: '“So the people shouted when the priests blew with the trumpets…and the wall fell down flat…and they took the city.”<span>Joshua 6:20 (KJV)</span>',
+    bridge: 'The walls fell before the Ark of God. Centuries earlier, Abram divided his trained servants by night to rescue his brother Lot, meeting Melchizedek king of Salem in the king’s dale…'
+  },
+  3: {
+    h2: 'Thine enemies into thy hand',
+    verse: '“And blessed be the most high God, which hath delivered thine enemies into thy hand.”<span>Genesis 14:20 (KJV)</span>',
+    bridge: 'The same God who kept covenant with Abraham delivered Daniel centuries later in exile, when cast into the den of lions for praying toward Jerusalem…'
+  },
+  9: {
+    h2: 'My God hath sent his angel',
+    verse: '“My God hath sent his angel, and hath shut the lions’ mouths, that they have not hurt me.”<span>Daniel 6:22 (KJV)</span>',
+    bridge: 'The angel shut the mouths of the lions in Babylon. In Jerusalem, King Hezekiah will spread the Assyrian threats before the LORD, and the angel of the LORD will smite the host in a single night…'
+  },
+  11: {
+    h2: 'The angel of the LORD went forth',
+    verse: '“And it came to pass that night, that the angel of the LORD went out, and smote in the camp of the Assyrians an hundred fourscore and five thousand…”<span>2 Kings 19:35 (KJV)</span>',
+    bridge: 'The angel of the LORD delivered Jerusalem from the mighty host of Sennacherib. Yet in the depths of the sea, the reluctant prophet Jonah learns that God’s deliverance reaches even into the belly of hell…'
+  },
+  12: {
+    h2: 'Salvation is of the LORD',
+    verse: '“I cried by reason of mine affliction unto the LORD, and he heard me; out of the belly of hell cried I, and thou heardest my voice… Salvation is of the LORD.”<span>Jonah 2:2, 9 (KJV)</span>',
+    bridge: 'Jonah was vomited upon the dry land, a living sign that the LORD delivers from the deepest pit. From the shepherd’s sling at Elah to the depths of the great sea, THE BATTLE IS THE LORD’S!'
+  },
 };
 function winGame() {
   G.phase = 'won'; $('boss-wrap').classList.add('hidden'); SFX.win(); LOG('win', { level: LEVEL });
   SAVE.done[LEVEL] = true; const NX = NEXT_RUN(LEVEL); if (NX) SAVE.open[ORD(NX).key] = true; SAVE.unlocked = Math.max(SAVE.unlocked, LEVEL + 1); saveProgress();
   const t = Math.round(now() - G.t0), ups = UPG.reduce((s, u) => s + G.up[u.k], 0);
   $('wstats').innerHTML = `<span>Time <b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b></span><span>${LEVEL >= 3 ? 'Enemies' : 'Philistines'} <b>${G.kills}</b></span>${LEVEL === 3 ? `<span>Captives freed <b>${(G.captives || []).filter(c => c.freed).length}</b></span>` : ''}${LEVEL === 1 && ESC ? `<span>Caught <b>${ESC.caught}×</b></span>` : ''}<span>Upgrades <b>${ups}</b></span>`;
-  const W_ = WIN_TXT[LEVEL]; W_.tag = `LEVEL ${NUM(LEVEL)} COMPLETE`; W_.next = NX ? `NEXT: <b>${ORD(NX).name.toUpperCase()}</b> · Level ${NUM(NX)} is unlocked` : 'MORE OF THE STORY IS COMING'; W_.btn = NX ? `PLAY LEVEL ${NUM(NX)}` : 'LEVEL SELECT'; $('wtag').textContent = W_.tag; $('wh2').textContent = W_.h2; $('wverse').innerHTML = W_.verse; $('wnext').innerHTML = W_.next; $('btn-next').textContent = W_.btn;
+  const W_ = WIN_TXT[LEVEL]; W_.tag = `LEVEL ${NUM(LEVEL)} COMPLETE`; W_.next = (W_.bridge ? `<div class="wbridge">${W_.bridge}</div>` : '') + (NX ? `NEXT: <b>${ORD(NX).name.toUpperCase()}</b> · Level ${NUM(NX)} is unlocked` : 'MORE OF THE STORY IS COMING'); W_.btn = NX ? `PLAY LEVEL ${NUM(NX)}` : 'LEVEL SELECT'; $('wtag').textContent = W_.tag; $('wh2').textContent = W_.h2; $('wverse').innerHTML = W_.verse; $('wnext').innerHTML = W_.next; $('btn-next').textContent = W_.btn;
   if (LEVEL === 1 && WILD) { const cv = WILD.cave; P.state = 'cine'; G.cine = { pos: new THREE.Vector3(cv.x + 2.5, cv.y + 2.2, cv.z + 9), look: new THREE.Vector3(cv.x, cv.y + 1.6, cv.z) }; }
   setTimeout(() => { show('win'); $('hud').classList.add('hidden'); $('touch').classList.add('hidden'); $('toast').classList.remove('on'); toastT = 0; }, 600);
   if (BOT && Q.has('chain') && NX) setTimeout(() => $('btn-next').click(), 3500);
@@ -2886,13 +3035,19 @@ function resetRun(full) {
   if (LEVEL === 3 && WORLD !== 'dan') buildWorld('dan');
   if (LEVEL === 4 && WORLD !== 'moab') buildWorld('moab'); if (LEVEL === 4) benaiahWeapon(false);
   if (LEVEL === 5 && WORLD !== 'kishon') buildWorld('kishon'); if (LEVEL === 5) { clearChariots(); setStorm(false); if (KISHON) { KISHON.water.position.set(0, -0.55, 0); KISHON.water.scale.z = 1; KISHON.beam.material.opacity = 0; } MOSES.obj.visible = false; }
+  if (LEVEL === 11 && WORLD !== 'jerusalem') buildWorld('jerusalem');
+  if (LEVEL === 12 && WORLD !== 'belly') buildWorld('belly');
+  if (LEVEL === 10 && WORLD !== 'carmel') buildWorld('carmel');
+  if (LEVEL === 9 && WORLD !== 'den') buildWorld('den');
+  if (LEVEL === 8 && WORLD !== 'moreh') buildWorld('moreh');
+  if (LEVEL === 7 && WORLD !== 'jericho') buildWorld('jericho');
   if (LEVEL === 6 && WORLD !== 'beth') buildWorld('beth'); if (LEVEL === 6) { if (P.look !== 'davidking') swapHero('davidking'); G.horde = false; L6.hold = 0; L6.spawning = false; L6.run = null; L6.drawn = 0; L6.field = 100; L6.lastLbl = ''; L6.david = null; goalUI(false); if (BETH) { BETH.barleyRing.visible = BETH.lentilRing.visible = false; BETH.beam.material.opacity = 0; BETH.lentil.scale.y = 1; } }
   clearCaptives(); G.divided = false; if (MELCH) MELCH.obj.visible = false;
   escClear(); cineClear(); G.seq = 0; if (document.body.classList.contains('escape')) setEscapeUI(false); if (LEVEL === 1 && P.weapon) P.weapon.visible = true;
   P.obj.visible = true; P.cineAnim = null; P.keepPose = false; P.poseT = 0; P.bound = false;
   if (LEVEL === 2 && P.cords) { P.hasJaw = true; P.weapon.visible = true; P.cords.forEach(c => c.visible = false); }
   P.hp = STATS().maxHp; P.state = 'idle'; P.pos.set(0, 0, LEVEL === 3 ? 11 : LEVEL === 2 ? 6 : 10); if (WORLD === 'temple') P.pos.set(0, 0, 5); ground(P); P.yaw = Math.PI; P.play('Idle_Loop', { restart: true }); CAM.yaw = 0;
-  if (LEVEL === 3) spawnAllies(LOWQ ? 3 : 4); else if (LEVEL === 5) spawnAllies(LOWQ ? 2 : 3); else if (LEVEL === 6) spawnAllies(3); else clearAllies();
+  if (LEVEL === 3) spawnAllies(LOWQ ? 3 : 4); else if (LEVEL === 5) spawnAllies(LOWQ ? 2 : 3); else if (LEVEL === 6) spawnAllies(3); else if (LEVEL === 7) spawnAllies(4); else if (LEVEL === 8) spawnAllies(3); else clearAllies();
 }
 function fade(on, color = '#000', ms = 650) { const f = $('fade'); f.style.background = color; f.style.transitionDuration = ms + 'ms'; f.style.opacity = on ? 1 : 0; return sleep(ms + 30); }
 // ====================================================================================================
@@ -4232,7 +4387,7 @@ function updateHud() {
   const pushOn = !!(G.fin && !G.fin.collapsing && TEMPLE && Math.hypot(P.pos.x - TEMPLE.spot.x, P.pos.z - TEMPLE.spot.z) < 3.2);
   const key = hpP + '|' + G.coins + '|' + G.armour + '|' + bp + '|' + cd + '|' + pushOn; if (key === lastHud) return; lastHud = key;
   hud.hp.style.width = hpP + '%'; hud.ghost.style.width = hpP + '%'; hud.coins.textContent = G.coins; hud.armour.textContent = G.armour; hud.boss.style.width = bp + '%'; hud.cd.style.height = cd + '%';
-  if (LEVEL === 2) { $('sp-fill').style.width = G.spirit.toFixed(0) + '%'; $('b-sling').classList.toggle('ready', G.spirit >= 100); $('sp-wrap').classList.toggle('ready', G.spirit >= 100); }
+  { $('sp-fill').style.width = G.spirit.toFixed(0) + '%'; $('b-sling').classList.toggle('ready', G.spirit >= 100); $('sp-wrap').classList.toggle('ready', G.spirit >= 100); }
   $('b-push').classList.toggle('on', pushOn);
 }
 
@@ -4256,6 +4411,7 @@ function frame() {
   readKeys();
   if (P) {
     updatePlayer(dt);
+    if (NET && NET.isMultiplayer) updateMultiplayer(dt);
     for (const e of G.enemies) if (!e.gone) updateEnemy(e, dt);
     for (const a of ALLIES) updateAlly(a, dt); if (LEVEL === 6) updateL6(dt); if (G.captives.length) updateCaptives(dt); if (MELCH && MELCH.obj.visible) MELCH.update(dt); if (DEB && DEB.obj.visible) DEB.update(dt); if (CH.list.length) updateChariots(dt);
     if (G.boss) updateBoss(G.boss, dt);
@@ -4329,7 +4485,7 @@ function startLevel() {
   show('title', false); show('win', false); $('hud').classList.remove('hidden'); if (isTouch || BOT) $('touch').classList.remove('hidden');
   SAVE.level = LEVEL; writeSave(); G.cine = null;
   resetRun(true); MOSES.play('Idle_Loop'); MOSES.obj.visible = true; LOG('level_start', { level: LEVEL });
-  if (LEVEL === 2 && Q.get('dev') === 'temple') { resetRun(false); finale(true); } else if (LEVEL === 3 && Q.get('dev') === 'king') { G.t0 = now(); kingFight(); } else if (LEVEL === 3 && Q.get('dev') === 'end') { G.t0 = now(); endingL3(); } else if (LEVEL === 3) flow3(); else if (LEVEL === 4 && Q.get('dev') === 'pit') { G.t0 = now(); pitFight(); } else if (LEVEL === 4 && Q.get('dev') === 'egypt') { G.t0 = now(); egyptFight(); } else if (LEVEL === 4) flow4(); else if (LEVEL === 5 && Q.get('dev') === 'chariots') { G.t0 = now(); chariotSeq(); } else if (LEVEL === 5 && Q.get('dev') === 'river') { G.t0 = now(); riverSeq(); } else if (LEVEL === 5 && Q.get('dev') === 'pursue') { G.t0 = now(); pursueSisera(); } else if (LEVEL === 5) flow5(); else if (LEVEL === 6 && Q.get('dev') === 'barley') { G.t0 = now(); barleySeq(); } else if (LEVEL === 6 && Q.get('dev') === 'lentil') { G.t0 = now(); lentilSeq(); } else if (LEVEL === 6 && Q.get('dev') === 'well') { G.t0 = now(); wellSeq(); } else if (LEVEL === 6) flow6(); else if (LEVEL === 2) flow2(); else if (Q.get('dev') === 'escape') { G.t0 = now(); runEscape(false); } else if (Q.get('dev') === 'jub') { G.t0 = now(); afterGoliath(); } else flow();
+  if (LEVEL === 2 && Q.get('dev') === 'temple') { resetRun(false); finale(true); } else if (LEVEL === 3 && Q.get('dev') === 'king') { G.t0 = now(); kingFight(); } else if (LEVEL === 3 && Q.get('dev') === 'end') { G.t0 = now(); endingL3(); } else if (LEVEL === 3) flow3(); else if (LEVEL === 4 && Q.get('dev') === 'pit') { G.t0 = now(); pitFight(); } else if (LEVEL === 4 && Q.get('dev') === 'egypt') { G.t0 = now(); egyptFight(); } else if (LEVEL === 4) flow4(); else if (LEVEL === 5 && Q.get('dev') === 'chariots') { G.t0 = now(); chariotSeq(); } else if (LEVEL === 5 && Q.get('dev') === 'river') { G.t0 = now(); riverSeq(); } else if (LEVEL === 5 && Q.get('dev') === 'pursue') { G.t0 = now(); pursueSisera(); } else if (LEVEL === 5) flow5(); else if (LEVEL === 6 && Q.get('dev') === 'barley') { G.t0 = now(); barleySeq(); } else if (LEVEL === 6 && Q.get('dev') === 'lentil') { G.t0 = now(); lentilSeq(); } else if (LEVEL === 6 && Q.get('dev') === 'well') { G.t0 = now(); wellSeq(); } else if (LEVEL === 6) flow6(); else if (LEVEL === 7) flow7(); else if (LEVEL === 11) flow11(); else if (LEVEL === 12) flow12(); else if (LEVEL === 10) flow10(); else if (LEVEL === 9) flow9(); else if (LEVEL === 8) flow8(); else if (LEVEL === 2) flow2(); else if (Q.get('dev') === 'escape') { G.t0 = now(); runEscape(false); } else if (Q.get('dev') === 'jub') { G.t0 = now(); afterGoliath(); } else flow();
 }
 $('btn-start').onclick = async () => {
   audioInit();
@@ -4338,7 +4494,7 @@ $('btn-start').onclick = async () => {
 };
 $('btn-again').onclick = () => { buildWorld(WORLD_OF(LEVEL)); startLevel(); };
 $('btn-next').onclick = () => { const nx = NEXT_RUN(LEVEL); if (nx) { switchLevel(nx); startLevel(); } else goTitle(); };
-$('btn-retry').onclick = () => { const esc = LEVEL === 1 && G.stage === 'escape'; show('lose', false); resetRun(false); if (esc) { runEscape(true); return; } G.phase = 'play'; if ((G.resumeWave ?? 0) < curWaves().length) runWaves(G.resumeWave ?? 0); else if (LEVEL === 4) { if (G.resumeWave >= 4) egyptFight(); else pitFight(); } else if (LEVEL === 5) { if (G.resumeWave >= 4) pursueSisera(); else if (G.resumeWave >= 3) riverSeq(); else chariotSeq(); } else if (LEVEL === 6) { if (G.resumeWave >= 4) wellSeq(); else if (G.resumeWave >= 3) lentilSeq(); else barleySeq(); } else if (LEVEL === 2) finale(true); else if (LEVEL === 3) { if (G.resumeWave >= 4) chaseToHobah(); else kingFight(); } else bossFight(); };
+$('btn-retry').onclick = () => { const esc = LEVEL === 1 && G.stage === 'escape'; show('lose', false); resetRun(false); if (esc) { runEscape(true); return; } G.phase = 'play'; if ((G.resumeWave ?? 0) < curWaves().length) runWaves(G.resumeWave ?? 0); else if (LEVEL === 4) { if (G.resumeWave >= 4) egyptFight(); else pitFight(); } else if (LEVEL === 5) { if (G.resumeWave >= 4) pursueSisera(); else if (G.resumeWave >= 3) riverSeq(); else chariotSeq(); } else if (LEVEL === 6) { if (G.resumeWave >= 4) wellSeq(); else if (G.resumeWave >= 3) lentilSeq(); else barleySeq(); } else if (LEVEL === 11) { flow11(); return; } else if (LEVEL === 12) { flow12(); return; } else if (LEVEL === 10) { flow10(); return; } else if (LEVEL === 9) { flow9(); return; } else if (LEVEL === 8) { flow8(); return; } else if (LEVEL === 7) { flow7(); return; } else if (LEVEL === 2) finale(true); else if (LEVEL === 3) { if (G.resumeWave >= 4) chaseToHobah(); else kingFight(); } else bossFight(); };
 $('btn-pause').onclick = () => togglePause();
 $('btn-resume').onclick = () => togglePause(false);
 $('btn-restart').onclick = () => { location.reload(); };
@@ -4356,17 +4512,29 @@ const ICONS = {
   spirit: '<svg viewBox="0 0 64 64"><path d="M32 6 C40 20 50 26 46 42 C44 52 36 58 32 58 C24 58 16 50 18 40 C20 30 28 28 26 16 C32 22 34 28 32 34 C38 30 38 18 32 6Z" fill="#ffcf6a"/><path d="M32 30 C36 38 40 42 38 48 C36 54 28 54 27 48 C26 42 31 40 32 30Z" fill="#fff4cf"/></svg><span>SPIRIT</span><i id="sling-cd"></i>',
 };
 function setLevelUI() {
-  UPG = LEVEL === 6 ? UPG6 : LEVEL === 5 ? UPG5 : LEVEL === 3 ? UPG3 : LEVEL === 2 ? UPG2 : UPG1; stoneLook();
-  $('who-name').textContent = LEVEL === 6 ? 'DAVID' : LEVEL === 5 ? 'BARAK' : LEVEL === 4 ? 'BENAIAH' : LEVEL === 3 ? 'ABRAM' : LEVEL === 2 ? 'SAMSON' : 'DAVID';
+  UPG = LEVEL === 11 ? UPG11 : LEVEL === 12 ? UPG12 : LEVEL === 10 ? UPG10 : LEVEL === 9 ? UPG9 : LEVEL === 8 ? UPG8 : LEVEL === 7 ? UPG7 : LEVEL === 6 ? UPG6 : LEVEL === 5 ? UPG5 : LEVEL === 3 ? UPG3 : LEVEL === 2 ? UPG2 : UPG1; stoneLook();
+  $('who-name').textContent = LEVEL === 11 ? 'HEZEKIAH' : LEVEL === 12 ? 'JONAH' : LEVEL === 10 ? 'ELIJAH' : LEVEL === 9 ? 'DANIEL' : LEVEL === 8 ? 'GIDEON' : LEVEL === 7 ? 'JOSHUA' : LEVEL === 6 ? 'DAVID' : LEVEL === 5 ? 'BARAK' : LEVEL === 4 ? 'BENAIAH' : LEVEL === 3 ? 'ABRAM' : LEVEL === 2 ? 'SAMSON' : 'DAVID';
   const ARMS = LEVEL === 3 || LEVEL >= 5; $('b-attack').innerHTML = ARMS ? ICONS.sword : LEVEL === 2 ? ICONS.jaw : ICONS.staff; $('b-sling').innerHTML = ARMS ? ICONS.bow : LEVEL === 2 ? ICONS.spirit : ICONS.sling; hud.cd = $('sling-cd');
   $('b-attack').setAttribute('aria-label', ARMS ? 'Sword attack' : LEVEL === 2 ? 'Jawbone attack' : 'Staff attack'); $('b-sling').setAttribute('aria-label', ARMS ? 'Bow' : LEVEL === 2 ? 'Spirit power' : 'Sling');
-  $('sp-wrap').classList.toggle('hidden', LEVEL !== 2); $('bname').textContent = LEVEL === 6 ? 'THE HOST' : LEVEL === 5 ? 'SISERA' : LEVEL === 4 ? 'THE LION' : LEVEL === 3 ? 'CHEDORLAOMER' : 'GOLIATH OF GATH'; $('boss-wrap').classList.remove('house');
+  $('sp-wrap').classList.remove('hidden'); $('bname').textContent = LEVEL === 11 ? 'RABSHAKEH & ASSYRIAN HOST' : LEVEL === 12 ? 'CARNIVOROUS FISH SWARM' : LEVEL === 10 ? 'PROPHETS OF BAAL' : LEVEL === 9 ? 'THE LIONS' : LEVEL === 8 ? 'ZEBAH & ZALMUNNA' : LEVEL === 7 ? 'KING OF JERICHO' : LEVEL === 6 ? 'THE HOST' : LEVEL === 5 ? 'SISERA' : LEVEL === 4 ? 'THE LION' : LEVEL === 3 ? 'CHEDORLAOMER' : 'GOLIATH OF GATH'; $('boss-wrap').classList.remove('house');
   document.body.dataset.level = LEVEL; lastHud = '';
 }
 function renderTitle() {
-  $('tsub').textContent = (ORD(LEVEL) && ORD(LEVEL).sub) || '';
+  $('tsub').innerHTML = (ORD(LEVEL) && ORD(LEVEL).arc ? `<span class="arc-title">${ORD(LEVEL).arc}</span> · ` : '') + ((ORD(LEVEL) && ORD(LEVEL).sub) || '');
   document.querySelectorAll('.lvc:not(.soon)').forEach(b => { const l = +b.dataset.l; b.classList.toggle('sel', l === LEVEL); b.classList.toggle('locked', !isOpen(l)); b.classList.toggle('done', !!SAVE.done[l]); });
-  $('tcontrols').innerHTML = LEVEL === 6
+  $('tcontrols').innerHTML = LEVEL === 11
+    ? (isTouch ? 'Left thumb: move · Right: <b>SWORD</b>, <b>BOW</b>, <b>ANGELIC WRATH</b> · Defend Jerusalem with your royal guard' : 'WASD move · Click / J sword · Right-click / K bow · Space dodge · K Angel of the LORD (Spirit) · Defend the walls until the angel smites the host')
+    : LEVEL === 12
+    ? (isTouch ? 'Left thumb: move · Right: <b>BONE BLADE</b>, <b>DODGE</b>, <b>CRY FROM THE DEEP</b> · Escape the carnivorous fishes' : 'WASD move · Click / J bone blade · Space dodge · K Cry from the Deep (Spirit) · Fight through the fishes to the lower intestine')
+    : LEVEL === 10
+    ? (isTouch ? 'Left thumb: move · Right: <b>STAFF</b>, <b>DODGE</b>, <b>FIRE OF HEAVEN</b> · Rebuild the altar and outrun Ahab’s chariot' : 'WASD move · Click / J staff · Space dodge · K Fire from Heaven (Spirit) · Rebuild the altar and outrun the storm')
+    : LEVEL === 9
+    ? (isTouch ? 'Left thumb: move · Right: <b>DODGE</b>, <b>SPIRIT</b> · Survive until the angel comes' : 'WASD move · Space dodge · K Spirit (when full) · Survive until the angel comes')
+    : LEVEL === 8
+    ? (isTouch ? 'Left thumb: move · Right: <b>SWORD</b>, <b>TORCH/BOW</b>, <b>DODGE</b> · The Three Hundred fight beside you' : 'WASD move · Click / J sword · Right-click / K bow (Spirit when full) · Space dodge · The Three Hundred fight beside you')
+    : LEVEL === 7
+    ? (isTouch ? 'Left thumb: move · Right: <b>SWORD</b>, <b>BOW</b>, <b>DODGE</b> · Israel marches with you' : 'WASD move · Click / J sword · Right-click / K bow (Spirit when full) · Space dodge · Israel marches with you')
+    : LEVEL === 6
     ? (isTouch ? 'Left thumb: move · Right: <b>SWORD</b>, <b>BOW</b>, <b>DODGE</b> · Your three mighty men fight beside you' : 'WASD move · Click / J sword · Right-click / K bow · Space dodge · Your three mighty men fight beside you')
     : LEVEL === 5
     ? (isTouch ? 'Left thumb: move · Right: <b>SWORD</b>, <b>BOW</b>, <b>DODGE</b> · Step out of a chariot’s red lane' : 'WASD move · Click / J sword · Right-click / K bow · Space dodge · Step out of a chariot’s red lane')
@@ -4381,7 +4549,11 @@ function renderTitle() {
 function makeHero() {
   if (P) P.remove();
   clearAllies(); clearCaptives(); if (DEB) DEB.obj.visible = false;
-  P = LEVEL === 6 ? new Actor('barak', 1.04, 'davidking') : LEVEL === 5 ? new Actor('barak', 1.0) : LEVEL === 4 ? new Actor('benaiah', 1.0) : LEVEL === 3 ? new Actor('abram', 0.98) : LEVEL === 2 ? new Actor('samson', 1.0) : new Actor('david', 0.94); P.hp = 100; P.pos.set(0, 0, LEVEL === 3 ? 11 : LEVEL === 2 ? 6 : 10); ground(P); P.yaw = Math.PI; P.play('Idle_Loop');
+  P = LEVEL === 11 ? new Actor('hezekiah', 1.05, 'hezekiah')
+    : LEVEL === 12 ? new Actor('jonah', 0.98, 'jonah')
+    : LEVEL === 10 ? new Actor('elijah', 1.0, 'elijah')
+    : LEVEL === 9 ? new Actor('daniel', 1.0, 'daniel')
+    : LEVEL === 8 ? new Actor('gideon', 1.02, 'gideon') : LEVEL === 7 ? new Actor('joshua', 1.05, 'joshua') : LEVEL === 6 ? new Actor('barak', 1.04, 'davidking') : LEVEL === 5 ? new Actor('barak', 1.0) : LEVEL === 4 ? new Actor('benaiah', 1.0) : LEVEL === 3 ? new Actor('abram', 0.98) : LEVEL === 2 ? new Actor('samson', 1.0) : new Actor('david', 0.94); P.hp = 100; P.pos.set(0, 0, LEVEL === 3 ? 11 : LEVEL === 2 ? 6 : 10); ground(P); P.yaw = Math.PI; P.play('Idle_Loop');
   if (LEVEL === 3 || LEVEL === 6) MOSES.pos.set(-4.5, 0, 15.5); else if (LEVEL === 2) { MOSES.pos.set(-4.5, 0, 14.5); } else MOSES.pos.set(-5, 0, 19.5); ground(MOSES);
 }
 function switchLevel(l) {
@@ -4393,10 +4565,16 @@ function switchLevel(l) {
   const box = $('tsel'); box.innerHTML = '';
   for (const o of LEVEL_ORDER) {
     const b = document.createElement('button'); b.className = 'lvc' + (o.soon ? ' soon' : '');
-    if (o.soon) { b.innerHTML = `<div class="art soonart"></div><b>COMING SOON</b><span>${o.name}</span><i>${o.place}</i>`; b.onclick = async () => { audioInit(); show('title', false); await card({ who: 'COMING SOON', text: `<b>${o.name}</b> · ${o.place}<br>This part of the story is being built next.`, btn: 'BACK' }); show('title'); }; }
-    else {
+    if (o.soon) {
+      b.innerHTML = `<div class="art soonart"></div><small class="lvc-arc">${o.arcShort || 'COMING SOON'}</small><b>COMING SOON</b><span>${o.name}</span><i>${o.place}</i>`;
+      b.onclick = async () => {
+        audioInit(); show('title', false);
+        await card({ who: o.arc || 'COMING SOON', text: `<b>${o.name}</b> · ${o.place}<br><i>${o.sub}</i><br><br>This part of the story is being authored next.`, btn: 'BACK' });
+        show('title');
+      };
+    } else {
       const prev = PREV(o.run); b.dataset.l = o.run;
-      b.innerHTML = `<div class="art" style="background-image:url(assets/art/l${o.run}.jpg)"></div><b>LEVEL ${NUM(o.run)}</b><span>${o.name}</span><i>${o.place}</i>${prev ? `<em>🔒 Finish Level ${NUM(prev.run)}</em>` : ''}`;
+      b.innerHTML = `<div class="art" style="background-image:url(assets/art/l${o.run}.jpg)"></div><small class="lvc-arc">${o.arcShort || 'CAMPAIGN'}</small><b>LEVEL ${NUM(o.run)}</b><span>${o.name}</span><i>${o.place}</i>${prev ? `<em>🔒 Finish Level ${NUM(prev.run)}</em>` : ''}`;
       b.onclick = async () => {
         const l = o.run; audioInit();
         if (!isOpen(l)) {
@@ -4445,4 +4623,1879 @@ window.__elah = { G, camera, scene, get calls() { G.wantCalls = true; return G.c
     // QA: one character, close on the face, in this world's light
     if (window._fs) window._fs.remove(); const a = new Actor(kind, sc || 1, look); window._fs = a; a.pos.set(P.pos.x + 30, 0, P.pos.z); ground(a); a.yaw = 0; a.play('Idle_Loop'); a.update(0.01);
     const h = a.headPos(new THREE.Vector3()); G.phase = 'cine'; const d = (window._fsd || 0.5) * (sc || 1); G.cine = { pos: new THREE.Vector3(h.x + d * 0.3, h.y + (window._fsy || 0) * (sc || 1), h.z + d), look: h.clone().add(new THREE.Vector3(0, -0.07 * (sc || 1) + (window._fsy || 0) * 0.5 * (sc || 1), 0)), snap: true }; return h.toArray(); }, get audio() { return { ctx: AU.ctx && AU.ctx.state, track: TRACK.cur, playing: !!(TRACK.el && !TRACK.el.paused), t: TRACK.el ? +TRACK.el.currentTime.toFixed(1) : 0, failed: Object.keys(TRACK.failed), smp: Object.keys(SMP.buf) }; }, get tris() { return renderer.info.render.triangles; }, get chariots() { return CH.list.map(c => c.state + ':' + Math.round(c.d || 0) + '/' + Math.round(c.stuckAt < 1e8 ? c.stuckAt : -1)); }, get moses() { return MOSES && MOSES.pos.toArray(); }, get player() { return P && { hp: P.hp, state: P.state, pos: P.pos.toArray().map(v => +v.toFixed(2)) }; }, get boss() { return G.boss && { hp: G.boss.hp, state: G.boss.state, dist: +G.boss.pos.distanceTo(P.pos).toFixed(1) }; }, hurt(n) { damagePlayer(n, P.pos.clone().add(new THREE.Vector3(0, 0, 1))); }, get angel() { return !!G.angel; }, get dpr() { return DPR; }, renderer, get level() { return LEVEL; }, get fin() { return G.fin && { prog: +G.fin.prog.toFixed(3), collapsing: G.fin.collapsing }; }, get spirit() { return G.spirit; }, get world() { return WORLD; }, get allies() { return ALLIES.map(a => ({ hp: Math.round(a.hp), down: a.down, st: a.state })); }, get captives() { return (G.captives || []).map(c => ({ n: c.name, freed: c.freed, prog: +c.prog.toFixed(2) })); }, get stage() { return G.stage; }, get esc() { return ESC && { stamina: Math.round(ESC.stamina), hidden: ESC.hidden, hiding: ESC.hiding, near: +ESC.near.toFixed(1), hunters: ESC.hunters.length, chasing: ESC.hunters.filter(h => h.state === 'chase' || h.state === 'grab').length, caught: ESC.caught, toCave: WILD ? +Math.hypot(WILD.cave.x - P.pos.x, WILD.cave.z - P.pos.z).toFixed(1) : null, won: ESC.won }; }, get seq() { return G.seq; }, get l6() { return LEVEL === 6 ? { hold: +L6.hold.toFixed(1), field: Math.round(L6.field), run: L6.run, drawn: +L6.drawn.toFixed(1), hero: P.look, horde: G.horde } : null; }, dbgHide() { const r = WILD.rocks[3]; P.pos.set(r.x + r.s + 0.9, 0, r.z); ground(P); BOTI.x = BOTI.y = 0; ESC.hiding = true; return [r.x, r.z]; }, dbgH() { return ESC && { esc: this.esc, p: P.pos.toArray().map(v => +v.toFixed(1)), pst: P.state, hp: Math.round(P.hp), hs: ESC.hunters.map(h => [h.state, +h.pos.distanceTo(P.pos).toFixed(2), +h.cd.toFixed(1)]).sort((a, b) => a[1] - b[1]).slice(0, 4), log: G.log.slice(-4).map(l => l.type) }; }, devFin(p) { if (G.fin) G.fin.prog = p; }, lineup(kinds, close) { show('title', false); kinds = kinds || ['david', 'phil', 'archer', 'captain', 'shield', 'samson', 'moses']; const base = P.pos.clone(); const out = kinds.map((k, i) => { const a = new Actor(k, k === 'goliath' ? 2.25 : 1); a.pos.set(base.x + (i - (kinds.length - 1) / 2) * 0.9, 0, base.z - 3); ground(a); a.yaw = 0; a.play('Idle_Loop'); a.update(0.6); a.obj.updateMatrixWorld(true); return a; }); const c = out[0].pos; G.cine = close ? { pos: new THREE.Vector3(c.x + 0.25, c.y + close, c.z + 0.75), look: new THREE.Vector3(c.x, c.y + close - 0.05, c.z), snap: true } : { pos: new THREE.Vector3(base.x, base.y + 1.5, base.z + 1.2), look: new THREE.Vector3(base.x, base.y + 1.1, base.z - 3), snap: true }; P.obj.visible = false; MOSES.obj.visible = false; return kinds.length; }, get tdbg() { const T = TEMPLE; return T && T.collapse && { t: +T.collapse.t.toFixed(2), f: T.falling.slice(0, 6).map(f => +f.m.position.y.toFixed(2)), c0: T.crowdBase[0][4].p.y.toFixed(2), slow: G.slow, hs: G.hitstop }; }, bindDump() { const out = {}; BASE.updateMatrixWorld(true); BASE.traverse(o => { if (!o.isSkinnedMesh) return; const pa = o.geometry.attributes.position, v = new THREE.Vector3(), arr = []; for (let i = 0; i < pa.count; i++) { v.fromBufferAttribute(pa, i); o.applyBoneTransform(i, v); v.applyMatrix4(o.matrixWorld); if (v.y > (window._bdy ?? 1.45)) arr.push([+v.x.toFixed(4), +v.y.toFixed(4), +v.z.toFixed(4)]); } out[o.name] = { n: pa.count, head: arr, mw: o.matrixWorld.elements.map(x => +x.toFixed(5)), norm: pa.normalized, type: pa.array.constructor.name }; }); return out; }, sceneStats() { const res = {}; let n = 0, inst = 0; scene.traverse(o => { if (!(o.isMesh || o.isSprite || o.isPoints || o.isLine) || !o.visible) return; let p = o, vis = true; while (p) { if (!p.visible) vis = false; p = p.parent; } if (!vis) return; let a = o; while (a.parent && a.parent !== scene) a = a.parent; const isActor = !!a.children.find(c => c.isBone || (c.children && c.children.find && c.children.find(cc => cc.isBone))) || a.userData.actor; const key = (a.userData.actor ? 'ACTOR ' : isActor ? 'ACT? ' : '') + (o.isInstancedMesh ? 'I:' : '') + o.type + ' ' + (o.material && (o.material.name || o.material.type)) + ' ' + (o.geometry && o.geometry.type) + ' p=' + (a.name || a.type); res[key] = (res[key] || 0) + 1; n++; }); return { n, res: Object.entries(res).sort((x, y) => y[1] - x[1]).slice(0, 40) }; }, narr: () => ({ files: [...NARR.files], last: NARR.last, on: SETTINGS.narr }), narrScript: () => ({ L1: STORY_L1, L3: STORY_L3, L4: STORY_L4, L5: STORY_L5, L6: STORY_L6, L2: typeof STORY_L2 !== 'undefined' ? STORY_L2 : null }), narrId, save: () => SAVE, musicRenderTest, get music() { return { step: MUSIC.step, mode: MUSIC.mode, inten: +MUSIC.inten.toFixed(2), ctx: AU.ctx && AU.ctx.state }; } };
+
+// =====================================================================================================
+// LEVEL 7: JOSHUA AT JERICHO (Joshua 5-6)
+// Marching circuits, Trumpets of rams' horns, Wall of stone collapse, Breach of the citadel
+// =====================================================================================================
+
+function hgtJericho(x, z) {
+  const distCitadel = Math.hypot(x, z + 36);
+  const base = fbm(x * 0.04, z * 0.04) * 0.55;
+  if (z < -28) return base + Math.max(0, 3.2 - distCitadel * 0.1);
+  return base;
+}
+
+function buildArk(x, y, z) {
+  const gold = new THREE.MeshStandardMaterial({ color: 0xd8b240, roughness: 0.35, metalness: 0.85 });
+  const arkG = new THREE.Group();
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.7, 0.7), gold);
+  chest.position.set(0, 0.45, 0); chest.castShadow = true; arkG.add(chest);
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0xc89e35, roughness: 0.4, metalness: 0.6 });
+  for (const s of [-0.42, 0.42]) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 2.6, 8).rotateX(Math.PI / 2), poleMat);
+    pole.position.set(s, 0.35, 0); pole.castShadow = true; arkG.add(pole);
+  }
+  for (const s of [-0.35, 0.35]) {
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35, 0.5).rotateZ(s > 0 ? 0.3 : -0.3), gold);
+    wing.position.set(s, 0.95, 0); arkG.add(wing);
+  }
+  const halo = new THREE.PointLight(0xffea88, 35, 12, 2);
+  halo.position.set(0, 1.2, 0); arkG.add(halo);
+  arkG.position.set(x, y, z);
+  W.add(arkG);
+  JERICHO.ark = arkG;
+  COL.push({ x, z, r: 1.1 });
+}
+
+function buildJericho() {
+  const SS = THREE.MathUtils.smoothstep, CL = THREE.MathUtils.clamp;
+  const sand = new THREE.Color(0.82, 0.68, 0.46), rock = new THREE.Color(0.65, 0.52, 0.38), clay = new THREE.Color(0.74, 0.54, 0.34);
+  buildGround((x, z, y, sl, c) => {
+    c.copy(sand).lerp(clay, CL(fbm(x * 0.07, z * 0.07) * 0.8 + 0.2, 0, 1) * 0.6);
+    c.lerp(rock, SS(sl, 0.7, 1.8));
+    if (z < -28) c.lerp(rock, 0.4);
+  }, 0xc8a876);
+
+  JERICHO = { t: 0, circuits: 0, wallCollapsed: false, collapsing: false, collapseT: 0, chunks: [] };
+
+  // Palms of Jericho
+  const trunk = new THREE.MeshLambertMaterial({ color: 0x5a4228 });
+  const frond = new THREE.MeshLambertMaterial({ color: 0x4a6a28, emissive: 0x121a08, flatShading: true });
+  for (const [x, z] of [[-26, 6], [26, 8], [-28, -12], [28, -10], [-25, -28], [25, -26], [0, 18]]) {
+    const y = hgt(x, z);
+    const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.3, 3.8, 6).translate(0, 1.9, 0), trunk);
+    tr.position.set(x, y, z); tr.castShadow = true; W.add(tr);
+    const cr = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1.2, 7).rotateX(Math.PI).translate(0, 3.8, 0), frond);
+    cr.position.set(x, y, z); cr.castShadow = true; W.add(cr);
+    COL.push({ x, z, r: 0.5 });
+  }
+
+  // Double Walls of Jericho
+  const wallMat = new THREE.MeshLambertMaterial({ color: 0xbfa37a, flatShading: true });
+  const darkWallMat = new THREE.MeshLambertMaterial({ color: 0x8a7050, flatShading: true });
+
+  // 1. Inner Wall (z = -44)
+  for (const [x0, x1] of [[-36, -4], [4, 36]]) {
+    const w = x1 - x0, m = new THREE.Mesh(new THREE.BoxGeometry(w, 8, 2.5), darkWallMat);
+    m.position.set((x0 + x1) / 2, hgt((x0 + x1) / 2, -44) + 4, -44);
+    m.castShadow = true; W.add(m);
+    COL.push({ x: (x0 + x1) / 2, z: -44, r: w / 2 });
+  }
+
+  // 2. Outer Wall (z = -28): 12 fracture chunks that collapse flat
+  const numChunks = 12;
+  const chunkW = 44 / numChunks;
+  for (let i = 0; i < numChunks; i++) {
+    const cx = -22 + (i + 0.5) * chunkW;
+    const cz = -28;
+    const cy = hgt(cx, cz);
+    const ch = new THREE.Mesh(new THREE.BoxGeometry(chunkW * 0.96, 5.5, 2.2), (i % 2 === 0) ? wallMat : darkWallMat);
+    ch.position.set(cx, cy + 2.75, cz);
+    ch.castShadow = true;
+    W.add(ch);
+    JERICHO.chunks.push({
+      mesh: ch,
+      baseX: cx,
+      baseY: cy + 2.75,
+      baseZ: cz,
+      v: new THREE.Vector3(),
+      w: new THREE.Vector3(),
+      hits: 0,
+      rest: false
+    });
+    COL.push({ x: cx, z: cz, r: chunkW / 2, isWall: true, idx: i });
+  }
+
+  addBoulders([[-18, 12, 1.4], [18, 14, 1.5], [-22, -4, 1.6], [22, -6, 1.5], [-12, -20, 1.2], [14, -18, 1.3]], 0x9a8462);
+  buildArk(0, hgt(0, 12), 12);
+}
+
+function updateJericho(dt) {
+  if (!JERICHO) return;
+  JERICHO.t += dt;
+  if (!JERICHO.collapsing) return;
+
+  JERICHO.collapseT += dt;
+  let settled = 0;
+  for (let i = 0; i < JERICHO.chunks.length; i++) {
+    const c = JERICHO.chunks[i];
+    if (c.rest) { settled++; continue; }
+    c.v.y -= 14 * dt;
+    c.mesh.position.addScaledVector(c.v, dt);
+    c.mesh.rotation.x += c.w.x * dt;
+    c.mesh.rotation.z += c.w.z * dt;
+    const groundY = hgt(c.mesh.position.x, c.mesh.position.z) + 0.35;
+    if (c.mesh.position.y <= groundY) {
+      c.mesh.position.y = groundY;
+      c.v.set(c.v.x * 0.25, Math.abs(c.v.y) * 0.15, c.v.z * 0.25);
+      c.w.multiplyScalar(0.2);
+      c.hits = (c.hits || 0) + 1;
+      if (c.hits === 1) {
+        dustRing(c.mesh.position, 6, 3, 2.8);
+        debris(c.mesh.position, 10, 0.8, 4, 0.7);
+        shake(0.35);
+      }
+      if (c.hits > 2) {
+        c.rest = true;
+        settled++;
+      }
+    }
+  }
+  if (settled >= JERICHO.chunks.length && !JERICHO.wallCollapsed) {
+    JERICHO.wallCollapsed = true;
+    JERICHO.collapsing = false;
+    for (let i = COL.length - 1; i >= 0; i--) {
+      if (COL[i].isWall) COL.splice(i, 1);
+    }
+  }
+}
+
+const INTRO7_SHOTS = {
+  host(s) {
+    P.obj.visible = true; P.pos.set(0, 0, 12); ground(P); P.yaw = 0; P.cineAnim = 'Idle_Talking_Loop';
+    MOSES.obj.visible = false;
+    const cap = cineActor('angel', 'angel', 0, 8, Math.PI, 'Sword_Idle', 1.25, 1.0);
+    cap.mat.userData.u.uGlow.value = 1.0;
+    camAt(-2.8, P.pos.y + 1.2, 14.5, 0, cap.pos.y + 1.8, 8);
+    SFX.angel();
+    G.storyTick = (dt) => { G.cine.pos.y += dt * 0.2; };
+  },
+  shutup(s) {
+    for (const a of CINE.actors) a.obj.visible = false;
+    P.obj.visible = false;
+    camAt(-16, 12, -10, 0, 4, -28);
+    SFX.horn();
+    G.storyTick = (dt) => { G.cine.pos.x += dt * 3.5; };
+  },
+  compass(s) {
+    for (const a of CINE.actors) a.obj.visible = false;
+    P.obj.visible = true; P.pos.set(2, 0, 10); ground(P); P.yaw = Math.PI * 0.8; P.cineAnim = 'Walk_Loop';
+    camAt(0, 3.5, 16, 0, 1.2, 12);
+    SFX.shofar();
+    G.storyTick = (dt) => { G.cine.pos.z -= dt * 0.6; };
+  }
+};
+
+async function flow7() {
+  G.t0 = now(); G.phase = 'cine'; G.stage = 'jericho'; G.seq = 0; document.body.classList.add('cine');
+  P.state = 'cine'; P.cineAnim = 'Idle_Loop'; MOSES.obj.visible = false;
+  await playShots(STORY_L7.intro, INTRO7_SHOTS);
+  cineClear();
+  P.obj.visible = true; P.state = 'idle'; P.cineAnim = null; P.pos.set(0, 0, 8); ground(P); P.yaw = Math.PI;
+  MOSES.obj.visible = true; MOSES.yaw = 1.25; MOSES.pos.set(-4.5, 0, 14.5); ground(MOSES);
+  G.cine = { pos: new THREE.Vector3(MOSES.pos.x + 2.9, MOSES.pos.y + 1.55, MOSES.pos.z + 0.7), look: MOSES.pos.clone().setY(MOSES.pos.y + 1.45).add(new THREE.Vector3(0, 0, -1.35)), snap: true };
+  MOSES.play('Idle_Talking_Loop');
+  await card(STORY_L7.counsel);
+  MOSES.play('Idle_Loop'); MOSES.yaw = Math.PI * 0.92; G.cine = null; document.body.classList.remove('cine');
+  await jerichoMarchSeq();
+}
+
+async function jerichoMarchSeq() {
+  G.resumeWave = 1; G.stage = 'march'; G.phase = 'play';
+  seqBanner(1); $('wave').textContent = seqTag() + 'CIRCUIT OF THE ARK'; await sleep(400);
+  spawnAllies(4);
+  toast('Compass the city with the Ark. Repel the Canaanite sorties from the breach!', 3600);
+  const W1 = [['phil', -12, -18], ['shield', -15, -16], ['archer', -18, -22], ['phil', 16, -16], ['captain', 18, -12], ['shield', 14, -20]];
+  for (const [k, x, z] of W1) spawnEnemy(k, x, z, 0.4);
+  while (G.enemies.some(e => e.alive) && G.phase !== 'lost') {
+    await sleep(350);
+  }
+  if (G.phase === 'lost') return;
+  await shofarBlastSeq();
+}
+
+async function shofarBlastSeq() {
+  G.phase = 'cine'; document.body.classList.add('cine');
+  P.state = 'cine'; P.cineAnim = 'Sword_Idle';
+  camAt(0, 7, 18, 0, 3, -28);
+  SFX.shofar();
+  toast('THE SEVENTH CIRCUIT IS ACCOMPLISHED! THE PRIESTS BLOW WITH THE TRUMPETS!', 3200);
+  await sleep(1400);
+  shake(1.6); vibrate(350); hurtFlash();
+  SFX.collapse();
+  if (JERICHO) {
+    JERICHO.collapsing = true;
+    for (let i = 0; i < JERICHO.chunks.length; i++) {
+      const c = JERICHO.chunks[i];
+      c.v.set((Math.random() - 0.5) * 4, 2 + Math.random() * 3, (Math.random() - 0.3) * 6);
+      c.w.set((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 6);
+    }
+  }
+  await sleep(3500);
+  cineClear(); document.body.classList.remove('cine');
+  await jerichoBreachFight();
+}
+
+async function jerichoBreachFight() {
+  G.stage = 'breach'; G.phase = 'play'; P.state = 'idle';
+  seqBanner(2); $('wave').textContent = seqTag() + 'BREACH THE CITADEL'; await sleep(400);
+  toast('“The wall fell down flat! Go up into the city straight before you!”', 4200);
+  const garrison = [['captain', -6, -34], ['captain', 6, -34], ['shield', -10, -38], ['shield', 10, -38], ['archer', -14, -40], ['archer', 14, -40]];
+  for (const [k, x, z] of garrison) spawnEnemy(k, x, z, 0.2);
+
+  // Spawn King of Jericho
+  const king = new Actor('goliath', 1.55, 'j_king');
+  king.isBoss = true; king.radius = 0.9; king.summoned = true;
+  king.pos.set(0, hgt(0, -38), -38); king.yaw = 0;
+  king.maxHp = king.hp = 1450; king.state = 'idle'; king.atkCd = 1.0;
+  king.play('Walk_Loop', { ts: 0.8 });
+  G.boss = king; bossMarker(king, 1.2);
+  $('boss-wrap').classList.remove('hidden'); $('bname').textContent = 'KING OF JERICHO';
+
+  while (king.alive && G.phase !== 'lost') {
+    await sleep(350);
+  }
+  if (G.phase === 'lost') return;
+  $('boss-wrap').classList.add('hidden');
+  SFX.win();
+  SAVE.done[7] = true; SAVE.unlocked = Math.max(SAVE.unlocked, 7); writeSave();
+  await card(STORY_L7.end);
+  show('win');
+}
+
+
+
+
+
+// =====================================================================================================
+// LEVEL 8: GIDEON'S NIGHT RAID (Judges 7)
+// Pitchers, Lamps, Trumpets, Camp Confusion, Midianite Kings Zebah and Zalmunna
+// =====================================================================================================
+function hgtMoreh(x, z) {
+  const hill = Math.exp(-((x * x) / 200 + ((z - 18) * (z - 18)) / 180)) * 7.5;
+  const valley = fbm(x * 0.05, z * 0.05) * 0.8;
+  return hill + valley;
+}
+
+function buildMoreh() {
+  const SS = THREE.MathUtils.smoothstep, CL = THREE.MathUtils.clamp;
+  const darkEarth = new THREE.Color(0.24, 0.22, 0.18), scrub = new THREE.Color(0.28, 0.32, 0.2), rock = new THREE.Color(0.35, 0.32, 0.3);
+  buildGround((x, z, y, sl, c) => {
+    c.copy(darkEarth).lerp(scrub, CL(fbm(x * 0.08, z * 0.08) * 0.8 + 0.2, 0, 1) * 0.6);
+    c.lerp(rock, SS(sl, 0.8, 2.2));
+  }, 0x3a342c);
+
+  MOREH = { t: 0, torchOn: true, raided: false, torchLight: null, fires: [] };
+
+  // Gideon's Torch Light (carried with player)
+  const torchLight = new THREE.PointLight(0xffaa50, 40, 24, 1.8);
+  W.add(torchLight);
+  MOREH.torchLight = torchLight;
+
+  // Midianite Encampment: Tents scattered across the valley
+  const tentMat = new THREE.MeshLambertMaterial({ color: 0x4a3a2a, flatShading: true });
+  const darkTentMat = new THREE.MeshLambertMaterial({ color: 0x2e241c, flatShading: true });
+  const tentSpots = [
+    [-18, -12], [18, -10], [-8, -22], [8, -20], [-24, -30], [24, -28],
+    [-4, -36], [4, -34], [-14, -42], [14, -40]
+  ];
+  for (let i = 0; i < tentSpots.length; i++) {
+    const [tx, tz] = tentSpots[i];
+    const ty = hgt(tx, tz);
+    const tm = new THREE.Mesh(new THREE.ConeGeometry(2.8, 2.4, 6), (i % 2 === 0) ? tentMat : darkTentMat);
+    tm.position.set(tx, ty + 1.2, tz);
+    tm.castShadow = true;
+    W.add(tm);
+    COL.push({ x: tx, z: tz, r: 2.2 });
+
+    // Campfires between tents
+    if (i % 2 === 0) {
+      const fx = tx + 4, fz = tz + 2, fy = hgt(fx, fz);
+      const fl = new THREE.PointLight(0xff8833, 50, 18, 2);
+      fl.position.set(fx, fy + 0.8, fz);
+      W.add(fl);
+      MOREH.fires.push({ light: fl, baseI: 50, x: fx, z: fz });
+    }
+  }
+
+  // Supply baggage & camel baggage crates
+  const crateMat = new THREE.MeshLambertMaterial({ color: 0x5a4228 });
+  for (const [bx, bz] of [[-12, -16], [12, -14], [-6, -28], [6, -26]]) {
+    const by = hgt(bx, bz);
+    const cr = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.4), crateMat);
+    cr.position.set(bx, by + 0.45, bz);
+    cr.castShadow = true;
+    W.add(cr);
+    COL.push({ x: bx, z: bz, r: 0.9 });
+  }
+
+  addBoulders([[-22, 10, 1.4], [22, 8, 1.5], [-28, -6, 1.6], [28, -8, 1.5]], 0x3e3832);
+}
+
+function updateMoreh(dt) {
+  if (!MOREH) return;
+  MOREH.t += dt;
+  const t = MOREH.t;
+
+  // Flicker torch light with player
+  if (P && MOREH.torchLight) {
+    MOREH.torchLight.position.set(P.pos.x, P.pos.y + 1.8, P.pos.z);
+    MOREH.torchLight.intensity = (MOREH.raided ? 90 : 35) + Math.sin(t * 14) * 5 + Math.sin(t * 27) * 3;
+  }
+
+  // Flicker campfires
+  for (const f of MOREH.fires) {
+    f.light.intensity = f.baseI + Math.sin(t * 11 + f.x) * 8 + Math.sin(t * 23 + f.z) * 5;
+  }
+}
+
+const INTRO8_SHOTS = {
+  multitude(s) {
+    P.obj.visible = false; MOSES.obj.visible = false;
+    camAt(0, 18, 16, 0, 2, -26);
+    SFX.horn();
+    G.storyTick = (dt) => { G.cine.pos.y -= dt * 0.8; G.cine.pos.z -= dt * 1.2; };
+  },
+  three_hundred(s) {
+    P.obj.visible = true; P.pos.set(0, hgt(0, 14), 14); ground(P); P.yaw = Math.PI; P.cineAnim = 'Idle_Talking_Loop';
+    for (let i = 0; i < 4; i++) {
+      cineActor('servant', 'isr_ally', -3 + i * 2, 16 + (i % 2), Math.PI, 'Sword_Idle', 1.0, 0.9);
+    }
+    camAt(-2.5, P.pos.y + 1.4, 18.5, 0, P.pos.y + 1.2, 14);
+    SFX.shout();
+    G.storyTick = (dt) => { G.cine.pos.x += dt * 0.4; };
+  },
+  pitchers(s) {
+    for (const a of CINE.actors) a.obj.visible = false;
+    P.obj.visible = true; P.pos.set(0, hgt(0, 10), 10); ground(P); P.yaw = Math.PI; P.cineAnim = 'Sword_Idle';
+    camAt(0.8, P.pos.y + 1.1, 8.2, 0, P.pos.y + 1.0, 10);
+    SFX.angel();
+    G.storyTick = (dt) => { G.cine.pos.z -= dt * 0.4; };
+  }
+};
+
+async function flow8() {
+  G.t0 = now(); G.phase = 'cine'; G.stage = 'moreh'; G.seq = 0; document.body.classList.add('cine');
+  P.state = 'cine'; P.cineAnim = 'Idle_Loop'; MOSES.obj.visible = false;
+  await playShots(STORY_L8.intro, INTRO8_SHOTS);
+  cineClear();
+  P.obj.visible = true; P.state = 'idle'; P.cineAnim = null; P.pos.set(0, 0, 12); ground(P); P.yaw = Math.PI;
+  MOSES.obj.visible = true; MOSES.yaw = 1.25; MOSES.pos.set(-4.5, 0, 15.5); ground(MOSES);
+  G.cine = { pos: new THREE.Vector3(MOSES.pos.x + 2.9, MOSES.pos.y + 1.55, MOSES.pos.z + 0.7), look: MOSES.pos.clone().setY(MOSES.pos.y + 1.45).add(new THREE.Vector3(0, 0, -1.35)), snap: true };
+  MOSES.play('Idle_Talking_Loop');
+  await card(STORY_L8.counsel);
+  MOSES.play('Idle_Loop'); MOSES.yaw = Math.PI * 0.92; G.cine = null; document.body.classList.remove('cine');
+  await gideonInfiltrationSeq();
+}
+
+async function gideonInfiltrationSeq() {
+  G.resumeWave = 1; G.stage = 'infiltrate'; G.phase = 'play';
+  seqBanner(1); $('wave').textContent = seqTag() + 'APPROACH THE MIDIANITE CAMP'; await sleep(400);
+  spawnAllies(3);
+  toast('Descend the hill under cover of night. Ambush the outer patrol watchmen!', 4000);
+  const patrol = [['phil', -10, -6], ['archer', 10, -8], ['captain', 0, -12]];
+  for (const [k, x, z] of patrol) spawnEnemy(k, x, z, 0.3);
+  while (G.enemies.some(e => e.alive) && G.phase !== 'lost') {
+    await sleep(350);
+  }
+  if (G.phase === 'lost') return;
+  await gideonPitcherShatterSeq();
+}
+
+async function gideonPitcherShatterSeq() {
+  G.phase = 'cine'; document.body.classList.add('cine');
+  P.state = 'cine'; P.cineAnim = 'Jump_Start';
+  camAt(0, 6, -2, 0, 2, -24);
+  toast('“THE SWORD OF THE LORD, AND OF GIDEON!”', 3500);
+  SFX.clang(); // Pitchers shatter
+  await sleep(600);
+  SFX.horn(); SFX.shofar(); SFX.shout();
+  shake(1.4); vibrate(280); hurtFlash();
+  if (MOREH) MOREH.raided = true;
+
+  // Midianite camp confusion: enemies in disarray
+  const campEnemies = [
+    ['phil', -8, -20], ['phil', 8, -20], ['shield', -14, -26], ['shield', 14, -26],
+    ['archer', -18, -32], ['archer', 18, -32]
+  ];
+  for (const [k, x, z] of campEnemies) {
+    const e = spawnEnemy(k, x, z, 0.1);
+    e.yaw = Math.random() * Math.PI * 2;
+    e.stagger = 2.5; // Stunned/panicked on trumpet blast!
+  }
+  await sleep(2800);
+  cineClear(); document.body.classList.remove('cine');
+  await gideonCampRaidFight();
+}
+
+async function gideonCampRaidFight() {
+  G.stage = 'raid'; G.phase = 'play'; P.state = 'idle';
+  seqBanner(2); $('wave').textContent = seqTag() + 'THE SWORD OF THE LORD'; await sleep(400);
+  toast('The host panics in the dark! Strike the camp and bring down Kings Zebah & Zalmunna!', 4200);
+
+  // Spawn Midianite Kings Zebah and Zalmunna
+  const zebah = new Actor('captain', 1.25, 'mid_king');
+  zebah.isBoss = true; zebah.radius = 0.8; zebah.summoned = true;
+  zebah.pos.set(-5, hgt(-5, -34), -34); zebah.yaw = 0;
+  zebah.maxHp = zebah.hp = 980; zebah.state = 'idle'; zebah.atkCd = 1.0;
+  zebah.play('Walk_Loop', { ts: 0.85 });
+  bossMarker(zebah, 1.0);
+
+  const zalmunna = new Actor('captain', 1.25, 'mid_king');
+  zalmunna.isBoss = true; zalmunna.radius = 0.8; zalmunna.summoned = true;
+  zalmunna.pos.set(5, hgt(5, -34), -34); zalmunna.yaw = 0;
+  zalmunna.maxHp = zalmunna.hp = 980; zalmunna.state = 'idle'; zalmunna.atkCd = 1.2;
+  zalmunna.play('Walk_Loop', { ts: 0.85 });
+  bossMarker(zalmunna, 1.0);
+
+  G.boss = zebah;
+  $('boss-wrap').classList.remove('hidden'); $('bname').textContent = 'ZEBAH & ZALMUNNA';
+
+  while ((zebah.alive || zalmunna.alive) && G.phase !== 'lost') {
+    if (!zebah.alive && zalmunna.alive) G.boss = zalmunna;
+    await sleep(350);
+  }
+  if (G.phase === 'lost') return;
+  $('boss-wrap').classList.add('hidden');
+  SFX.win();
+  SAVE.done[8] = true; SAVE.unlocked = Math.max(SAVE.unlocked, 8); writeSave();
+  await card(STORY_L8.end);
+  show('win');
+}
+
+
+
+// ====================================================================================================
+// Level 9: Daniel in the Lions' Den — Daniel 6
+// ====================================================================================================
+LOOKS.daniel = { hairStyle: 'Long', beardS: 2.0, age: 1, skin: 0xa87452, tunic: 0x22365a, trim: 0xd4af37, hair: 0xeaeaea, beardC: 0xe0e0e0, shoe: 0x4a321c, skirt: 0.25, sleeve: 0.65, neck: 1.62, gear: 'daniel' };
+
+ENV.den = { fog: 0x1a1410, near: 2, far: 55, hemi: [0x2a2018, 0x0d0a06, 0.35], sun: [0xc0a878, 0.2], dir: [0, 0.9, 0.3],
+  zen: [0.04, 0.03, 0.06], hor: [0.08, 0.06, 0.05], low: [0.06, 0.04, 0.03], sunC: [0.12, 0.10, 0.06], warm: 0.7, stars: 0, cloud: 0.1,
+  exp: 0.65, dust: 0x4a3a28, rim: 0x3a2a18 };
+GRADE.den = { sh: [0.88, 0.94, 1.1], hi: [1.14, 0.98, 0.82], sat: 0.95, con: 1.18, vig: 0.46 };
+ARENA_BY.den = { minX: -14, maxX: 14, minZ: -14, maxZ: 14 };
+
+function hgtDen(x, z) {
+  const d = Math.hypot(x, z);
+  return d > 12.5 ? (d - 12.5) * 0.6 : Math.sin(x * 1.7) * 0.04 + Math.cos(z * 2.1) * 0.03;
+}
+
+function buildDen() {
+  DEN = { t: 0, lights: [], moonBeam: null };
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(14, 32), new THREE.MeshStandardMaterial({ color: 0x4a3a28, roughness: 0.95 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; W.add(floor);
+  const wallGeo = new THREE.CylinderGeometry(14.5, 14, 8, 24, 1, true);
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x5a4a38, roughness: 0.9, side: THREE.BackSide });
+  const walls = new THREE.Mesh(wallGeo, wallMat); walls.position.y = 4; walls.receiveShadow = true; W.add(walls);
+  const ceiling = new THREE.Mesh(new THREE.CircleGeometry(15, 24), new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 1, side: THREE.BackSide }));
+  ceiling.rotation.x = Math.PI / 2; ceiling.position.y = 8; W.add(ceiling);
+  const shaftGeo = new THREE.CylinderGeometry(1.5, 2.5, 8, 16, 1, true);
+  const shaftMat = new THREE.MeshBasicMaterial({ color: 0xccddff, transparent: true, opacity: 0.08, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+  const shaft = new THREE.Mesh(shaftGeo, shaftMat); shaft.position.set(3, 4, -2); W.add(shaft); DEN.moonBeam = shaft;
+  const moonLight = new THREE.PointLight(0xccddff, 15, 20, 1.5); moonLight.position.set(3, 7.5, -2); moonLight.castShadow = true; W.add(moonLight); DEN.lights.push(moonLight);
+  const torchPositions = [[-10, 3.5, -8], [10, 3.5, -6], [0, 3.5, 10]];
+  for (const [tx, ty, tz] of torchPositions) {
+    const tl = new THREE.PointLight(0xff9944, 22, 18, 1.5); tl.position.set(tx, ty, tz); W.add(tl); DEN.lights.push(tl);
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xff8833, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending }));
+    spr.scale.set(0.6, 0.9, 1); spr.position.set(tx, ty + 0.3, tz); W.add(spr);
+  }
+  const boneMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc8, roughness: 0.7 });
+  for (let i = 0; i < 18; i++) {
+    const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 9;
+    const bx = Math.cos(a) * r, bz = Math.sin(a) * r;
+    const bone = new THREE.Mesh(new THREE.CapsuleGeometry(0.04 + Math.random() * 0.06, 0.3 + Math.random() * 0.5, 3, 4), boneMat);
+    bone.position.set(bx, hgtDen(bx, bz) + 0.02, bz); bone.rotation.set(Math.random() * 0.3, Math.random() * Math.PI * 2, Math.PI / 2);
+    bone.castShadow = true; W.add(bone);
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + Math.random() * 0.5, r = 8 + Math.random() * 4;
+    const rx = Math.cos(a) * r, rz = Math.sin(a) * r;
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.5 + Math.random() * 0.8, 0), new THREE.MeshStandardMaterial({ color: 0x5a4a38, roughness: 0.95 }));
+    rock.position.set(rx, hgtDen(rx, rz) + 0.2, rz); rock.rotation.set(Math.random(), Math.random(), Math.random()); rock.castShadow = true; W.add(rock);
+    COL.push({ x: rx, z: rz, r: 0.6 });
+  }
+  const barMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.6, metalness: 0.7 });
+  for (let i = -3; i <= 3; i++) { const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 5, 6), barMat); bar.position.set(3 + i * 0.7, 8, -2); W.add(bar); }
+  setEnv('den');
+}
+
+function updateDen(dt) {
+  if (!DEN) return; DEN.t += dt; const t = DEN.t;
+  for (let i = 1; i < DEN.lights.length; i++) { DEN.lights[i].intensity = 22 + Math.sin(t * (9 + i * 3)) * 4 + Math.sin(t * (17 + i * 5)) * 3; }
+  if (DEN.moonBeam) DEN.moonBeam.material.opacity = 0.06 + 0.03 * Math.sin(t * 1.5);
+}
+
+const UPG9 = [
+  { k: 'spirit', ic: '🙏', nm: 'PRAYER OF DANIEL', ds: 'Spirit fills faster, prayer shield stronger', cost: { coin: 6 }, max: 3 },
+  { k: 'bronze', ic: '🛡️', nm: 'FAITH OF DANIEL', ds: '+30 max health, full heal', cost: { armour: 2 }, max: 5 },
+];
+
+const INTRO9_SHOTS = {
+  decree(s) {
+    camAt(0, 7, 18, 0, 3, -5);
+    SFX.horn();
+    G.storyTick = (dt) => { G.cine.pos.y -= dt * 0.2; };
+  },
+  pray(s) {
+    camAt(3, 4, 10, 0, 1.2, 5);
+    SFX.angel();
+    G.storyTick = (dt) => { G.cine.pos.x -= dt * 0.3; };
+  },
+  den(s) {
+    camAt(-4, 3, 4, 0, 0.8, -4);
+    SFX.roar(); shake(0.2);
+    G.storyTick = (dt) => { G.cine.pos.z -= dt * 0.4; };
+  }
+};
+
+async function flow9() {
+  G.t0 = now(); G.phase = 'cine'; G.stage = 'den'; G.seq = 0; document.body.classList.add('cine');
+  P.state = 'cine'; P.cineAnim = 'Idle_Loop'; MOSES.obj.visible = false;
+  if (P.weapon) P.weapon.visible = false; if (P.stoneInHand) P.stoneInHand.visible = false;
+  await playShots(STORY_L9.intro, INTRO9_SHOTS);
+  cineClear();
+  P.obj.visible = true; P.state = 'idle'; P.cineAnim = null; P.pos.set(0, 0, 5); ground(P); P.yaw = Math.PI;
+  MOSES.obj.visible = true; MOSES.yaw = 1.25; MOSES.pos.set(-3, 0, 10); ground(MOSES);
+  G.cine = { pos: new THREE.Vector3(MOSES.pos.x + 2.9, MOSES.pos.y + 1.55, MOSES.pos.z + 0.7), look: MOSES.pos.clone().setY(MOSES.pos.y + 1.45).add(new THREE.Vector3(0, 0, -1.35)), snap: true };
+  MOSES.play('Idle_Talking_Loop');
+  await card(STORY_L9.counsel);
+  MOSES.play('Idle_Loop'); MOSES.yaw = Math.PI * 0.92; G.cine = null; document.body.classList.remove('cine');
+  await danielSurvivalSeq();
+}
+
+async function danielSurvivalSeq() {
+  G.resumeWave = 1; G.stage = 'survival'; G.phase = 'play';
+  seqBanner(1); $('wave').textContent = seqTag() + 'CAST INTO THE DEN'; await sleep(400);
+  MOSES.obj.visible = false;
+  toast('The lions prowl in the darkness. Dodge their attacks until the angel comes!', 4000);
+  const lionWaves = [
+    { delay: 0, lions: [[-5, -6], [5, -7]], msg: 'THE LIONS PROWL' },
+    { delay: 25, lions: [[-8, -3], [8, -4], [0, -10]], msg: 'MORE LIONS STIR' },
+    { delay: 50, lions: [[-6, -9], [6, -8], [-3, -12], [3, -11]], msg: 'THE DEN IS ALIVE WITH BEASTS' },
+  ];
+  let survived = 0; const SURVIVE_TIME = 70;
+  for (const [lx, lz] of lionWaves[0].lions) {
+    const lion = spawnEnemy('captain', lx, lz, 0.15);
+    lion.radius = 0.6; lion.maxHp = lion.hp = 220;
+  }
+  toast(lionWaves[0].msg, 2500);
+  let waveIdx = 1;
+  while (G.phase !== 'lost' && survived < SURVIVE_TIME) {
+    await sleep(500); survived += 0.5;
+    const remaining = Math.ceil(SURVIVE_TIME - survived);
+    $('wave').textContent = seqTag() + 'SURVIVE \u00B7 ' + Math.floor(remaining / 60) + ':' + String(remaining % 60).padStart(2, '0');
+    if (waveIdx < lionWaves.length && survived >= lionWaves[waveIdx].delay) {
+      for (const [lx, lz] of lionWaves[waveIdx].lions) { const lion = spawnEnemy('captain', lx, lz, 0.15); lion.radius = 0.6; lion.maxHp = lion.hp = 220; }
+      toast(lionWaves[waveIdx].msg, 2500); waveIdx++;
+    }
+    if (P.state === 'dodge') gainSpirit(8);
+  }
+  if (G.phase === 'lost') return;
+  await danielAngelSeq();
+}
+
+async function danielAngelSeq() {
+  G.phase = 'cine'; G.stage = 'angel'; document.body.classList.add('cine');
+  P.state = 'cine'; P.cineAnim = 'Idle_Loop';
+  camAt(0, 5, 8, 0, 2, -2); SFX.angel();
+  toast('“My God hath sent his angel, and hath shut the lions\’ mouths…”', 4500);
+  flashAt(new THREE.Vector3(0, 6, 0), 15, 1.5, 0xffffff);
+  for (const e of G.enemies) { if (e.alive) { e.stun = 999; e.state = 'hit'; e.st = 0; flashAt(e.pos.clone().setY(e.pos.y + 1), 3, 0.5, 0xffd700); } }
+  shake(0.5); await sleep(3000);
+  if (DEN && DEN.lights[0]) DEN.lights[0].intensity = 60;
+  flashAt(new THREE.Vector3(0, 4, 0), 20, 2.0, 0xffe8b0); await sleep(2000);
+  cineClear(); document.body.classList.remove('cine');
+  for (const e of G.enemies) { e.alive = false; e.state = 'dead'; } clearDead();
+  await card(STORY_L9.end);
+  winGame();
+}
+
+
+// ====================================================================================================
+// Level 10: Elijah on Mount Carmel — 1 Kings 18
+// ====================================================================================================
+LOOKS.elijah = { hairStyle: 'Long', beardS: 1.85, age: 1, skin: 0x9e6846, tunic: 0x5c4228, trim: 0x8a623a, hair: 0x948c84, beardC: 0x847c74, shoe: 0x3a2214, skirt: 0.45, sleeve: 0.35, neck: 1.62, gear: 'david' };
+LOOKS.baal_prophet = { hairStyle: 'Buzzed', beardS: 0.9, skin: 0xb27452, tunic: 0x6e1834, trim: 0xe2ba48, hair: 0x16100c, metal: 0xd4a040, skirt: 0.48, sleeve: 0.3, gear: 'phil' };
+LOOKS.ahab = { hairStyle: 'Long', beardS: 1.4, skin: 0xa8704c, tunic: 0x3a1848, trim: 0xe6c250, hair: 0x18120c, cloak: 0x7a1834, metal: 0xe0b440, skirt: 0.35, sleeve: 0.5, armor: true, gear: 'saul' };
+
+ENV.carmel = { fog: 0x4a3424, near: 5, far: 85, hemi: [0xffe4b8, 0x3a2a1c, 0.75], sun: [0xffeaae, 1.25], dir: [0.6, 0.7, 0.4],
+  zen: [0.12, 0.16, 0.28], hor: [0.45, 0.38, 0.28], low: [0.65, 0.52, 0.36], sunC: [1.0, 0.92, 0.7], warm: 1.0, stars: 0, cloud: 0.4,
+  exp: 0.95, dust: 0x6a5038, rim: 0xffd280 };
+GRADE.carmel = { sh: [0.94, 0.97, 1.08], hi: [1.12, 1.02, 0.88], sat: 1.15, con: 1.12, vig: 0.35 };
+
+ENV.carmel_storm = { fog: 0x1a222e, near: 2, far: 55, hemi: [0x2a3848, 0x101820, 0.4], sun: [0x88aacc, 0.3], dir: [0.2, 0.8, 0.3],
+  zen: [0.03, 0.05, 0.09], hor: [0.08, 0.12, 0.18], low: [0.06, 0.09, 0.14], sunC: [0.2, 0.3, 0.45], warm: 0.0, stars: 0, cloud: 2.2,
+  exp: 0.75, dust: 0x2a3a4a, rim: 0x4a6a8a };
+GRADE.carmel_storm = { sh: [0.88, 0.95, 1.16], hi: [0.95, 1.0, 1.05], sat: 0.88, con: 1.22, vig: 0.48 };
+
+ARENA_BY.carmel = { minX: -24, maxX: 24, minZ: -32, maxZ: 28 };
+
+function hgtCarmel(x, z) {
+  // Mountain ridge plateau with natural elevation
+  const ridge = Math.cos(x * 0.07) * 0.6 + Math.sin(z * 0.06) * 0.5;
+  const edgeDrop = (x > 20 || x < -20) ? (Math.abs(x) - 20) * 0.4 : 0;
+  return ridge - edgeDrop;
+}
+
+function buildCarmel() {
+  CARMEL = { t: 0, altarStones: [], trenchMesh: null, waterFilled: false, fireDone: false, rain: null, fireBeam: null, storm: false, ahabChariot: null };
+  const geo = new THREE.PlaneGeometry(64, 76, 28, 32);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const px = pos.getX(i), pz = -pos.getY(i);
+    pos.setZ(i, hgtCarmel(px, pz));
+  }
+  geo.computeVertexNormals();
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x5a4632, roughness: 0.92, flatShading: true });
+  const terrain = new THREE.Mesh(geo, groundMat);
+  terrain.rotation.x = -Math.PI / 2; terrain.receiveShadow = true; W.add(terrain);
+
+  // The 12 Altar Stones of Israel
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x8a7a68, roughness: 0.9 });
+  const altarGroup = new THREE.Group();
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const r = 1.6 + (i % 2) * 0.15;
+    const sx = Math.cos(a) * r, sz = Math.sin(a) * r;
+    const sm = new THREE.Mesh(new THREE.DodecahedronGeometry(0.38 + Math.random() * 0.1, 0), stoneMat);
+    sm.position.set(sx, hgtCarmel(sx, sz) + 0.35, sz);
+    sm.rotation.set(Math.random(), Math.random(), Math.random());
+    sm.castShadow = true; altarGroup.add(sm); CARMEL.altarStones.push(sm);
+  }
+  // Wood logs on the altar
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.85 });
+  for (let i = 0; i < 4; i++) {
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 1.8, 6), woodMat);
+    log.position.set(0, hgtCarmel(0, 0) + 0.65 + i * 0.12, 0);
+    log.rotation.set(0.1, (i * Math.PI) / 4, Math.PI / 2);
+    log.castShadow = true; altarGroup.add(log);
+  }
+  // The Bull Sacrifice on top
+  const bull = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.45, 1.3), new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.8 }));
+  bull.position.set(0, hgtCarmel(0, 0) + 1.1, 0); bull.castShadow = true; altarGroup.add(bull);
+  W.add(altarGroup);
+  CARMEL.altar = altarGroup;
+
+  // Circular Trench encircling the altar
+  const trenchGeo = new THREE.RingGeometry(2.6, 3.8, 28);
+  const trenchWaterMat = new THREE.MeshStandardMaterial({ color: 0x2a4455, roughness: 0.2, metalness: 0.4, transparent: true, opacity: 0.35 });
+  const trenchMesh = new THREE.Mesh(trenchGeo, trenchWaterMat);
+  trenchMesh.rotation.x = -Math.PI / 2; trenchMesh.position.set(0, hgtCarmel(0, 0) + 0.08, 0);
+  trenchMesh.visible = false; W.add(trenchMesh);
+  CARMEL.trenchMesh = trenchMesh;
+
+  // 4 Water Barrels around the altar perimeter
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + 0.4;
+    const bx = Math.cos(a) * 5.2, bz = Math.sin(a) * 5.2;
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.85, 8), new THREE.MeshStandardMaterial({ color: 0x5a3e28, roughness: 0.7 }));
+    barrel.position.set(bx, hgtCarmel(bx, bz) + 0.42, bz); barrel.castShadow = true; W.add(barrel);
+    COL.push({ x: bx, z: bz, r: 0.45 });
+  }
+
+  // Dried olive trees and rocks across the ridge
+  for (let i = 0; i < 8; i++) {
+    const a = Math.random() * Math.PI * 2, r = 9 + Math.random() * 12;
+    const tx = Math.cos(a) * r, tz = Math.sin(a) * r;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.26, 2.6, 5), woodMat);
+    trunk.position.set(tx, hgtCarmel(tx, tz) + 1.3, tz); trunk.castShadow = true; W.add(trunk);
+    const foliage = new THREE.Mesh(new THREE.SphereGeometry(1.2, 5, 4), new THREE.MeshStandardMaterial({ color: 0x4a4a2c, roughness: 0.9 }));
+    foliage.position.set(tx, hgtCarmel(tx, tz) + 2.8, tz); foliage.castShadow = true; W.add(foliage);
+    COL.push({ x: tx, z: tz, r: 0.6 });
+  }
+
+  setEnv('carmel');
+}
+
+function updateCarmel(dt) {
+  if (!CARMEL) return; CARMEL.t += dt;
+  if (CARMEL.rain && CARMEL.rain.visible) updatePrecip(CARMEL.rain, dt);
+  if (CARMEL.fireBeam && CARMEL.fireBeam.visible) {
+    CARMEL.fireBeam.material.opacity = Math.max(0, CARMEL.fireBeam.material.opacity - dt * 0.8);
+    if (CARMEL.fireBeam.material.opacity <= 0) CARMEL.fireBeam.visible = false;
+  }
+}
+
+// UPG10 — Upgrades for Elijah
+const UPG10 = [
+  { k: 'spirit', ic: '🔥', nm: 'MANTLE OF THE TISHBITE', ds: 'Spirit fills faster, celestial fire radius increased', cost: { coin: 7 }, max: 3 },
+  { k: 'staff', ic: '🪵', nm: 'PROPHETIC STAFF', ds: '+30% staff strike damage', cost: { coin: 6 }, max: 3 },
+  { k: 'bronze', ic: '🛡️', nm: 'FAITH OF CARMEL', ds: '+30 max health, full heal', cost: { armour: 3 }, max: 5 },
+];
+
+// Intro cinematic camera shots
+const INTRO10_SHOTS = {
+  challenge(s) {
+    camAt(0, 5, 14, 0, 1.8, 0);
+    SFX.horn();
+    G.storyTick = (dt) => { G.cine.pos.y -= dt * 0.15; };
+  },
+  cry_baal(s) {
+    camAt(-8, 3.5, 4, -2, 1.2, -3);
+    SFX.shout(); SFX.clang();
+    G.storyTick = (dt) => { G.cine.pos.x += dt * 0.4; };
+  },
+  twelve_stones(s) {
+    camAt(3, 3, 6, 0, 1.2, 0);
+    SFX.angel();
+    G.storyTick = (dt) => { G.cine.pos.z -= dt * 0.3; };
+  }
+};
+
+// Spirit Ability: Fire of Heaven
+function spiritElijahFire() {
+  G.spirit = 0; LOG('spirit', { hero: 'elijah' });
+  shake(1.5); hitstop(0.08); G.slow = 0.3; G.slowT = 0.6;
+  SFX.spirit(); SFX.burn(); SFX.shofar();
+  dmgText(P.headPos(new THREE.Vector3()), 'FIRE FROM HEAVEN', 'crit');
+  hurtFlash();
+
+  // Celestial Fire Beam descending from the clouds
+  if (CARMEL) {
+    if (!CARMEL.fireBeam) {
+      const bGeo = new THREE.CylinderGeometry(1.2, 2.5, 45, 16, 1, true);
+      const bMat = new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+      CARMEL.fireBeam = new THREE.Mesh(bGeo, bMat);
+      W.add(CARMEL.fireBeam);
+    }
+    CARMEL.fireBeam.position.set(0, 20, 0);
+    CARMEL.fireBeam.material.opacity = 0.95;
+    CARMEL.fireBeam.visible = true;
+  }
+
+  flashAt(new THREE.Vector3(0, 2, 0), 22, 1.2, 0xffffff);
+  FX.sring.visible = true; FX.sringT = 0; FX.sring.position.set(0, 0.2, 0);
+
+  // Steam & smoke puffs
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2;
+    puff(new THREE.Vector3(Math.cos(a) * 3, 1, Math.sin(a) * 3), 2.2, 1.6, new THREE.Vector3(Math.cos(a) * 5, 2.5, Math.sin(a) * 5));
+  }
+
+  // Heavy AoE incinerating damage to all enemies
+  const R = 18; const st = STATS();
+  for (const e of G.enemies) {
+    if (!e.alive || !e.obj.visible) continue;
+    const d = Math.hypot(e.pos.x, e.pos.z);
+    if (d > R) continue;
+    const dir = new THREE.Vector3(e.pos.x, 0, e.pos.z).normalize();
+    hurtEnemy(e, st.wave * 1.5 * (1 - d / R * 0.4), dir, 'spirit', true);
+    e.vel.addScaledVector(dir, 14 * (1 - d / R * 0.5));
+    if (e.alive) { e.state = 'hit'; e.st = 0; e.stun = 3.5; e.play('Hit_Chest', { loop: false, restart: true, ts: 0.6 }); }
+  }
+}
+
+async function flow10() {
+  G.t0 = now(); G.phase = 'cine'; G.stage = 'carmel'; G.seq = 0; document.body.classList.add('cine');
+  P.state = 'cine'; P.cineAnim = 'Idle_Loop'; MOSES.obj.visible = false;
+  await playShots(STORY_L10.intro, INTRO10_SHOTS);
+  cineClear();
+
+  P.obj.visible = true; P.state = 'idle'; P.cineAnim = null; P.pos.set(0, 0, 7); ground(P); P.yaw = Math.PI;
+  MOSES.obj.visible = true; MOSES.yaw = 1.25; MOSES.pos.set(-3.5, 0, 9); ground(MOSES);
+  G.cine = { pos: new THREE.Vector3(MOSES.pos.x + 2.9, MOSES.pos.y + 1.55, MOSES.pos.z + 0.7), look: MOSES.pos.clone().setY(MOSES.pos.y + 1.45).add(new THREE.Vector3(0, 0, -1.35)), snap: true };
+  MOSES.play('Idle_Talking_Loop');
+  await card(STORY_L10.counsel);
+  MOSES.play('Idle_Loop'); MOSES.yaw = Math.PI * 0.92; G.cine = null; document.body.classList.remove('cine');
+
+  await carmelDefendAltarSeq();
+}
+
+async function carmelDefendAltarSeq() {
+  G.resumeWave = 1; G.stage = 'defend'; G.phase = 'play';
+  seqBanner(1); $('wave').textContent = seqTag() + 'DEFEND THE TWELVE STONES'; await sleep(400);
+  toast('The false prophets charge the holy altar! Hold the circle of stones!', 4200);
+
+  // Wave 1: Militant prophets of Baal
+  const wave1 = [['phil', -8, -12], ['phil', 8, -12], ['archer', 0, -16], ['captain', -12, -8], ['captain', 12, -8]];
+  for (const [k, x, z] of wave1) spawnEnemy(k, x, z, 0.25);
+
+  while (G.enemies.some(e => e.alive) && G.phase !== 'lost') {
+    await sleep(350);
+  }
+  if (G.phase === 'lost') return;
+  await carmelWaterTrenchSeq();
+}
+
+async function carmelWaterTrenchSeq() {
+  G.resumeWave = 2; G.stage = 'trench'; G.phase = 'play';
+  seqBanner(2); $('wave').textContent = seqTag() + 'DRENCH THE SACRIFICE WITH WATER'; await sleep(400);
+  toast('“Fill four barrels with water, and pour it on the burnt sacrifice…”', 4000);
+  SFX.splash ? SFX.splash() : SFX.clang();
+
+  if (CARMEL && CARMEL.trenchMesh) {
+    CARMEL.trenchMesh.visible = true;
+    CARMEL.waterFilled = true;
+  }
+  // Fill spirit to 100% so player can call down fire!
+  G.spirit = 100;
+  toast('The altar and trench are filled with water! <b>ACTIVATE SPIRIT</b> TO CALL DOWN FIRE!', 4500);
+
+  // Desperate charge of Baal guard
+  const wave2 = [['shield', -6, -14], ['shield', 6, -14], ['captain', 0, -18], ['archer', -10, -16], ['archer', 10, -16]];
+  for (const [k, x, z] of wave2) spawnEnemy(k, x, z, 0.2);
+
+  while ((G.enemies.some(e => e.alive) || G.spirit > 0) && G.phase !== 'lost') {
+    // If player uses spirit, trigger fire sequence
+    if (G.spirit === 0 && !CARMEL.fireDone) break;
+    await sleep(350);
+  }
+  if (G.phase === 'lost') return;
+  await carmelFireFromHeavenSeq();
+}
+
+async function carmelFireFromHeavenSeq() {
+  CARMEL.fireDone = true;
+  G.phase = 'cine'; document.body.classList.add('cine');
+  camAt(0, 4.5, 12, 0, 1.5, 0);
+
+  toast('“THE LORD, HE IS THE GOD! THE LORD, HE IS THE GOD!”', 4500);
+  spiritElijahFire();
+  await sleep(1800);
+
+  // Clear dead enemies
+  for (const e of G.enemies) { e.alive = false; e.state = 'dead'; }
+  clearDead();
+  await sleep(1500);
+
+  cineClear(); document.body.classList.remove('cine');
+  await carmelChariotSprintSeq();
+}
+
+async function carmelChariotSprintSeq() {
+  G.stage = 'storm'; G.phase = 'play';
+  seqBanner(4); $('wave').textContent = seqTag() + 'OUTRUN AHAB’S CHARIOT IN THE TEMPEST'; await sleep(400);
+
+  // Storm arrives!
+  setEnv('carmel_storm');
+  if (CARMEL) {
+    if (!CARMEL.rain) { CARMEL.rain = buildPrecip('rain'); W.add(CARMEL.rain); }
+    CARMEL.rain.visible = true;
+  }
+  SFX.wind ? SFX.wind() : SFX.rumble();
+  toast('The skies blacken with clouds! Gird up your loins and run before Ahab’s chariot!', 4500);
+
+  // Spawn Ahab royal chariot
+  const chariot = new Chariot();
+  chariot.obj.position.set(-4, hgtCarmel(-4, 18), 18);
+  chariot.obj.rotation.y = Math.PI;
+  CARMEL.ahabChariot = chariot;
+
+  // Sprint forward sprint objective
+  let distRun = 0; const TARGET_DIST = 140;
+  while (distRun < TARGET_DIST && G.phase !== 'lost') {
+    await sleep(350);
+    distRun += 7;
+    // Chariot follows along
+    if (CARMEL.ahabChariot) {
+      CARMEL.ahabChariot.obj.position.z -= 2.2;
+    }
+  }
+  if (G.phase === 'lost') return;
+
+  if (CARMEL.ahabChariot) {
+    scene.remove(CARMEL.ahabChariot.obj);
+    CARMEL.ahabChariot = null;
+  }
+  if (CARMEL.rain) CARMEL.rain.visible = false;
+
+  SFX.win();
+  SAVE.done[10] = true; SAVE.unlocked = Math.max(SAVE.unlocked, 10); writeSave();
+  await card(STORY_L10.end);
+  winGame();
+}
+
+
+
+// ====================================================================================================
+// Level 12: Jonah in the Belly of the Great Fish — Jonah 1 & 2
+// ====================================================================================================
+LOOKS.jonah = { hairStyle: 'SimpleParted', beardS: 1.1, age: 0, skin: 0xa87250, tunic: 0x3d4a46, trim: 0x223630, hair: 0x18120c, beardC: 0x140e0a, shoe: 0x2a1a10, skirt: 0.45, sleeve: 0.25, neck: 1.62, gear: 'benaiah' };
+LOOKS.gullet_fish = { hairStyle: 'Buzzed', beardS: 0.6, skin: 0x2d5564, tunic: 0x1a3848, trim: 0x48e2b0, hair: 0x0a141c, metal: 0x3ac4a0, skirt: 0.35, sleeve: 0.1, gear: 'phil' };
+
+ENV.belly = { fog: 0x140612, near: 3, far: 50, hemi: [0x501838, 0x082020, 0.45], sun: [0x22d4a0, 0.5], dir: [0, 0.8, -0.3],
+  zen: [0.03, 0.08, 0.08], hor: [0.14, 0.04, 0.12], low: [0.18, 0.02, 0.14], sunC: [0.1, 0.6, 0.4], warm: 0.0, stars: 0, cloud: 0.1,
+  exp: 0.85, dust: 0x1a4a40, rim: 0x30e8a0 };
+GRADE.belly = { sh: [0.86, 0.92, 1.18], hi: [0.92, 1.15, 0.95], sat: 1.25, con: 1.2, vig: 0.5 };
+
+ARENA_BY.belly = { minX: -8, maxX: 8, minZ: -45, maxZ: 35 };
+
+function hgtBelly(x, z) {
+  // Flat-bottomed intestine with curved walls on left and right, and gentle downward descent
+  const wallCurvature = (x * x) * 0.07;
+  const digestiveSlush = Math.sin(x * 1.5) * 0.06 + Math.cos(z * 0.5) * 0.08;
+  const descent = -z * 0.03;
+  return wallCurvature + digestiveSlush + descent;
+}
+
+function buildBelly() {
+  BELLY = { t: 0, ribArches: [], bileLights: [], reachedSanctuary: false, sanctuaryGlow: null };
+
+  // Fleshy Intestinal Tunnel Floor
+  const geo = new THREE.PlaneGeometry(24, 90, 24, 60);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const px = pos.getX(i), pz = -pos.getY(i);
+    pos.setZ(i, hgtBelly(px, pz));
+  }
+  geo.computeVertexNormals();
+  const fleshMat = new THREE.MeshStandardMaterial({ color: 0x421228, roughness: 0.65, metalness: 0.15, flatShading: true });
+  const floorMesh = new THREE.Mesh(geo, fleshMat);
+  floorMesh.rotation.x = -Math.PI / 2; floorMesh.receiveShadow = true; W.add(floorMesh);
+
+  // Rib-like Cartilage Arches spanning across the intestinal tract
+  const ribMat = new THREE.MeshStandardMaterial({ color: 0xd8caa8, roughness: 0.7, metalness: 0.05 });
+  for (let z = -40; z <= 30; z += 5) {
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(6.5, 0.35, 6, 18, Math.PI), ribMat);
+    arch.position.set(0, hgtBelly(0, z) + 0.1, z);
+    arch.rotation.z = Math.PI;
+    arch.castShadow = true; W.add(arch);
+    BELLY.ribArches.push(arch);
+  }
+
+  // Bioluminescent Vein / Acid Nodes along the tract
+  for (let z = -38; z <= 28; z += 9) {
+    for (const side of [-1, 1]) {
+      const bx = side * 6.2;
+      const bLight = new THREE.PointLight(0x22e0a0, 16, 14, 1.6);
+      bLight.position.set(bx, hgtBelly(bx, z) + 1.8, z);
+      W.add(bLight); BELLY.bileLights.push(bLight);
+
+      // Glowing nodule sprite
+      const spr = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x22ffaa, transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending }));
+      spr.scale.set(0.9, 1.2, 1); spr.position.copy(bLight.position); W.add(spr);
+    }
+  }
+
+  // Seaweed clusters hanging from ceiling and on the floor ("weeds wrapped about my head")
+  const weedMat = new THREE.MeshStandardMaterial({ color: 0x143e26, roughness: 0.8 });
+  for (let i = 0; i < 22; i++) {
+    const wx = (Math.random() - 0.5) * 11, wz = -40 + Math.random() * 65;
+    const weed = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.1, 1.8 + Math.random() * 1.5, 5), weedMat);
+    weed.position.set(wx, hgtBelly(wx, wz) + 0.8, wz);
+    weed.rotation.set((Math.random() - 0.5) * 0.4, Math.random() * Math.PI, (Math.random() - 0.5) * 0.4);
+    weed.castShadow = true; W.add(weed);
+    if (Math.abs(wx) > 2) COL.push({ x: wx, z: wz, r: 0.35 });
+  }
+
+  // Lower Intestine Sanctuary Chamber (at z >= 26) — Divine golden light
+  const sanctLight = new THREE.PointLight(0xffea90, 30, 24, 1.4);
+  sanctLight.position.set(0, hgtBelly(0, 30) + 3.5, 30); W.add(sanctLight);
+  BELLY.sanctuaryGlow = sanctLight;
+
+  // Divine light shaft at the end of the tract
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(2.0, 3.2, 12, 16, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.12, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  shaft.position.set(0, hgtBelly(0, 30) + 6, 30); W.add(shaft);
+
+  setEnv('belly');
+}
+
+function updateBelly(dt) {
+  if (!BELLY) return; BELLY.t += dt; const t = BELLY.t;
+  // Pulsing organic vein lights
+  for (let i = 0; i < BELLY.bileLights.length; i++) {
+    BELLY.bileLights[i].intensity = 16 + Math.sin(t * 3.5 + i * 1.2) * 5;
+  }
+  // Subtle rhythmic breathing heave of rib arches
+  for (let i = 0; i < BELLY.ribArches.length; i++) {
+    const s = 1.0 + Math.sin(t * 1.8 + i * 0.4) * 0.035;
+    BELLY.ribArches[i].scale.set(s, s, 1);
+  }
+}
+
+// UPG12 — Upgrades for Jonah
+const UPG12 = [
+  { k: 'staff', ic: '🗡️', nm: 'LEVIATHAN BONE BLADE', ds: '+30% bone blade slash damage', cost: { coin: 6 }, max: 3 },
+  { k: 'spirit', ic: '🙏', nm: 'CRY FROM THE DEEP', ds: 'Spirit fills faster, divine prayer shockwave expands wider', cost: { coin: 7 }, max: 3 },
+  { k: 'bronze', ic: '🛡️', nm: 'FAITH IN AFFLICTION', ds: '+30 max health, full heal', cost: { armour: 2 }, max: 5 },
+];
+
+// Intro cinematic camera shots
+const INTRO12_SHOTS = {
+  swallowed(s) {
+    camAt(0, 3.5, -42, 0, 1.2, -32);
+    SFX.rumble();
+    G.storyTick = (dt) => { G.cine.pos.z += dt * 0.5; };
+  },
+  depths(s) {
+    camAt(-4, 2.5, -25, 0, 1.0, -18);
+    SFX.shofar();
+    G.storyTick = (dt) => { G.cine.pos.x += dt * 0.3; };
+  },
+  fishes_stalk(s) {
+    camAt(3, 2.2, -8, 0, 0.9, 0);
+    SFX.roar(); shake(0.2);
+    G.storyTick = (dt) => { G.cine.pos.z += dt * 0.4; };
+  }
+};
+
+// Spirit Ability: Cry from the Deep (divine deliverance wave)
+function spiritJonahPrayer() {
+  G.spirit = 0; LOG('spirit', { hero: 'jonah' });
+  shake(0.9); hitstop(0.06); G.slow = 0.4; G.slowT = 0.5;
+  SFX.spirit(); SFX.angel();
+  dmgText(P.headPos(new THREE.Vector3()), 'OUT OF THE BELLY OF HELL', 'crit');
+  flashAt(P.pos.clone().setY(P.pos.y + 1.2), 12, 0.8, 0x44ffaa);
+  FX.sring.visible = true; FX.sringT = 0; FX.sring.position.set(P.pos.x, P.pos.y + 0.08, P.pos.z);
+
+  // Repel and incinerate all swarming carnivorous fish
+  const R = 14; const st = STATS();
+  for (const e of G.enemies) {
+    if (!e.alive || !e.obj.visible) continue;
+    const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (d > R) continue;
+    const dir = new THREE.Vector3(dx, 0, dz).normalize();
+    hurtEnemy(e, st.wave * 1.4 * (1 - d / R * 0.35), dir, 'spirit', true);
+    e.vel.addScaledVector(dir, 16 * (1 - d / R * 0.4));
+    if (e.alive) { e.state = 'hit'; e.st = 0; e.stun = 3.0; e.play('Hit_Chest', { loop: false, restart: true, ts: 0.6 }); }
+  }
+
+  // Heal player 35%
+  P.hp = Math.min(st.maxHp, P.hp + st.maxHp * 0.35);
+  dmgText(P.pos.clone().setY(P.pos.y + 0.5), '+HEAL', 'heal');
+}
+
+async function flow12() {
+  G.t0 = now(); G.phase = 'cine'; G.stage = 'belly'; G.seq = 0; document.body.classList.add('cine');
+  P.state = 'cine'; P.cineAnim = 'Idle_Loop'; MOSES.obj.visible = false;
+  await playShots(STORY_L12.intro, INTRO12_SHOTS);
+  cineClear();
+
+  P.obj.visible = true; P.state = 'idle'; P.cineAnim = null; P.pos.set(0, 0, -38); ground(P); P.yaw = 0;
+  MOSES.obj.visible = true; MOSES.yaw = 0; MOSES.pos.set(-2.5, 0, -35); ground(MOSES);
+  G.cine = { pos: new THREE.Vector3(MOSES.pos.x + 2.5, MOSES.pos.y + 1.45, MOSES.pos.z + 0.5), look: MOSES.pos.clone().setY(MOSES.pos.y + 1.35).add(new THREE.Vector3(0, 0, 1.2)), snap: true };
+  MOSES.play('Idle_Talking_Loop');
+  await card(STORY_L12.counsel);
+  MOSES.play('Idle_Loop'); MOSES.yaw = 0; G.cine = null; document.body.classList.remove('cine');
+
+  await jonahGulletRunSeq();
+}
+
+async function jonahGulletRunSeq() {
+  G.resumeWave = 1; G.stage = 'gullet'; G.phase = 'play';
+  seqBanner(1); $('wave').textContent = seqTag() + 'ESCAPE THE CARNIVOROUS FISHES'; await sleep(400);
+  toast('The swallowed fishes swarm to devour you! Slash them and flee down the tract!', 4200);
+
+  // Spawn initial swarming carnivorous fishes in the upper tract
+  const swarm1 = [
+    ['phil', -3, -32], ['phil', 3, -32], ['captain', 0, -28],
+    ['archer', -4, -22], ['archer', 4, -22], ['phil', 0, -18]
+  ];
+  for (const [k, x, z] of swarm1) {
+    const e = spawnEnemy(k, x, z, 0.2);
+    e.radius = 0.5;
+  }
+
+  // Progression check: player must advance south down the tract past z = -10
+  while (P.pos.z < -10 && G.phase !== 'lost') {
+    await sleep(350);
+  }
+  if (G.phase === 'lost') return;
+  await jonahMidTractAmbushSeq();
+}
+
+async function jonahMidTractAmbushSeq() {
+  G.resumeWave = 2; G.stage = 'ambush'; G.phase = 'play';
+  seqBanner(2); $('wave').textContent = seqTag() + 'THE DEEP TRACT AMBUSH'; await sleep(400);
+  toast('More predatory beasts emerge from the digestive fluid! Keep pushing southward!', 4200);
+
+  // Spawn second heavier swarm blocking the mid-tract
+  const swarm2 = [
+    ['shield', -3, 2], ['shield', 3, 2], ['captain', 0, 6],
+    ['phil', -4, 12], ['phil', 4, 12], ['captain', 0, 18]
+  ];
+  for (const [k, x, z] of swarm2) {
+    const e = spawnEnemy(k, x, z, 0.2);
+    e.radius = 0.55;
+  }
+
+  // Player advances toward the sanctuary chamber at z >= 26
+  while (P.pos.z < 26 && G.phase !== 'lost') {
+    await sleep(350);
+  }
+  if (G.phase === 'lost') return;
+  await jonahSanctuarySeq();
+}
+
+async function jonahSanctuarySeq() {
+  if (BELLY) BELLY.reachedSanctuary = true;
+  G.stage = 'sanctuary'; G.phase = 'cine'; document.body.classList.add('cine');
+  P.state = 'cine'; P.cineAnim = 'Idle_Loop';
+
+  // The carnivorous fishes are halted / unable to enter the sanctuary
+  for (const e of G.enemies) {
+    if (e.alive) {
+      e.stun = 999; e.state = 'hit'; e.st = 0;
+      e.vel.set(0, 0, -10); // Drive them back northward up the tract
+    }
+  }
+
+  // Camera focuses on Jonah in the peaceful sanctuary chamber
+  camAt(0, 3.2, 24, 0, 1.2, 30);
+  SFX.angel();
+  toast('You have reached the lower sanctuary! The carnivorous fishes cannot follow!', 4500);
+  await sleep(2500);
+
+  // Jonah kneels in prayer
+  P.play('Jump_Start', { ts: 0.5 }); // Kneeling prayer pose
+  toast('“I will sacrifice unto thee with the voice of thanksgiving… Salvation is of the LORD!”', 5000);
+  flashAt(new THREE.Vector3(0, hgtBelly(0, 30) + 1.5, 30), 20, 2.0, 0xfff0a0);
+  shake(0.8);
+  await sleep(3200);
+
+  // The great fish rumbles and vomits Jonah out upon the dry shore
+  SFX.rumble(); SFX.shout();
+  shake(1.8); hurtFlash();
+  toast('THE LORD SPAKE UNTO THE FISH, AND IT VOMITED JONAH UPON THE DRY LAND!', 4500);
+  await sleep(3000);
+
+  cineClear(); document.body.classList.remove('cine');
+  for (const e of G.enemies) { e.alive = false; e.state = 'dead'; }
+  clearDead();
+
+  SFX.win();
+  SAVE.done[12] = true; SAVE.unlocked = Math.max(SAVE.unlocked, 12); writeSave();
+  await card(STORY_L12.end);
+  winGame();
+}
+
+
+
+// ====================================================================================================
+// Level 11: King Hezekiah & Isaiah — 2 Kings 18 & 19
+// ====================================================================================================
+LOOKS.hezekiah = { hairStyle: 'Long', beardS: 1.35, skin: 0xa8724e, tunic: 0x1f3468, trim: 0xe5c148, hair: 0x15100c, cloak: 0x7a1828, metal: 0xe0b440, shoe: 0x3a2214, skirt: 0.42, sleeve: 0.45, armor: true, greaves: true, gear: 'saul' };
+LOOKS.assyrian = { hairStyle: 'Buzzed', beardS: 1.15, skin: 0x9c6844, tunic: 0x3a2818, trim: 0xb08a40, hair: 0x120c08, metal: 0x6e7480, skirt: 0.45, sleeve: 0.35, armor: true, greaves: true, cap: 0x4a4f58, gear: 'captain' };
+LOOKS.rabshakeh = { hairStyle: 'Buzzed', beardS: 1.45, skin: 0x94603e, tunic: 0x4a1824, trim: 0xe2ba48, hair: 0x100a06, cloak: 0x5c101c, metal: 0x929aa8, skirt: 0.4, sleeve: 0.4, armor: true, greaves: true, gear: 'captain' };
+
+ENV.jerusalem = { fog: 0x5a4430, near: 6, far: 95, hemi: [0xffeaae, 0x4a3220, 0.8], sun: [0xffe49a, 1.35], dir: [0.5, 0.8, 0.35],
+  zen: [0.14, 0.18, 0.32], hor: [0.52, 0.42, 0.30], low: [0.72, 0.58, 0.38], sunC: [1.0, 0.94, 0.72], warm: 1.0, stars: 0, cloud: 0.35,
+  exp: 0.98, dust: 0x7a5a3c, rim: 0xffd280 };
+GRADE.jerusalem = { sh: [0.95, 0.98, 1.06], hi: [1.14, 1.02, 0.86], sat: 1.18, con: 1.14, vig: 0.34 };
+
+ARENA_BY.jerusalem = { minX: -22, maxX: 22, minZ: -30, maxZ: 26 };
+
+function hgtJerusalem(x, z) {
+  // Elevated city ramparts and battlements
+  const rampart = (z > 14) ? 2.5 : (z < -18) ? -1.2 : 0;
+  return rampart + Math.sin(x * 0.1) * 0.15;
+}
+
+function buildJerusalem() {
+  HEZEKIAH = { t: 0, midnight: false, angelDescended: false, siegeTowers: [], campFires: [] };
+
+  // City Ground & Fortress Stone Paving
+  const geo = new THREE.PlaneGeometry(60, 68, 20, 24);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const px = pos.getX(i), pz = -pos.getY(i);
+    pos.setZ(i, hgtJerusalem(px, pz));
+  }
+  geo.computeVertexNormals();
+  const paveMat = new THREE.MeshStandardMaterial({ color: 0x8a7a62, roughness: 0.88, flatShading: true });
+  const floor = new THREE.Mesh(geo, paveMat);
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; W.add(floor);
+
+  // Jerusalem Defensive Stone Wall & Towers (along z = 14 to 18)
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x9a8870, roughness: 0.82 });
+  const mainWall = new THREE.Mesh(new THREE.BoxGeometry(46, 5.5, 3.2), wallMat);
+  mainWall.position.set(0, 2.75, 16); mainWall.castShadow = true; mainWall.receiveShadow = true; W.add(mainWall);
+  COL.push({ x: 0, z: 16, r: 2.2 });
+
+  // Crenellations on the wall
+  for (let x = -20; x <= 20; x += 3.5) {
+    const cren = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, 3.4), wallMat);
+    cren.position.set(x, 6.1, 16); cren.castShadow = true; W.add(cren);
+  }
+
+  // The Conduit of the Upper Pool (aqueduct channel running alongside)
+  const waterMat = new THREE.MeshStandardMaterial({ color: 0x306078, roughness: 0.18, metalness: 0.35, transparent: true, opacity: 0.65 });
+  const conduitWater = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.4, 28), waterMat);
+  conduitWater.position.set(-16, 0.1, -2); W.add(conduitWater);
+  const conduitEdge = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 28), wallMat);
+  conduitEdge.position.set(-13.8, 0.3, -2); conduitEdge.castShadow = true; W.add(conduitEdge);
+  COL.push({ x: -13.8, z: -2, r: 1.2 });
+
+  // Two Great Siege Towers on the Assyrian front (z = -24)
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0x3a2614, roughness: 0.9 });
+  for (const sx of [-11, 11]) {
+    const tower = new THREE.Group();
+    tower.position.set(sx, 0, -25);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(4.5, 9.5, 4.5), woodMat);
+    body.position.y = 4.75; body.castShadow = true; tower.add(body);
+    W.add(tower);
+    HEZEKIAH.siegeTowers.push(tower);
+    COL.push({ x: sx, z: -25, r: 2.5 });
+  }
+
+  // Assyrian Siege Campfires in the distance
+  for (let i = 0; i < 6; i++) {
+    const cx = -18 + i * 7.2, cz = -27 + (i % 2) * 2;
+    cineFire(cx, hgtJerusalem(cx, cz) + 0.3, cz, 1.5);
+  }
+
+  setEnv('jerusalem');
+}
+
+function updateJerusalem(dt) {
+  if (!HEZEKIAH) return; HEZEKIAH.t += dt;
+}
+
+// UPG11 — Upgrades for King Hezekiah
+const UPG11 = [
+  { k: 'sword', ic: '⚔️', nm: 'SWORD OF THE HOUSE OF DAVID', ds: '+30% sword strike damage', cost: { coin: 6 }, max: 3 },
+  { k: 'bow', ic: '🏹', nm: 'BOWMEN OF JUDAH', ds: '+40% arrow damage, faster draw', cost: { coin: 6 }, max: 3 },
+  { k: 'men', ic: '🛡️', nm: 'ROYAL GUARD OF ZION', ds: 'Your royal guard hits harder and stands longer', cost: { coin: 7 }, max: 3 },
+  { k: 'spirit', ic: '✨', nm: 'ZEAL OF THE LORD OF HOSTS', ds: 'Spirit fills faster, angelic wrath strikes wider', cost: { coin: 8 }, max: 3 },
+  { k: 'bronze', ic: '🛡️', nm: 'BRONZE OF THE TEMPLE', ds: '+30 max health, full heal', cost: { armour: 3 }, max: 5 },
+];
+
+// Intro cinematic camera shots
+const INTRO11_SHOTS = {
+  siege_host(s) {
+    camAt(0, 10, 24, 0, 3, -20);
+    SFX.horn();
+    G.storyTick = (dt) => { G.cine.pos.y -= dt * 0.3; };
+  },
+  rabshakeh_defy(s) {
+    camAt(-12, 4.5, -12, -14, 1.8, -18);
+    SFX.roar(); SFX.shout();
+    G.storyTick = (dt) => { G.cine.pos.x += dt * 0.4; };
+  },
+  letter_spread(s) {
+    camAt(2, 3.5, 14, 0, 2.2, 16);
+    SFX.angel();
+    G.storyTick = (dt) => { G.cine.pos.z -= dt * 0.3; };
+  }
+};
+
+// Spirit Ability: Angelic Wrath of the LORD
+function spiritHezekiahAngel() {
+  G.spirit = 0; LOG('spirit', { hero: 'hezekiah' });
+  shake(1.6); hitstop(0.08); G.slow = 0.3; G.slowT = 0.6;
+  SFX.angel(); SFX.shofar(); SFX.rumble();
+  dmgText(P.headPos(new THREE.Vector3()), 'THE ZEAL OF THE LORD', 'crit');
+  hurtFlash();
+
+  flashAt(P.pos.clone().setY(P.pos.y + 2.5), 25, 1.2, 0xffffff);
+  FX.sring.visible = true; FX.sringT = 0; FX.sring.position.set(P.pos.x, P.pos.y + 0.1, P.pos.z);
+
+  // Heal all allies and player
+  P.hp = Math.min(STATS().maxHp, P.hp + STATS().maxHp * 0.4);
+  for (const a of ALLIES) {
+    if (!a.down) { a.hp = Math.min(a.maxHp, a.hp + a.maxHp * 0.5); a.rallyBuff = 10.0; }
+  }
+
+  // Heavenly judgment wave knocks back and smites all Assyrians
+  const R = 20; const st = STATS();
+  for (const e of G.enemies) {
+    if (!e.alive || !e.obj.visible) continue;
+    const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (d > R) continue;
+    const dir = new THREE.Vector3(dx, 0, dz).normalize();
+    hurtEnemy(e, st.wave * 1.6 * (1 - d / R * 0.3), dir, 'spirit', true);
+    e.vel.addScaledVector(dir, 16 * (1 - d / R * 0.4));
+    if (e.alive) { e.state = 'hit'; e.st = 0; e.stun = 4.0; e.play('Hit_Chest', { loop: false, restart: true, ts: 0.6 }); }
+  }
+}
+
+async function flow11() {
+  G.t0 = now(); G.phase = 'cine'; G.stage = 'jerusalem'; G.seq = 0; document.body.classList.add('cine');
+  P.state = 'cine'; P.cineAnim = 'Idle_Loop'; MOSES.obj.visible = false;
+  await playShots(STORY_L11.intro, INTRO11_SHOTS);
+  cineClear();
+
+  P.obj.visible = true; P.state = 'idle'; P.cineAnim = null; P.pos.set(0, 0, 8); ground(P); P.yaw = Math.PI;
+  MOSES.obj.visible = true; MOSES.yaw = 1.25; MOSES.pos.set(-3.5, 0, 11); ground(MOSES);
+  G.cine = { pos: new THREE.Vector3(MOSES.pos.x + 2.9, MOSES.pos.y + 1.55, MOSES.pos.z + 0.7), look: MOSES.pos.clone().setY(MOSES.pos.y + 1.45).add(new THREE.Vector3(0, 0, -1.35)), snap: true };
+  MOSES.play('Idle_Talking_Loop');
+  await card(STORY_L11.counsel);
+  MOSES.play('Idle_Loop'); MOSES.yaw = Math.PI * 0.92; G.cine = null; document.body.classList.remove('cine');
+
+  await hezekiahConduitDefenseSeq();
+}
+
+async function hezekiahConduitDefenseSeq() {
+  G.resumeWave = 1; G.stage = 'conduit'; G.phase = 'play';
+  seqBanner(1); $('wave').textContent = seqTag() + 'DEFEND THE CONDUIT OF THE UPPER POOL'; await sleep(400);
+  spawnAllies(3);
+  toast('The Assyrian vanguard storms the conduit! Hold the breach with the royal guard!', 4200);
+
+  // Wave 1: Vanguard of Assyrian soldiers and archers
+  const wave1 = [
+    ['phil', -8, -10], ['phil', 8, -10], ['archer', -12, -16], ['archer', 12, -16],
+    ['captain', 0, -14], ['shield', -4, -12], ['shield', 4, -12]
+  ];
+  for (const [k, x, z] of wave1) spawnEnemy(k, x, z, 0.25);
+
+  while (G.enemies.some(e => e.alive) && G.phase !== 'lost') {
+    await sleep(350);
+  }
+  if (G.phase === 'lost') return;
+  await hezekiahSiegeTowerSeq();
+}
+
+async function hezekiahSiegeTowerSeq() {
+  G.resumeWave = 2; G.stage = 'siege'; G.phase = 'play';
+  seqBanner(2); $('wave').textContent = seqTag() + 'REPULSE RABSHAKEH & THE SIEGE TOWERS'; await sleep(400);
+  toast('Rabshakeh orders the main assault against the battlements! Defend the city!', 4200);
+
+  // Boss: Rabshakeh (Assyrian Commander)
+  const rabshakeh = new Actor('captain', 1.35, 'rabshakeh');
+  rabshakeh.isBoss = true; rabshakeh.radius = 0.85; rabshakeh.summoned = true;
+  rabshakeh.pos.set(0, hgtJerusalem(0, -18), -18); rabshakeh.yaw = 0;
+  rabshakeh.maxHp = rabshakeh.hp = 1500; rabshakeh.state = 'idle'; rabshakeh.atkCd = 1.0;
+  rabshakeh.play('Walk_Loop', { ts: 0.85 });
+  bossMarker(rabshakeh, 1.0);
+  G.boss = rabshakeh;
+  $('boss-wrap').classList.remove('hidden'); $('bname').textContent = 'RABSHAKEH · ASSYRIAN COMMANDER';
+
+  // Supporting elite Assyrian guard
+  const wave2 = [
+    ['shield', -7, -16], ['shield', 7, -16], ['archer', -14, -20], ['archer', 14, -20],
+    ['captain', -10, -18], ['captain', 10, -18]
+  ];
+  for (const [k, x, z] of wave2) spawnEnemy(k, x, z, 0.2);
+
+  while (rabshakeh.alive && G.phase !== 'lost') {
+    await sleep(350);
+  }
+  if (G.phase === 'lost') return;
+  $('boss-wrap').classList.add('hidden');
+  await hezekiahAngelMidnightSeq();
+}
+
+async function hezekiahAngelMidnightSeq() {
+  if (HEZEKIAH) HEZEKIAH.midnight = true;
+  G.phase = 'cine'; G.stage = 'midnight'; document.body.classList.add('cine');
+  P.state = 'cine'; P.cineAnim = 'Sword_Idle';
+
+  // Midnight descent: sky turns deep blue/black
+  camAt(0, 8, 22, 0, 2, -10);
+  toast('MIDNIGHT AT JERUSALEM: THE ANGEL OF THE LORD GOES FORTH!', 4500);
+  SFX.shofar();
+  await sleep(1500);
+
+  // The Angel descends from heaven
+  const angel = cineActor('angel', 'angel', 0, -8, Math.PI, 'Sword_Idle', 2.4, 1.0);
+  angel.mat.userData.u.uGlow.value = 1.5;
+  SFX.angel();
+  flashAt(new THREE.Vector3(0, 12, -8), 35, 1.5, 0xffffff);
+  shake(2.0); hurtFlash();
+  toast('“And the angel of the LORD went out, and smote in the camp of the Assyrians 185,000!”', 5000);
+  await sleep(2500);
+
+  // All remaining Assyrian host slain
+  for (const e of G.enemies) {
+    if (e.alive) {
+      flashAt(e.pos.clone().setY(e.pos.y + 1), 3, 0.4, 0xffd700);
+      e.alive = false; e.state = 'dead';
+    }
+  }
+  clearDead();
+  await sleep(2200);
+
+  cineClear(); document.body.classList.remove('cine');
+  SFX.win();
+  SAVE.done[11] = true; SAVE.unlocked = Math.max(SAVE.unlocked, 11); writeSave();
+  await card(STORY_L11.end);
+  winGame();
+}
+
+
+
+// ====================================================================================================
+// ELAH WARRIOR — MULTIPLAYER ENGINE & REALM CONTROLLER
+// ====================================================================================================
+
+const REMOTE_PEERS = new Map(); // id -> { id, name, hero, actor, targetPos, targetYaw, targetAnim, hp, maxHp }
+let mpSelectedMode = 'coop';
+let mpSelectedHero = 'david';
+let mpSelectedLevel = 1;
+
+function initMultiplayerUI() {
+  const btnMp = $('btn-mp');
+  const mpModal = $('mp-modal');
+  const mpClose = $('mp-btn-close');
+  const cardCoop = $('card-mode-coop');
+  const cardPvp = $('card-mode-pvp');
+  const btnCreate = $('mp-btn-create');
+  const btnJoin = $('mp-btn-join');
+  const btnRefresh = $('mp-btn-refresh');
+  const btnLeave = $('mp-btn-leave');
+  const btnReady = $('mp-btn-ready');
+  const btnStart = $('mp-btn-start');
+  const nameInput = $('mp-name-input');
+  const codeInput = $('mp-code-input');
+  const heroGrid = $('mp-hero-select');
+  const levelSelect = $('mp-level-dropdown');
+
+  if (nameInput) nameInput.value = NET.name || 'David';
+
+  // Populate hero grid
+  const MP_HEROES = [
+    { key: 'david', name: 'David', sub: 'Staff · Sling' },
+    { key: 'samson', name: 'Samson', sub: 'Jawbone · Might' },
+    { key: 'benaiah', name: 'Benaiah', sub: 'Spear · Valor' },
+    { key: 'joshua', name: 'Joshua', sub: 'Sword · Shofar' },
+    { key: 'gideon', name: 'Gideon', sub: 'Sword · Torch' },
+    { key: 'elijah', name: 'Elijah', sub: 'Staff · Fire' },
+    { key: 'hezekiah', name: 'Hezekiah', sub: 'Royal Sword' },
+    { key: 'jonah', name: 'Jonah', sub: 'Bone Blade' }
+  ];
+
+  if (heroGrid) {
+    heroGrid.innerHTML = '';
+    for (const h of MP_HEROES) {
+      const card = document.createElement('div');
+      card.className = 'mp-hero-card' + (h.key === mpSelectedHero ? ' sel' : '');
+      card.dataset.hero = h.key;
+      card.innerHTML = `<b>${h.name}</b><span>${h.sub}</span>`;
+      card.onclick = () => {
+        document.querySelectorAll('.mp-hero-card').forEach(c => c.classList.remove('sel'));
+        card.classList.add('sel');
+        mpSelectedHero = h.key;
+        if (NET.room) NET.updateLobby({ hero: mpSelectedHero });
+      };
+      heroGrid.appendChild(card);
+    }
+  }
+
+  // Populate level select
+  if (levelSelect) {
+    levelSelect.innerHTML = '';
+    for (const l of LEVEL_ORDER) {
+      const opt = document.createElement('option');
+      opt.value = l.run;
+      opt.textContent = `${l.name} · ${l.place}`;
+      levelSelect.appendChild(opt);
+    }
+    levelSelect.onchange = () => {
+      mpSelectedLevel = +levelSelect.value;
+      if (NET.room && NET.isHost) NET.updateLobby({ level: mpSelectedLevel });
+    };
+  }
+
+  if (btnMp) {
+    btnMp.onclick = async () => {
+      audioInit();
+      show('menu', false);
+      mpModal.classList.remove('hidden');
+      $('mp-view-browser').classList.remove('hidden');
+      $('mp-view-room').classList.add('hidden');
+      try {
+        await NET.connect();
+        NET.listRooms();
+      } catch (e) {
+        toast('Could not connect to multiplayer server', 3000);
+      }
+    };
+  }
+
+  if (mpClose) {
+    mpClose.onclick = () => {
+      mpModal.classList.add('hidden');
+      if (NET.room) NET.leaveRoom();
+      show('menu', true);
+    };
+  }
+
+  if (cardCoop && cardPvp) {
+    cardCoop.onclick = () => {
+      cardCoop.classList.add('active');
+      cardPvp.classList.remove('active');
+      mpSelectedMode = 'coop';
+      $('mp-level-select-wrap').style.display = 'flex';
+    };
+    cardPvp.onclick = () => {
+      cardPvp.classList.add('active');
+      cardCoop.classList.remove('active');
+      mpSelectedMode = 'pvp';
+      $('mp-level-select-wrap').style.display = 'none';
+    };
+  }
+
+  if (btnCreate) {
+    btnCreate.onclick = () => {
+      audioInit();
+      const nm = (nameInput.value || 'Warrior').trim();
+      NET.createRoom(nm, mpSelectedMode, mpSelectedLevel, mpSelectedHero);
+    };
+  }
+
+  if (btnJoin) {
+    btnJoin.onclick = () => {
+      audioInit();
+      const code = (codeInput.value || '').trim();
+      if (!code) { toast('Please enter a room code', 2500); return; }
+      const nm = (nameInput.value || 'Warrior').trim();
+      NET.joinRoom(code, nm, mpSelectedHero);
+    };
+  }
+
+  if (btnRefresh) {
+    btnRefresh.onclick = () => {
+      NET.listRooms();
+    };
+  }
+
+  if (btnLeave) {
+    btnLeave.onclick = () => {
+      NET.leaveRoom();
+      clearRemotePeers();
+      $('mp-view-browser').classList.remove('hidden');
+      $('mp-view-room').classList.add('hidden');
+    };
+  }
+
+  if (btnReady) {
+    btnReady.onclick = () => {
+      btnReady.classList.toggle('gold');
+      const isRdy = btnReady.classList.contains('gold');
+      btnReady.textContent = isRdy ? '✓ READY' : 'READY';
+      NET.updateLobby({ ready: isRdy });
+    };
+  }
+
+  if (btnStart) {
+    btnStart.onclick = () => {
+      audioInit();
+      NET.startGame();
+    };
+  }
+
+  // Network Event Listeners
+  NET.on('room_list', rooms => {
+    const box = $('mp-rooms-list');
+    if (!box) return;
+    box.innerHTML = '';
+    if (!rooms || rooms.length === 0) {
+      box.innerHTML = '<div class="mp-empty-rooms">No open realms found. Create one to begin!</div>';
+      return;
+    }
+    for (const r of rooms) {
+      const item = document.createElement('div');
+      item.className = 'mp-room-item';
+      item.innerHTML = `
+        <div>
+          <span class="mp-room-code-tag">${r.code}</span>
+          <span class="mp-room-details">· ${r.mode.toUpperCase()} · ${r.playersCount}/${r.maxPlayers} Warriors</span>
+        </div>
+        <button class="ghost-sm gold-border">JOIN</button>
+      `;
+      item.querySelector('button').onclick = () => {
+        const nm = (nameInput.value || 'Warrior').trim();
+        NET.joinRoom(r.code, nm, mpSelectedHero);
+      };
+      box.appendChild(item);
+    }
+  });
+
+  NET.on('room_joined', room => renderLobbyView(room));
+  NET.on('player_joined', data => {
+    renderLobbyView(data.room);
+    toast(`${data.player.name} joined the realm!`, 3000);
+    SFX.shofar();
+  });
+  NET.on('player_left', data => {
+    removeRemotePeer(data.playerId);
+    renderLobbyView(data.room);
+    toast('A warrior left the realm.', 2500);
+  });
+  NET.on('lobby_updated', room => renderLobbyView(room));
+  NET.on('game_started', room => startMultiplayerMatch(room));
+
+  NET.on('peer_state', msg => {
+    let p = REMOTE_PEERS.get(msg.senderId);
+    if (!p) {
+      const playerInfo = NET.room ? NET.room.players.find(x => x.id === msg.senderId) : null;
+      spawnRemotePeer({
+        id: msg.senderId,
+        name: playerInfo ? playerInfo.name : 'Warrior',
+        hero: playerInfo ? playerInfo.hero : 'david'
+      });
+      p = REMOTE_PEERS.get(msg.senderId);
+    }
+    if (p) {
+      p.targetPos.set(msg.pos[0], msg.pos[1], msg.pos[2]);
+      p.targetYaw = msg.yaw;
+      p.targetAnim = msg.anim;
+      p.hp = msg.hp;
+    }
+  });
+
+  NET.on('peer_attack', msg => {
+    const p = REMOTE_PEERS.get(msg.senderId);
+    if (p && p.actor) {
+      p.actor.play('Sword_Attack', { loop: false, ts: 1.6, restart: true, fade: 0.08 });
+      SFX.swing();
+    }
+  });
+
+  NET.on('peer_projectile', msg => {
+    const p = REMOTE_PEERS.get(msg.senderId);
+    if (!p || !p.actor) return;
+    const from = new THREE.Vector3(...msg.pos);
+    const dir = new THREE.Vector3(...msg.dir);
+    if (msg.kind === 'arrow') {
+      const a = arrows.find(a => a.life <= 0);
+      if (a) {
+        a.pos.copy(from);
+        a.v.copy(dir).multiplyScalar(msg.speed || 38);
+        a.life = 2.0; a.dmg = 30; a.m.visible = true; a.by = p.actor;
+        SFX.bow();
+      }
+    } else {
+      const s = stones.find(s => s.life <= 0);
+      if (s) {
+        s.pos.copy(from);
+        s.v.copy(dir).multiplyScalar(msg.speed || 32);
+        s.life = 2.0; s.dmg = 30; s.m.visible = true;
+        SFX.sling();
+      }
+    }
+  });
+
+  NET.on('player_hit', msg => {
+    if (msg.targetId === NET.playerId) {
+      const fromDir = new THREE.Vector3(...msg.dir);
+      damagePlayer(msg.dmg, P.pos.clone().add(fromDir.clone().negate()));
+      shake(0.35); hurtFlash();
+    }
+  });
+
+  NET.on('chat', msg => {
+    toast(`<b>${msg.name}:</b> ${msg.text}`, 3500);
+  });
+}
+
+function renderLobbyView(room) {
+  $('mp-view-browser').classList.add('hidden');
+  $('mp-view-room').classList.remove('hidden');
+
+  $('mp-room-code').textContent = room.code;
+  $('mp-room-mode-tag').textContent = room.mode === 'pvp' ? 'PVP DUEL' : 'CO-OP CAMPAIGN';
+  $('mp-player-count').textContent = room.players.length;
+
+  const rosterBox = $('mp-players-roster');
+  if (rosterBox) {
+    rosterBox.innerHTML = '';
+    for (const p of room.players) {
+      const row = document.createElement('div');
+      row.className = 'mp-player-row' + (p.id === NET.playerId ? ' is-me' : '');
+      row.innerHTML = `
+        <div>
+          <span class="mp-p-name">${p.name}</span>
+          <span class="mp-p-hero">${p.hero}</span>
+          ${p.isHost ? '<span class="mp-p-badge mp-badge-host">HOST</span>' : ''}
+          ${p.ready ? '<span class="mp-p-badge mp-badge-ready">READY</span>' : ''}
+        </div>
+      `;
+      rosterBox.appendChild(row);
+    }
+  }
+
+  // Host only controls
+  const btnStart = $('mp-btn-start');
+  if (btnStart) {
+    btnStart.style.display = NET.isHost ? 'inline-block' : 'none';
+  }
+}
+
+function spawnRemotePeer(player) {
+  if (REMOTE_PEERS.has(player.id)) return;
+  const heroKey = player.hero || 'david';
+  const scale = heroKey === 'samson' || heroKey === 'joshua' ? 1.05 : 1.0;
+  const actor = new Actor(heroKey, scale, heroKey);
+  actor.pos.set(P.pos.x + (Math.random() - 0.5) * 4, P.pos.y, P.pos.z + (Math.random() - 0.5) * 4);
+  ground(actor);
+  W.add(actor.obj);
+
+  REMOTE_PEERS.set(player.id, {
+    id: player.id,
+    name: player.name,
+    hero: heroKey,
+    actor,
+    targetPos: actor.pos.clone(),
+    targetYaw: actor.yaw,
+    targetAnim: 'Idle_Loop',
+    hp: 100,
+    maxHp: 100
+  });
+}
+
+function removeRemotePeer(id) {
+  const p = REMOTE_PEERS.get(id);
+  if (p) {
+    if (p.actor) {
+      p.actor.remove();
+      W.remove(p.actor.obj);
+    }
+    REMOTE_PEERS.delete(id);
+  }
+}
+
+function clearRemotePeers() {
+  for (const [id, p] of REMOTE_PEERS) {
+    if (p.actor) {
+      p.actor.remove();
+      W.remove(p.actor.obj);
+    }
+  }
+  REMOTE_PEERS.clear();
+}
+
+function updateMultiplayer(dt) {
+  // Lerp and update remote actors
+  for (const [id, peer] of REMOTE_PEERS) {
+    if (!peer.actor) continue;
+    peer.actor.pos.lerp(peer.targetPos, 0.28);
+    peer.actor.yaw = turnTo(peer.actor.yaw, peer.targetYaw, dt * 12);
+    if (peer.targetAnim && peer.actor.curAnim !== peer.targetAnim) {
+      peer.actor.play(peer.targetAnim, { ts: 1.0, fade: 0.1 });
+    }
+    peer.actor.update(dt);
+    ground(peer.actor);
+  }
+
+  // Send local player state throttled
+  if (P && G.phase === 'play') {
+    const curAnim = P.curAnim || (P.state === 'attack' ? 'Sword_Attack' : P.state === 'dodge' ? 'Dodge' : 'Idle_Loop');
+    NET.sendState(P.pos, P.yaw, curAnim, P.hp);
+  }
+
+  // Update multiplayer HUD roster
+  updateMultiplayerHud();
+}
+
+function updateMultiplayerHud() {
+  const hudBox = $('mp-hud-roster');
+  if (!hudBox) return;
+  if (!NET.isMultiplayer || G.phase !== 'play') {
+    hudBox.classList.add('hidden');
+    return;
+  }
+  hudBox.classList.remove('hidden');
+
+  let html = `
+    <div class="mp-hud-p">
+      <span class="mp-hud-p-name">YOU (${P.look.toUpperCase()})</span>
+      <div class="mp-hud-p-bar"><div class="mp-hud-p-fill${P.hp < 30 ? ' low' : ''}" style="width:${Math.max(0, P.hp)}%"></div></div>
+    </div>
+  `;
+
+  for (const [id, peer] of REMOTE_PEERS) {
+    const hpPct = Math.max(0, Math.round((peer.hp / peer.maxHp) * 100));
+    html += `
+      <div class="mp-hud-p">
+        <span class="mp-hud-p-name">${peer.name.toUpperCase()} (${peer.hero.toUpperCase()})</span>
+        <div class="mp-hud-p-bar"><div class="mp-hud-p-fill${hpPct < 30 ? ' low' : ''}" style="width:${hpPct}%"></div></div>
+      </div>
+    `;
+  }
+  hudBox.innerHTML = html;
+}
+
+function handleMultiplayerMelee(strong) {
+  const st = STATS();
+  const dir = new THREE.Vector3(Math.sin(P.yaw), 0, Math.cos(P.yaw)).normalize();
+  NET.sendAttack('staff', dir);
+
+  // In PvP, test hit against rival players
+  if (NET.isPvP) {
+    for (const [peerId, peer] of REMOTE_PEERS) {
+      if (!peer.actor || peer.hp <= 0) continue;
+      const dx = peer.actor.pos.x - P.pos.x, dz = peer.actor.pos.z - P.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d <= 2.8 && Math.abs(angDiff(P.yaw, Math.atan2(dx, dz))) <= 1.4) {
+        const dmg = st.staff * (strong ? 1.5 : 1) * (0.9 + Math.random() * 0.2);
+        const hitDir = new THREE.Vector3(dx, 0, dz).normalize();
+        peer.hp = Math.max(0, peer.hp - dmg);
+        NET.sendHitPlayer(peerId, dmg, hitDir);
+        dmgText(peer.actor.headPos(new THREE.Vector3()), Math.round(dmg), strong ? 'crit' : 'hit');
+        SFX.hit(); shake(0.2); hitstop(0.06);
+        if (peer.hp <= 0) {
+          toast(`“VICTORY! ${peer.name.toUpperCase()} HAS FALLEN IN THE VALLEY!”`, 5000);
+          SFX.win();
+        }
+      }
+    }
+  }
+}
+
+function startMultiplayerMatch(room) {
+  $('mp-modal').classList.add('hidden');
+  clearRemotePeers();
+
+  if (room.mode === 'pvp') {
+    NET.isPvP = true;
+    NET.isCoop = false;
+    LEVEL = 1;
+    buildWorld('elah');
+    P.pos.set(0, 0, 10); ground(P); P.yaw = Math.PI;
+    if (MOSES) MOSES.obj.visible = false;
+    if (G.boss) { G.boss.remove(); G.boss = null; }
+    $('boss-wrap').classList.add('hidden');
+    G.enemies.forEach(e => e.remove());
+    G.enemies.length = 0;
+
+    // Spawn rival players on opposing side
+    for (const p of room.players) {
+      if (p.id !== NET.playerId) {
+        spawnRemotePeer(p);
+        const peer = REMOTE_PEERS.get(p.id);
+        if (peer && peer.actor) {
+          peer.actor.pos.set(0, 0, -10);
+          ground(peer.actor);
+          peer.actor.yaw = 0;
+        }
+      }
+    }
+
+    G.phase = 'play';
+    $('hud').classList.remove('hidden');
+    $('wave').textContent = 'TRIAL OF CHAMPIONS · 1v1 DUEL';
+    toast('TRIAL OF CHAMPIONS: 1v1 DUEL BEGINS!', 4200);
+    SFX.shofar();
+  } else {
+    // Co-op Mode
+    NET.isCoop = true;
+    NET.isPvP = false;
+    LEVEL = room.level || 1;
+    buildWorld(WORLD_OF(LEVEL));
+
+    // Spawn co-op allies alongside player
+    let offset = -2.5;
+    for (const p of room.players) {
+      if (p.id !== NET.playerId) {
+        spawnRemotePeer(p);
+        const peer = REMOTE_PEERS.get(p.id);
+        if (peer && peer.actor) {
+          peer.actor.pos.set(P.pos.x + offset, P.pos.y, P.pos.z + 1.2);
+          ground(peer.actor);
+          offset += 2.5;
+        }
+      }
+    }
+
+    startLevel();
+    toast('BROTHERS IN ARMS: FIGHT SIDE-BY-SIDE!', 4200);
+    SFX.horn();
+  }
+}
+
+// Initialize UI when document is ready
+setTimeout(initMultiplayerUI, 300);
+
+
+
 boot().catch((e) => { console.error(e); $('ltext').textContent = 'Could not load: ' + e.message; });
+
+
