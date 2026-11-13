@@ -63,6 +63,7 @@
     <div class="logo big"><span class="l1">ELAH</span><span class="l2">WARRIOR</span></div>
     <div class="mtag">A BIBLE COMBAT SAGA</div>
     <button id="btn-play" class="gold">PLAY</button>
+    <button id="btn-adullam" class="gold" style="margin-top:2px;letter-spacing:.12em;background:linear-gradient(180deg,#7a5220,#3d240a);box-shadow:0 4px 18px rgba(180,110,30,.4);">🏛️ CAVE OF ADULLAM · SANCTUM</button>
     <button id="btn-mp" class="gold mp-btn" style="margin-top:2px;box-shadow:0 6px 24px rgba(220,150,40,.45);">⚔️ MULTIPLAYER REALM</button>
     <div class="mcont" id="mcont"></div>
     <div class="mrow"><button id="btn-levels" class="ghost">LEVELS</button><button id="btn-settings" class="ghost">SETTINGS</button></div>
@@ -132,7 +133,7 @@
   <div class="wverse" id="wverse">“So David prevailed over the Philistine with a sling and with a stone, and smote the Philistine, and slew him; but there was no sword in the hand of David.”<span>1 Samuel 17:50 (KJV)</span></div>
   <div class="wstats" id="wstats"></div>
   <div class="wnext" id="wnext">NEXT: <b>SAMSON</b></div>
-  <div class="cbtns"><button id="btn-again" class="ghost">PLAY AGAIN</button><button id="btn-next" class="gold">PLAY LEVEL 2</button></div>
+  <div class="cbtns"><button id="btn-again" class="ghost">PLAY AGAIN</button><button id="btn-win-adullam" class="ghost">CAVE OF ADULLAM</button><button id="btn-next" class="gold">PLAY LEVEL 2</button></div>
   <div class="credits"><a href="credits.html" target="_blank" rel="noopener">Credits</a> · ELAH WARRIOR · A Blossom game</div>
 </div>
 
@@ -142,7 +143,7 @@
   <button id="btn-retry" class="gold">RISE AGAIN</button>
 </div>
 
-<div id="paused" class="screen"><h2>Paused</h2><button id="btn-resume" class="gold">RESUME</button><div class="mrow"><button id="btn-restart" class="ghost">RESTART LEVEL</button><button id="btn-psettings" class="ghost">SETTINGS</button><button id="btn-menu" class="ghost">MAIN MENU</button></div></div>
+<div id="paused" class="screen"><h2>Paused</h2><button id="btn-resume" class="gold">RESUME</button><button id="btn-pause-adullam" class="ghost" style="margin-top:4px">RETURN TO ADULLAM</button><div class="mrow"><button id="btn-restart" class="ghost">RESTART LEVEL</button><button id="btn-psettings" class="ghost">SETTINGS</button><button id="btn-menu" class="ghost">MAIN MENU</button></div></div>
 
 <div id="rotate"><div class="phone"></div><div>Turn your phone sideways to play</div></div>
 <div id="fade"></div>
@@ -237,6 +238,13 @@
       </div>
     </div>
   </div>
+</div>
+
+
+<!-- Adullam Hub Interactive Prompt -->
+<div id="hub-prompt" class="hidden">
+  <span class="hp-key">E</span>
+  <span class="hp-text" id="hp-text">INTERACT</span>
 </div>
 
 </body>

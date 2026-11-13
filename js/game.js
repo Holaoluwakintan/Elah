@@ -207,7 +207,7 @@ function hgtElah(x, z) {
 }
 const ARENA = { x0: -30, x1: 30, z0: -16, z1: 17 };
 const PITH = 10.5, PITD = 3.6;   // Benaiah's pit: half its width, and its depth
-const ARENA_BY = { elah: { x0: -30, x1: 30, z0: -16, z1: 17 }, lehi: { x0: -26, x1: 26, z0: -20, z1: 18 }, temple: { x0: -8.4, x1: 8.4, z0: -9.5, z1: 10 }, jericho: { x0: -32, x1: 32, z0: -48, z1: 22 }, moreh: { x0: -38, x1: 38, z0: -50, z1: 26 }, dan: { x0: -24, x1: 24, z0: -21, z1: 18 }, wild: { x0: -70, x1: 70, z0: -156, z1: 24 }, moab: { x0: -26, x1: 26, z0: -19, z1: 18 }, kishon: { x0: -28, x1: 28, z0: -19, z1: 18 }, beth: { x0: -28, x1: 28, z0: -23, z1: 18 }, pit: { x0: -PITH + 1.1, x1: PITH - 1.1, z0: -PITH + 1.1, z1: PITH - 1.1 } };
+const ARENA_BY = { adullam: { x0: -22, x1: 22, z0: -22, z1: 22 }, elah: { x0: -30, x1: 30, z0: -16, z1: 17 }, lehi: { x0: -26, x1: 26, z0: -20, z1: 18 }, temple: { x0: -8.4, x1: 8.4, z0: -9.5, z1: 10 }, jericho: { x0: -32, x1: 32, z0: -48, z1: 22 }, moreh: { x0: -38, x1: 38, z0: -50, z1: 26 }, dan: { x0: -24, x1: 24, z0: -21, z1: 18 }, wild: { x0: -70, x1: 70, z0: -156, z1: 24 }, moab: { x0: -26, x1: 26, z0: -19, z1: 18 }, kishon: { x0: -28, x1: 28, z0: -19, z1: 18 }, beth: { x0: -28, x1: 28, z0: -23, z1: 18 }, pit: { x0: -PITH + 1.1, x1: PITH - 1.1, z0: -PITH + 1.1, z1: PITH - 1.1 } };
 
 // ------------------------------------------------------------------ sky (also used for env map)
 const skyMat = new THREE.ShaderMaterial({
@@ -735,6 +735,7 @@ function updateDan(dt) {
   if (P) { D.torch.position.set(P.pos.x + Math.sin(P.yaw + 1.2) * 0.9, P.pos.y + 2.5, P.pos.z + Math.cos(P.yaw + 1.2) * 0.9); D.torch.intensity = 26 + Math.sin(t * 13) * 3 + Math.sin(t * 29) * 2; }
 }
 const ENV = {
+  adullam: { fog: 0x140c06, near: 6, far: 55, hemi: [0xffb060, 0x1a0e06, 0.95], sun: [0xffc880, 2.0], dir: [0.1, 0.85, -0.3], zen: [0.06, 0.08, 0.14], hor: [0.35, 0.24, 0.16], low: [0.18, 0.12, 0.08], sunC: [1.0, 0.5, 0.2], exp: 1.15, dust: 0xff9040, warm: 1, stars: 0, cloud: 0.1 },
   elah: { fog: 0xd6a57a, near: 42, far: 240, hemi: [0xffdcae, 0x4a3018, 0.78], sun: [0xffc47e, 3.5], dir: [-0.58, 0.31, -0.75], zen: [0.26, 0.42, 0.68], hor: [0.98, 0.74, 0.5], low: [0.85, 0.66, 0.48], sunC: [1.0, 0.62, 0.28], exp: 1.05, dust: 0xffd9a0 },
   lehi: { fog: 0xa88078, near: 50, far: 250, hemi: [0xb4b0dc, 0x6a4a30, 1.25], sun: [0xffae74, 3.4], dir: [0.62, 0.24, -0.75], zen: [0.16, 0.2, 0.42], hor: [1.0, 0.56, 0.36], low: [0.52, 0.38, 0.4], sunC: [1.0, 0.45, 0.2], exp: 1.22, dust: 0xffb070 },
   dan: { fog: 0x111a2e, near: 16, far: 125, hemi: [0x6a80bc, 0x2a1e16, 0.55], sun: [0xb4c6f0, 1.25], dir: [0.3, 0.42, -0.86], zen: [0.012, 0.02, 0.055], hor: [0.07, 0.1, 0.19], low: [0.035, 0.035, 0.05], sunC: [0.22, 0.28, 0.45], exp: 1.08, dust: 0xffa060, warm: 0, stars: 1.4 },
@@ -750,6 +751,7 @@ const ENV = {
 };
 // colour grade per world: shadow tint, highlight tint, saturation, contrast, vignette
 const GRADE = {
+  adullam: { sh: [0.92, 0.96, 1.12], hi: [1.14, 1.02, 0.84], sat: 1.15, con: 1.12, vig: 0.45 },
   def: { sh: [0.95, 0.99, 1.06], hi: [1.06, 1.0, 0.92], sat: 1.1, con: 1.08, vig: 0.34 },
   dan: { sh: [0.9, 0.97, 1.12], hi: [1.08, 0.98, 0.88], sat: 1.05, con: 1.1, vig: 0.42 },
   moreh: { sh: [0.9, 0.96, 1.14], hi: [1.12, 1.0, 0.86], sat: 1.1, con: 1.15, vig: 0.44 },
@@ -778,17 +780,18 @@ function setEnv(name) {
 function buildWorld(name) {
   if (WORLD === name) return;
   scene.remove(W); W.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); } });
-  W = new THREE.Group(); scene.add(W); COL.length = 0; FIRES.length = 0; SNOW = null; KISHON = null; TEMPLE = null; DAN = null; WILD = null; JERICHO = null; MOREH = null; DEN = null; CARMEL = null; BELLY = null; HEZEKIAH = null; WORLD = name; musicMode(name);
-  Object.assign(ARENA, ARENA_BY[name]); HGT = name === 'elah' ? hgtElah : name === 'lehi' ? hgtLehi : name === 'dan' ? hgtDan : name === 'wild' ? hgtWild : name === 'moab' ? hgtMoab : name === 'pit' ? hgtPit : name === 'kishon' ? hgtKishon : name === 'beth' ? hgtBeth : name === 'moreh' ? hgtMoreh : name === 'jericho' ? hgtJericho : name === 'den' ? hgtDen : name === 'carmel' ? hgtCarmel : name === 'belly' ? hgtBelly : name === 'jerusalem' ? hgtJerusalem : () => 0;
+  W = new THREE.Group(); scene.add(W); COL.length = 0; FIRES.length = 0; ADULLAM = null; SNOW = null; KISHON = null; TEMPLE = null; DAN = null; WILD = null; JERICHO = null; MOREH = null; DEN = null; CARMEL = null; BELLY = null; HEZEKIAH = null; WORLD = name; musicMode(name);
+  Object.assign(ARENA, ARENA_BY[name]); HGT = name === 'elah' ? hgtElah : name === 'lehi' ? hgtLehi : name === 'dan' ? hgtDan : name === 'wild' ? hgtWild : name === 'moab' ? hgtMoab : name === 'pit' ? hgtPit : name === 'kishon' ? hgtKishon : name === 'beth' ? hgtBeth : name === 'moreh' ? hgtMoreh : name === 'jericho' ? hgtJericho : name === 'den' ? hgtDen : name === 'carmel' ? hgtCarmel : name === 'belly' ? hgtBelly : name === 'adullam' ? hgtAdullam : name === 'jerusalem' ? hgtJerusalem : () => 0;
   RS = name === 'elah' ? 1234567 : name === 'lehi' ? 7654321 : name === 'dan' ? 3141592 : name === 'wild' ? 2718281 : 424242;
   setEnv(name);
-  if (name === 'elah') { buildTerrain(); buildProps(); } else if (name === 'lehi') buildLehi(); else if (name === 'dan') buildDan(); else if (name === 'wild') buildWild(); else if (name === 'moab') buildMoab(); else if (name === 'pit') buildPit(); else if (name === 'kishon') buildKishon(); else if (name === 'beth') buildBeth(); else if (name === 'jericho') buildJericho(); else if (name === 'moreh') buildMoreh(); else if (name === 'den') buildDen(); else if (name === 'carmel') buildCarmel(); else if (name === 'belly') buildBelly(); else if (name === 'jerusalem') buildJerusalem(); else buildTemple();
+  if (name === 'adullam') buildAdullam(); else if (name === 'elah') { buildTerrain(); buildProps(); } else if (name === 'lehi') buildLehi(); else if (name === 'dan') buildDan(); else if (name === 'wild') buildWild(); else if (name === 'moab') buildMoab(); else if (name === 'pit') buildPit(); else if (name === 'kishon') buildKishon(); else if (name === 'beth') buildBeth(); else if (name === 'jericho') buildJericho(); else if (name === 'moreh') buildMoreh(); else if (name === 'den') buildDen(); else if (name === 'carmel') buildCarmel(); else if (name === 'belly') buildBelly(); else if (name === 'jerusalem') buildJerusalem(); else buildTemple();
   LOG('world', { name });
 }
 function collide(p, r) { let hit = false; for (const c of COL) { const dx = p.x - c.x, dz = p.z - c.z, R = r + c.r, d2 = dx * dx + dz * dz; if (d2 < R * R) { const d = Math.sqrt(d2) || 0.001; p.x = c.x + dx / d * R; p.z = c.z + dz / d * R; hit = true; } } return hit; }
 function updateWorld(dt) {
   const t = now();
   updateFires(t);
+  if (ADULLAM) updateAdullam(dt);
   if (DAN) updateDan(dt);
   if (SNOW) updateSnow(dt);
   if (KISHON && KISHON.rain && KISHON.rain.visible) updatePrecip(KISHON.rain, dt);
@@ -1834,6 +1837,7 @@ function audioInit() {
 // ------------------------------------------------------------------ battle music (generated live in the browser: war drums, low strings, a drone; no files, no voices)
 const MUSIC = { bus: null, timer: null, step: 0, next: 0, mode: '', want: 'elah', inten: 0 };
 const MUSIC_CFG = {
+  adullam: { bpm: 68, root: 65.41, roots: [0, 0, 1, 0, -2, -4, 1, -2], night: true },
   elah: { bpm: 92, root: 73.42, roots: [0, 0, -4, -2, 0, 0, 1, -2] },   // D, Phrygian-dominant colour (the flat second)
   lehi: { bpm: 100, root: 82.41, roots: [0, 0, 1, 0, -4, -2, 1, -1] },  // E
   temple: { bpm: 112, root: 69.3, roots: [0, 1, 0, 1, -4, -2, 1, 0] },  // C#, darker and faster for the pillars
@@ -4995,7 +4999,13 @@ const TIPS = [
   ['“Saul hath slain his thousands, and David his ten thousands.”', '1 Samuel 18:7'],
 ];
 { const t = TIPS[(Math.random() * TIPS.length) | 0]; $('ltip').innerHTML = `${t[0]}<span>${t[1]} (KJV)</span>`; }
-async function boot() {
+async 
+// Cave of Adullam UI hooks
+if ($('btn-adullam')) $('btn-adullam').onclick = enterAdullam;
+if ($('btn-pause-adullam')) $('btn-pause-adullam').onclick = enterAdullam;
+if ($('btn-win-adullam')) $('btn-win-adullam').onclick = enterAdullam;
+
+function boot() {
   buildDust(); buildFX(); buildSparks(); buildStones(); buildArrows(); buildSpoils(); buildPuffs(); setupInput();
   buildWorld(WORLD_OF(LEVEL));
   const loader = new GLTFLoader();
@@ -7279,3 +7289,343 @@ function updateCombatOverhaul(dt) {
 boot().catch((e) => { console.error(e); $('ltext').textContent = 'Could not load: ' + e.message; });
 
 
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PILLAR 5: CAVE OF ADULLAM HUB (1 Samuel 22:1–2)
+// Walkable 3D Sanctum: Training Dummy, War Map Table, Anointing Altar,
+// Covenant Shrine, and Gathered Mighty Men Advisors.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const hgtAdullam = (x, z) => Math.sin(x * 0.12) * 0.12 + Math.cos(z * 0.12) * 0.12;
+
+function buildAdullam() {
+  ADULLAM = {
+    dummy: null,
+    dummyTimer: 0,
+    dummyParryPrompt: false,
+    zones: [],
+    advisors: []
+  };
+
+  // 1. Cavern Floor & Vaulted Limestone Ceiling
+  const floorG = new THREE.PlaneGeometry(52, 52, 36, 36).rotateX(-Math.PI / 2);
+  const pos = floorG.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    pos.setY(i, hgtAdullam(x, z));
+  }
+  floorG.computeVertexNormals();
+  const floorM = new THREE.Mesh(floorG, new THREE.MeshStandardMaterial({ color: 0x3d2c1e, roughness: 0.85, metalness: 0.1 }));
+  floorM.receiveShadow = true; W.add(floorM);
+
+  // Irregular Cave Enclosure (Rock Walls)
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x2e2016, roughness: 0.95, side: THREE.BackSide });
+  const domeG = new THREE.SphereGeometry(26, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.55).scale(1.05, 0.65, 1.05);
+  const dome = new THREE.Mesh(domeG, wallMat);
+  dome.position.set(0, -0.5, 0); W.add(dome);
+
+  // Stalactites and Stalagmites
+  const coneG = new THREE.ConeGeometry(0.55, 3.8, 7);
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2 + Math.random() * 0.3;
+    const r = 16 + Math.random() * 7;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    // Stalactite hanging from ceiling
+    const stTop = new THREE.Mesh(coneG, wallMat);
+    stTop.position.set(x, 14.5 - Math.random() * 2, z);
+    stTop.rotation.x = Math.PI;
+    W.add(stTop);
+    // Stalagmite on ground
+    if (i % 2 === 0) {
+      const stBot = new THREE.Mesh(new THREE.ConeGeometry(0.45, 2.4, 6), wallMat);
+      stBot.position.set(x * 0.9, hgtAdullam(x * 0.9, z * 0.9) + 1.2, z * 0.9);
+      W.add(stBot);
+      COL.push({ x: x * 0.9, z: z * 0.9, r: 0.6 });
+    }
+  }
+
+  // Natural Rock Pillars
+  const pillarG = new THREE.CylinderGeometry(1.2, 1.5, 14, 8);
+  for (const [px, pz] of [[-12, -8], [12, -8], [-10, 10], [11, 9]]) {
+    const pil = new THREE.Mesh(pillarG, wallMat);
+    pil.position.set(px, 6.8, pz);
+    W.add(pil);
+    COL.push({ x: px, z: pz, r: 1.4 });
+    // Torch on pillar
+    const torch = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.6, 5).translate(0, 0.8, 0), MAT.wood);
+    torch.position.set(px + (px > 0 ? -1.3 : 1.3), 1.8, pz);
+    W.add(torch);
+    addFire(torch.position.x, 3.3, torch.position.z, 0.45);
+  }
+
+  // 2. Campfires with Logs & Lighting
+  const fires = [[0, 0, 1.35], [-7, 6, 0.85], [7, 6, 0.85]];
+  for (const [fx, fz, fs] of fires) {
+    const fy = hgtAdullam(fx, fz);
+    addFire(fx, fy + 0.1, fz, fs);
+    const logs = new THREE.Mesh(
+      mergeGeometries([0, 1, 2].map(i => new THREE.CylinderGeometry(0.07, 0.08, 1.0 * fs, 5).rotateZ(Math.PI / 2).rotateY(i * 1.05).translate(0, 0.1, 0).toNonIndexed())),
+      new THREE.MeshLambertMaterial({ color: 0x24140c, emissive: 0x4a1805 })
+    );
+    logs.position.set(fx, fy, fz);
+    W.add(logs);
+    COL.push({ x: fx, z: fz, r: 0.8 * fs });
+    const pl = new THREE.PointLight(0xff9438, 55 * fs, 22, 2);
+    pl.position.set(fx, fy + 1.2, fz);
+    W.add(pl);
+  }
+
+  // Heavenly Shaft of Light onto the Prayer Altar
+  const shaftG = new THREE.CylinderGeometry(1.8, 3.2, 18, 16, 1, true);
+  shaftG.translate(0, 9, 0);
+  const shaftMat = new THREE.MeshBasicMaterial({ color: 0xffdfa0, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+  const shaft = new THREE.Mesh(shaftG, shaftMat);
+  shaft.position.set(0, 0, -9.5);
+  shaft.rotation.x = 0.15;
+  W.add(shaft);
+
+  // 3. Interactive Zone 1: The War Map Table of Canaan
+  const tableTop = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.28, 2.4), new THREE.MeshStandardMaterial({ color: 0x5a4430, roughness: 0.8 }));
+  tableTop.position.set(-6, 0.95, -4.5);
+  const tableLegs = new THREE.Mesh(
+    mergeGeometries([[-1.5, -0.9], [1.5, -0.9], [-1.5, 0.9], [1.5, 0.9]].map(([lx, lz]) => new THREE.CylinderGeometry(0.12, 0.15, 0.95, 6).translate(lx, 0.48, lz).toNonIndexed())),
+    new THREE.MeshStandardMaterial({ color: 0x3d281a })
+  );
+  tableLegs.position.set(-6, 0, -4.5);
+  W.add(tableTop); W.add(tableLegs);
+  COL.push({ x: -6, z: -4.5, r: 1.8 });
+
+  // Map parchment on table
+  const mapParchment = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.8).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xd8c298 }));
+  mapParchment.position.set(-6, 1.1, -4.5);
+  W.add(mapParchment);
+
+  // 4. Interactive Zone 2: Anointing Stone (Upgrades)
+  const altarBase = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.7, 0.9, 12), new THREE.MeshStandardMaterial({ color: 0x6e5842, roughness: 0.7 }));
+  altarBase.position.set(0, 0.45, -9.5);
+  const oilHorn = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.8, 8).rotateZ(0.6).translate(0, 0.95, 0), smat(0xe8b848, 0.3, 0.9));
+  oilHorn.position.set(-0.4, 0.9, -9.5);
+  W.add(altarBase); W.add(oilHorn);
+  COL.push({ x: 0, z: -9.5, r: 1.6 });
+
+  // 5. Interactive Zone 3: Covenant Ark / Shrine
+  const arkBox = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.2, 1.3), smat(0xd4af37, 0.25, 0.9));
+  arkBox.position.set(-8, 0.65, 5.5);
+  W.add(arkBox);
+  COL.push({ x: -8, z: 5.5, r: 1.5 });
+
+  // 6. Interactive Zone 4: Combat Training Dummy
+  const dummyPost = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 2.1, 8), MAT.wood);
+  dummyPost.position.set(6.5, 1.05, -3.5);
+  const dummyTorso = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.22, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 0.9 }));
+  dummyTorso.position.set(6.5, 1.5, -3.5);
+  const dummyHelm = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), MAT.bronze);
+  dummyHelm.position.set(6.5, 2.05, -3.5);
+  const dummyShield = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.06, 12).rotateX(Math.PI / 2), MAT.bronze);
+  dummyShield.position.set(6.0, 1.45, -3.2);
+
+  // Weapon arm for swinging practice
+  const dummyArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.9, 6).rotateZ(Math.PI / 2).translate(0.45, 0, 0), MAT.wood);
+  dummyArm.position.set(6.5, 1.65, -3.5);
+
+  const dummyGroup = new THREE.Group();
+  dummyGroup.add(dummyPost); dummyGroup.add(dummyTorso); dummyGroup.add(dummyHelm); dummyGroup.add(dummyShield); dummyGroup.add(dummyArm);
+  W.add(dummyGroup);
+  COL.push({ x: 6.5, z: -3.5, r: 1.2 });
+
+  ADULLAM.dummy = {
+    group: dummyGroup,
+    arm: dummyArm,
+    x: 6.5, z: -3.5,
+    hp: 100, maxHp: 100,
+    poise: 100, maxPoise: 100,
+    alive: true,
+    state: 'idle',
+    st: 0,
+    scale: 1,
+    isBoss: false,
+    pos: new THREE.Vector3(6.5, 0, -3.5),
+    headPos: (v) => v.set(6.5, 2.05, -3.5)
+  };
+
+  // Register all interactive zones
+  ADULLAM.zones = [
+    {
+      id: 'table',
+      name: 'WAR MAP OF CANAAN',
+      desc: 'Select and launch any campaign battle across the Holy Land.',
+      pos: new THREE.Vector3(-6, 0, -4.5),
+      dist: 3.2,
+      action: () => { show('title'); renderTitle(); }
+    },
+    {
+      id: 'altar',
+      name: 'ANOINTING STONE',
+      desc: 'Forge bronze armor and upgrade divine abilities.',
+      pos: new THREE.Vector3(0, 0, -9.5),
+      dist: 3.0,
+      action: async () => { await upgradePanel('RETURN TO CAVE'); }
+    },
+    {
+      id: 'ark',
+      name: 'COVENANT SHRINE',
+      desc: 'Commune with the Almighty and choose your active covenant vow.',
+      pos: new THREE.Vector3(-8, 0, 5.5),
+      dist: 3.2,
+      action: async () => { await covenantPanel(); }
+    },
+    {
+      id: 'dummy',
+      name: 'TRAINING DUMMY (PHILISTINE TARGET)',
+      desc: 'Train Sekiro-style deflection timing, executions, and weapon combos.',
+      pos: new THREE.Vector3(6.5, 0, -3.5),
+      dist: 3.5,
+      action: () => {
+        toast('TRAINING: Watch for the gold flash, then tap PARRY (or Space) to deflect!', 3200);
+      }
+    }
+  ];
+
+  // 7. Advisors: Moses, Jonathan, Josheb-basshebeth
+  const advData = [
+    {
+      id: 'moses', name: 'MOSES · THE LAWGIVER',
+      pos: new THREE.Vector3(5.0, 0, 5.5), yaw: -2.2,
+      look: 'moses',
+      verse: '"The LORD shall fight for you, and ye shall hold your peace."',
+      ref: 'Exodus 14:14 (KJV)'
+    },
+    {
+      id: 'jonathan', name: 'JONATHAN · COVENANT BROTHER',
+      pos: new THREE.Vector3(-4.5, 0, 7.5), yaw: 0.8,
+      look: 'samson', // heroic noble look
+      verse: '"Fear not: for the hand of Saul my father shall not find thee; and thou shalt be king over Israel, and I shall be next unto thee."',
+      ref: '1 Samuel 23:17 (KJV)'
+    },
+    {
+      id: 'josheb', name: 'JOSHEB · CHIEF OF THE MIGHTY MEN',
+      pos: new THREE.Vector3(8.5, 0, 1.5), yaw: -1.6,
+      look: 'davidking',
+      verse: '"He lifted up his spear against eight hundred, whom he slew at one time."',
+      ref: '2 Samuel 23:8 (KJV)'
+    }
+  ];
+
+  for (const ad of advData) {
+    const actor = new Actor(ad.look, 1.0);
+    actor.pos.copy(ad.pos); ground(actor); actor.yaw = ad.yaw;
+    actor.play('Idle_Loop');
+    W.add(actor.obj);
+    COL.push({ x: ad.pos.x, z: ad.pos.z, r: 0.9 });
+    ADULLAM.zones.push({
+      id: ad.id,
+      name: ad.name,
+      desc: 'Seek wise counsel and spiritual courage.',
+      pos: ad.pos,
+      dist: 2.8,
+      action: async () => {
+        await card({
+          who: ad.name,
+          verse: ad.verse,
+          ref: ad.ref,
+          text: 'David, in this cave the broken and distressed gather to be forged into God’s mightiest army. Stand steadfast.',
+          btn: 'AMEN'
+        });
+      }
+    });
+  }
+
+  toast('WELCOME TO THE CAVE OF ADULLAM · SANCTUM OF THE MIGHTY', 3500);
+}
+
+// Update loop for Adullam Hub
+function updateAdullam(dt) {
+  if (!ADULLAM || !P) return;
+
+  // 1. Proximity check to interactive zones
+  let nearZone = null;
+  let minDist = 999;
+  for (const z of ADULLAM.zones) {
+    const d = P.pos.distanceTo(z.pos);
+    if (d < z.dist && d < minDist) {
+      minDist = d;
+      nearZone = z;
+    }
+  }
+
+  const promptEl = $('hub-prompt');
+  const textEl = $('hp-text');
+  if (nearZone) {
+    promptEl.classList.remove('hidden');
+    textEl.textContent = nearZone.name;
+    // Handle E key or tap
+    if (take('interact') || (IN && IN.q && IN.q.KeyE)) {
+      if (IN.q) delete IN.q.KeyE;
+      nearZone.action();
+    }
+  } else {
+    promptEl.classList.add('hidden');
+  }
+
+  // Click / tap on the prompt element itself
+  promptEl.onclick = () => { if (nearZone) nearZone.action(); };
+
+  // 2. Training Dummy AI Practice Cycle
+  const d = ADULLAM.dummy;
+  if (d && d.alive) {
+    d.st += dt;
+    // Every 4.0 seconds, dummy telegraphs a strike for parry practice
+    if (d.st > 3.2 && d.st < 3.8) {
+      d.arm.rotation.z = Math.PI / 2 + Math.sin((d.st - 3.2) * 10) * 0.4;
+      if (!d.warned) {
+        d.warned = true;
+        flashAt(d.pos.clone().setY(2.0), 1.2, 0.25, 0xffd700);
+        dmgText(d.pos.clone().setY(2.4), 'PARRY NOW!', 'parry');
+      }
+    } else if (d.st >= 3.8 && d.st < 4.0) {
+      // Swing strike forward
+      d.arm.rotation.z = Math.PI / 2 - 0.7;
+      if (d.warned) {
+        d.warned = false;
+        // If player within 3.0m and not parrying, dummy gently nudges player
+        if (P.pos.distanceTo(d.pos) < 2.5) {
+          if (P.state === 'parry' && P.st < 0.24) {
+            handlePerfectParry(d.pos);
+            d.poise -= 50;
+            if (d.poise <= 0) triggerPostureBreak(d);
+          } else {
+            shake(0.2);
+            SFX.clang && SFX.clang();
+          }
+        }
+      }
+    } else if (d.st >= 4.5) {
+      d.st = 0;
+      d.arm.rotation.z = Math.PI / 2;
+    }
+  }
+}
+
+// Function to enter the Cave of Adullam Hub directly
+async function enterAdullam() {
+  audioInit();
+  show('menu', false);
+  show('title', false);
+  show('paused', false);
+  show('win', false);
+  show('upgrade', false);
+  show('card', false);
+
+  LEVEL = 1;
+  buildWorld('adullam');
+  makeHero();
+  P.pos.set(0, 0, 4);
+  ground(P);
+  P.yaw = Math.PI;
+
+  G.phase = 'adullam';
+  $('hud').classList.remove('hidden');
+  $('boss-wrap').classList.add('hidden');
+  $('wave').textContent = 'SANCTUM · CAVE OF ADULLAM (1 SAMUEL 22:1)';
+  updateRelicHUD && updateRelicHUD();
+}

@@ -529,3 +529,12 @@ body.post:not(.vision):not(.dark) #vignette{background:none}
 #relic-hud{display:flex;gap:6px;margin-top:6px;pointer-events:auto}
 .rh-cov{font-size:17px;background:rgba(212,175,55,.2);border:1px solid rgba(212,175,55,.5);border-radius:6px;padding:2px 6px;cursor:help;display:inline-block}
 .rh-relic{font-size:17px;background:rgba(80,180,255,.2);border:1px solid rgba(80,180,255,.5);border-radius:6px;padding:2px 6px;cursor:help;display:inline-block}
+
+
+/* ------------------------------------------------------------------ Cave of Adullam Hub (Pillar 5) */
+#hub-prompt{position:fixed;bottom:22%;left:50%;transform:translateX(-50%);z-index:25;display:flex;align-items:center;gap:10px;background:rgba(18,10,4,.88);border:1.5px solid var(--gold);border-radius:28px;padding:8px 20px;box-shadow:0 6px 24px rgba(220,160,40,.45);animation:hubPulse 1.8s ease-in-out infinite;pointer-events:auto;cursor:pointer}
+#hub-prompt.hidden{display:none}
+.hp-key{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:linear-gradient(180deg,#e8c47a,#9a6e2a);color:#120802;font:800 14px system-ui,sans-serif;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.6)}
+.hp-text{font:700 13px system-ui,sans-serif;letter-spacing:.12em;color:#fff0d0;text-shadow:0 1px 4px #000}
+@keyframes hubPulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.04);box-shadow:0 8px 30px rgba(255,190,60,.6)}}
+.hub-banner{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:15;font:700 clamp(16px,2.8vw,22px) 'Cinzel',Georgia,serif;letter-spacing:.25em;color:#ffe4a0;text-shadow:0 0 20px rgba(255,180,60,.5);pointer-events:none}
