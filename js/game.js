@@ -3120,7 +3120,7 @@ const COVENANTS = [
   },
   {
     id: 'joshua', ic: '📯', name: 'HORN OF JOSHUA',
-    verse: '"And it shall come to pass, that when they make a long blast with the ram's horn… the wall of the city shall fall down flat."',
+    verse: `"And it shall come to pass, that when they make a long blast with the ram's horn… the wall of the city shall fall down flat."`,
     ref: 'Joshua 6:5 (KJV)',
     desc: 'The shofar echoes. +30 coins at run start. Each kill: 15% chance of a bonus coin drop.',
     apply(S) { /* bonus coins given on covenant pick */ },
@@ -3135,7 +3135,7 @@ const COVENANTS = [
   },
   {
     id: 'david', ic: '🪨', name: 'STONE FROM THE BROOK',
-    verse: '"And he chose him five smooth stones out of the brook, and put them in a shepherd's bag."',
+    verse: `"And he chose him five smooth stones out of the brook, and put them in a shepherd's bag."`,
     ref: '1 Samuel 17:40 (KJV)',
     desc: 'First sling shot of every wave always crits (3× dmg). Sling reload 25% faster.',
     apply(S) { S.slingCd = (S.slingCd || 1) * 0.75; },
