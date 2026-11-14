@@ -661,7 +661,7 @@ function buildTemple() {
 }
 
 // ---- Level 3 world: the camp of the four kings at Dan, by night (Genesis 14:14–15)
-let DAN = null, JERICHO = null, MOREH = null, DEN = null, CARMEL = null, BELLY = null, HEZEKIAH = null;
+let ADULLAM = null, DAN = null, JERICHO = null, MOREH = null, DEN = null, CARMEL = null, BELLY = null, HEZEKIAH = null;
 function hgtDan(x, z) {
   const r = Math.hypot(x * 0.9, z + 2);
   let h = Math.max(0, r - 27); h = h * h * 0.026 + h * 0.3;
