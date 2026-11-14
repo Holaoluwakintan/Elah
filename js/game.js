@@ -338,6 +338,54 @@ const rockG = vcol(new THREE.DodecahedronGeometry(1, 0), 0x9b8b78);
   const lamD = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   scatter(banP, lamD, 9, () => { const x = -36 + rng() * 72, z = -36 - rng() * 10; return { x, y: hgt(x, z), z, s: 1, ry: 0.3 }; });
   scatter(banI, lamD, 7, () => { const x = -36 + rng() * 72, z = 38 + rng() * 10; return { x, y: hgt(x, z), z, s: 1, ry: 0.3 }; });
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // THE HOSTS OF ISRAEL AND PHILISTIA (1 Samuel 17:1–3)
+  // Cohorts of thousands standing in rank on the mountain ridges with raised spears
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Soldier silhouette mesh: helmet, head, body, shield, spear
+  const solHelm = new THREE.CylinderGeometry(0.12, 0.12, 0.12, 5).translate(0, 1.75, 0);
+  const solBody = new THREE.CylinderGeometry(0.18, 0.14, 0.7, 5).translate(0, 1.25, 0);
+  const solSpear = new THREE.CylinderGeometry(0.02, 0.02, 3.2, 4).rotateZ(0.12).translate(0.25, 1.8, 0);
+  const solShield = new THREE.CylinderGeometry(0.24, 0.24, 0.05, 6).rotateX(Math.PI / 2).translate(-0.25, 1.3, 0.12);
+  const soldierGeo = mergeGeometries([solHelm.toNonIndexed(), solBody.toNonIndexed(), solSpear.toNonIndexed(), solShield.toNonIndexed()]);
+
+  // Philistine Army on North Ridge (Z: -48 to -78) — Red tunics & bronze shields
+  const philArmyMat = new THREE.MeshStandardMaterial({ color: 0x822a1c, roughness: 0.7, metalness: 0.45 });
+  const philCount = LOWQ ? 120 : 360;
+  scatter(soldierGeo, philArmyMat, philCount, () => {
+    const x = (rng() - 0.5) * 160;
+    const z = -46 - rng() * 32;
+    return { x, y: hgt(x, z) - 0.05, z, s: 0.9 + rng() * 0.25, ry: Math.PI + (rng() - 0.5) * 0.4 };
+  });
+
+  // Israelite Army on South Ridge (Z: +44 to +74) — Blue tunics & iron spears
+  const isrArmyMat = new THREE.MeshStandardMaterial({ color: 0x244272, roughness: 0.75, metalness: 0.35 });
+  const isrCount = LOWQ ? 120 : 360;
+  scatter(soldierGeo, isrArmyMat, isrCount, () => {
+    const x = (rng() - 0.5) * 160;
+    const z = 44 + rng() * 30;
+    return { x, y: hgt(x, z) - 0.05, z, s: 0.9 + rng() * 0.25, ry: (rng() - 0.5) * 0.4 };
+  });
+
+  // Fluttering war banners along both ridge crests
+  const bannerPole = new THREE.CylinderGeometry(0.04, 0.05, 5.5, 5).translate(0, 2.75, 0);
+  const bannerClothP = new THREE.PlaneGeometry(1.6, 2.4).rotateY(-Math.PI / 2).translate(0, 3.8, 0.8);
+  const bannerP = mergeGeometries([bannerPole.toNonIndexed(), bannerClothP.toNonIndexed()]);
+  const banPMat = new THREE.MeshStandardMaterial({ color: 0x9e2014, side: THREE.DoubleSide, roughness: 0.9 });
+  scatter(bannerP, banPMat, LOWQ ? 12 : 28, () => {
+    const x = (rng() - 0.5) * 150;
+    const z = -48 - rng() * 24;
+    return { x, y: hgt(x, z), z, s: 1.1 + rng() * 0.3, ry: rng() * 0.6 };
+  });
+
+  const banIMat = new THREE.MeshStandardMaterial({ color: 0x1f448e, side: THREE.DoubleSide, roughness: 0.9 });
+  scatter(bannerP, banIMat, LOWQ ? 12 : 28, () => {
+    const x = (rng() - 0.5) * 150;
+    const z = 46 + rng() * 22;
+    return { x, y: hgt(x, z), z, s: 1.1 + rng() * 0.3, ry: Math.PI + rng() * 0.6 };
+  });
+
 }
 
 // dust motes
@@ -736,7 +784,7 @@ function updateDan(dt) {
 }
 const ENV = {
   adullam: { fog: 0x140c06, near: 6, far: 55, hemi: [0xffb060, 0x1a0e06, 0.95], sun: [0xffc880, 2.0], dir: [0.1, 0.85, -0.3], zen: [0.06, 0.08, 0.14], hor: [0.35, 0.24, 0.16], low: [0.18, 0.12, 0.08], sunC: [1.0, 0.5, 0.2], exp: 1.15, dust: 0xff9040, warm: 1, stars: 0, cloud: 0.1 },
-  elah: { fog: 0xd6a57a, near: 42, far: 240, hemi: [0xffdcae, 0x4a3018, 0.78], sun: [0xffc47e, 3.5], dir: [-0.58, 0.31, -0.75], zen: [0.26, 0.42, 0.68], hor: [0.98, 0.74, 0.5], low: [0.85, 0.66, 0.48], sunC: [1.0, 0.62, 0.28], exp: 1.05, dust: 0xffd9a0 },
+  elah: { fog: 0xbfa080, near: 36, far: 220, hemi: [0xf0d0aa, 0x3d2814, 0.9], sun: [0xffe0a0, 4.2], dir: [-0.55, 0.4, -0.72], zen: [0.22, 0.38, 0.65], hor: [0.95, 0.72, 0.46], low: [0.8, 0.6, 0.4], sunC: [1.0, 0.65, 0.25], exp: 1.14, dust: 0xffe6b8, warm: 1, cloud: 0.85 },
   lehi: { fog: 0xa88078, near: 50, far: 250, hemi: [0xb4b0dc, 0x6a4a30, 1.25], sun: [0xffae74, 3.4], dir: [0.62, 0.24, -0.75], zen: [0.16, 0.2, 0.42], hor: [1.0, 0.56, 0.36], low: [0.52, 0.38, 0.4], sunC: [1.0, 0.45, 0.2], exp: 1.22, dust: 0xffb070 },
   dan: { fog: 0x111a2e, near: 16, far: 125, hemi: [0x6a80bc, 0x2a1e16, 0.55], sun: [0xb4c6f0, 1.25], dir: [0.3, 0.42, -0.86], zen: [0.012, 0.02, 0.055], hor: [0.07, 0.1, 0.19], low: [0.035, 0.035, 0.05], sunC: [0.22, 0.28, 0.45], exp: 1.08, dust: 0xffa060, warm: 0, stars: 1.4 },
   moreh: { fog: 0x06090f, near: 14, far: 120, hemi: [0x405a84, 0x160e0a, 0.45], sun: [0x9ab0dc, 1.1], dir: [0.25, 0.5, -0.82], zen: [0.008, 0.014, 0.038], hor: [0.04, 0.06, 0.12], low: [0.02, 0.02, 0.03], sunC: [0.18, 0.22, 0.38], exp: 1.15, dust: 0xff9030, warm: 0, stars: 2.6, cloud: 0.15 },
@@ -760,7 +808,7 @@ const GRADE = {
   storm: { sh: [0.92, 0.98, 1.08], hi: [1.0, 1.0, 1.0], sat: 0.92, con: 1.12, vig: 0.42 },
   temple: { sh: [0.92, 0.95, 1.06], hi: [1.1, 0.98, 0.86], sat: 1.08, con: 1.1, vig: 0.42 },
   jericho: { sh: [0.96, 0.98, 1.05], hi: [1.12, 1.02, 0.88], sat: 1.15, con: 1.12, vig: 0.36 },
-  elah:    { sh: [0.93, 0.98, 1.08], hi: [1.08, 1.0, 0.90],  sat: 1.12, con: 1.10, vig: 0.30 },
+  elah:    { sh: [0.88, 0.95, 1.12], hi: [1.16, 1.04, 0.84],  sat: 1.18, con: 1.16, vig: 0.38 }, // Gritty GoT grading
   lehi:    { sh: [0.90, 0.95, 1.10], hi: [1.10, 0.98, 0.86],  sat: 1.08, con: 1.12, vig: 0.38 },
   wild:    { sh: [0.93, 0.98, 1.06], hi: [1.07, 1.0, 0.91],  sat: 1.10, con: 1.09, vig: 0.32 },
   beth:    { sh: [0.94, 0.98, 1.07], hi: [1.08, 1.0, 0.90],  sat: 1.12, con: 1.10, vig: 0.32 },
@@ -2823,6 +2871,53 @@ function bossHeadHit(b, s) {
   if (b.hp <= 0) { b.hp = 0; killBoss(b); return; }
   b.state = 'reel'; b.st = 0; b.play('Hit_Head', { loop: false, ts: 0.8, restart: true, fade: 0.08 }); prompt('');
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GAME OF THRONES CINEMATIC EXECUTION FOR GOLIATH (1 Samuel 17:49–51)
+// Dramatic low-angle camera, slow-motion hit, weapon drop, and victory roar
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function cinematicGoliathDefeat(b) {
+  SFX.shatter && SFX.shatter();
+  SFX.roar();
+  shake(1.2);
+  hitstop(0.24); // 240ms massive freeze frame on forehead impact
+  bloomPulse(2.0, 1.8);
+  godRayPulse(0.35);
+
+  const head = b.headPos(new THREE.Vector3());
+  flashAt(head, 4.0, 0.45, 0xffe880);
+  puff(head, 2.5, 0.6, new THREE.Vector3(0, 1.2, 0));
+  blood(head, new THREE.Vector3(0, 0.5, -1), 40, 2.2);
+
+  // Time dilation: ultra slow-mo as the giant falls forward
+  G.slow = 0.15;
+  G.slowT = 2.4;
+
+  // Cinematic dynamic camera framing: drop low looking up at the falling titan
+  G.phase = 'cine';
+  document.body.classList.add('cine');
+  const camPos = new THREE.Vector3(head.x + 3.2, P.pos.y + 0.6, head.z + 4.8);
+  G.cine = {
+    pos: camPos,
+    look: head.clone().setY(P.pos.y + 1.2),
+    snap: false
+  };
+
+  // Sound the battle horns of Israel across the valley
+  setTimeout(() => {
+    SFX.shofar && SFX.shofar();
+    SFX.shout && SFX.shout();
+    toast('“THE STONE SUNK INTO HIS FOREHEAD · AND HE FELL UPON HIS FACE TO THE EARTH”<br><i>1 SAMUEL 17:49 (KJV)</i>', 5000);
+  }, 1200);
+
+  setTimeout(() => {
+    G.cine = null;
+    document.body.classList.remove('cine');
+    G.phase = 'play';
+    if (G.phase !== 'lost') afterGoliath();
+  }, 4800);
+}
+
 function killBoss(b) {
   b.alive = false; b.state = 'dead'; b.st = 0; LOG('boss_dead'); prompt(''); b.marker.visible = false; finisher(b, true);
   if (LEVEL === 4) {
@@ -2844,10 +2939,8 @@ function killBoss(b) {
     setTimeout(() => { if (G.phase !== 'lost') chaseToHobah(); }, 4200);
     return;
   }
-  b.play('Hit_Head', { loop: false, ts: 0.6, restart: true, fade: 0.1 }); b.faceDown = true; b.landed = false; SFX.roar(); // he falls forward, upon his face (1 Sam 17:49)
-  G.slow = 0.3; G.slowT = 1.6;
-  setTimeout(() => { toast('“…and smote the Philistine in his forehead, that the stone sunk into his forehead; and he fell upon his face to the earth.”<i>1 SAMUEL 17:49 (KJV)</i>', 4200); }, 1300);
-  setTimeout(() => { if (G.phase !== 'lost') afterGoliath(); }, 5200);
+  b.play('Hit_Head', { loop: false, ts: 0.5, restart: true, fade: 0.08 }); b.faceDown = true; b.landed = false;
+  cinematicGoliathDefeat(b);
 }
 function updateBoss(b, dt) {
   b.st += dt; b.vel.multiplyScalar(Math.pow(0.01, dt));
@@ -2868,7 +2961,7 @@ function updateBoss(b, dt) {
       const L3 = MEL, RR = b.slamR || (L3 ? 2.6 : 3.3); const c = b.pos.clone().add(new THREE.Vector3(Math.sin(b.yaw), 0, Math.cos(b.yaw)).multiplyScalar(b.slamOff || (L3 ? 1.8 : 2.6))); c.y = hgt(c.x, c.z) + 0.06; b.slamC = c;
       const k = Math.min(1, b.st / b.slamT); FX.ring.visible = FX.ringFill.visible = true; FX.ring.position.copy(c); FX.ringFill.position.copy(c).setY(c.y + 0.01); FX.ring.scale.setScalar(RR); FX.ringFill.scale.setScalar(RR * k); FX.ring.material.opacity = 0.85; FX.ringFill.material.opacity = 0.25 + 0.2 * k;
       if (b.st >= b.slamT) {
-        FX.ring.visible = FX.ringFill.visible = false; SFX.slam(); shake(0.7); flashAt(c.clone().setY(c.y + 0.4), 5, 0.35, 0xffc890);
+        FX.ring.visible = FX.ringFill.visible = false; SFX.slam(); shake(1.0); dustRing(c, 24, 7.5, 6.5); if (gradePass && gradePass.uniforms.uChroma) gradePass.uniforms.uChroma.value = 0.8; flashAt(c.clone().setY(c.y + 0.4), 5, 0.35, 0xffc890);
         for (let i = 0; i < 3; i++) blood(c.clone(), new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5), 0, 0);
         const pdx = P.pos.x - c.x, pdz = P.pos.z - c.z; if (Math.hypot(pdx, pdz) < RR) damagePlayer(b.isLion ? 28 : L3 ? 30 : 34, c); if (b.isLion) { b.pos.x = c.x; b.pos.z = c.z; } if (L3) for (const a of ALLIES) if (!a.down && Math.hypot(a.pos.x - c.x, a.pos.z - c.z) < RR) hurtAlly(a, 30, c);
         b.state = 'stunned'; b.st = 0; b.play('Idle_Loop', { ts: 0.35, fade: 0.4 }); prompt(b.isLion ? 'NOW — STRIKE!' : MEL ? 'NOW — STRIKE HIM!' : 'NOW — SLING HIS FOREHEAD!'); LOG('boss_window', { why: 'slam' }); b.atkCd = 2.2;
