@@ -566,7 +566,77 @@ function buildLehi() {
     scatter(ringG, lam, 8, (() => { let k = 0; return () => { const a = (k++ / 8) * Math.PI * 2; return { x: fx + Math.cos(a) * 0.7 * s, y: y + 0.05, z: fz + Math.sin(a) * 0.7 * s, s, ry: a }; }; })());
     scatter(logG, lam, 3, (() => { let k = 0; return () => ({ x: fx, y: y + 0.1, z: fz, s, ry: (k++) * 2.1 }); })());
   }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // THE HOST OF THE PHILISTINES AT LEHI (Judges 15:9–14) — GoT Cinematic Ring
+  // "Then the Philistines went up, and pitched in Judah, and spread themselves in Lehi."
+  // Three arcs of four hundred men encircle the arena on every side.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  {
+    const lhHelm   = new THREE.CylinderGeometry(0.11, 0.13, 0.11, 6).translate(0, 1.74, 0);
+    const lhBody   = new THREE.CylinderGeometry(0.17, 0.13, 0.68, 6).translate(0, 1.26, 0);
+    const lhSpear  = new THREE.CylinderGeometry(0.025, 0.02, 2.8, 4).rotateZ(0.14).translate(0.22, 1.9, 0);
+    const lhShield = new THREE.CylinderGeometry(0.28, 0.28, 0.06, 7).rotateX(Math.PI / 2).translate(-0.26, 1.28, 0.14);
+    const lhGeo    = mergeGeometries([lhHelm.toNonIndexed(), lhBody.toNonIndexed(), lhSpear.toNonIndexed(), lhShield.toNonIndexed()]);
+    const lhMat    = new THREE.MeshStandardMaterial({ color: 0x7a3818, roughness: 0.72, metalness: 0.52 });
+    const COUNT    = LOWQ ? 140 : 420;
+    const lhInst   = new THREE.InstancedMesh(lhGeo, lhMat, COUNT);
+    lhInst.castShadow = false; lhInst.frustumCulled = false;
+    const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), sc = new THREE.Vector3();
+    let iIdx = 0;
+    const placeLehi = (x, z, faceYaw, s) => {
+      if (iIdx >= COUNT) return;
+      const y = hgt(x, z) - 0.05;
+      qt.setFromAxisAngle(new THREE.Vector3(0, 1, 0), faceYaw);
+      sc.setScalar(s);
+      m4.compose(new THREE.Vector3(x, y, z), qt, sc);
+      lhInst.setMatrixAt(iIdx++, m4);
+    };
+    for (let row = 0; row < 2; row++) {
+      const r0 = 36 + row * 2.8, nS = LOWQ ? 20 : 60;
+      for (let i = 0; i < nS; i++) { const t = (i / (nS - 1)) - 0.5; const x = t * 130, z = r0 + Math.abs(t) * 6 + rng() * 2 - 1; placeLehi(x, z, 0, 0.88 + rng() * 0.24); }
+    }
+    for (let row = 0; row < 2; row++) {
+      const r0 = 36 + row * 2.8, nE = LOWQ ? 15 : 42;
+      for (let i = 0; i < nE; i++) { const t = (i / (nE - 1)) - 0.5; const x = r0 + Math.abs(t) * 6 + rng() * 2 - 1, z = t * 90; placeLehi(x, z, -Math.PI * 0.5, 0.88 + rng() * 0.24); }
+    }
+    for (let row = 0; row < 2; row++) {
+      const r0 = 36 + row * 2.8, nW = LOWQ ? 15 : 42;
+      for (let i = 0; i < nW; i++) { const t = (i / (nW - 1)) - 0.5; const x = -(r0 + Math.abs(t) * 6 + rng() * 2 - 1), z = t * 90; placeLehi(x, z, Math.PI * 0.5, 0.88 + rng() * 0.24); }
+    }
+    for (let row = 0; row < 2; row++) {
+      const r0 = 44 + row * 2.6, nN = LOWQ ? 20 : 50;
+      for (let i = 0; i < nN; i++) { const t = (i / (nN - 1)) - 0.5; const x = t * 110, z = -(r0 + Math.abs(t) * 5 + rng() * 2 - 1); placeLehi(x, z, Math.PI, 0.88 + rng() * 0.24); }
+    }
+    lhInst.count = iIdx; lhInst.instanceMatrix.needsUpdate = true; W.add(lhInst);
+    const lhPole   = new THREE.CylinderGeometry(0.045, 0.055, 5.0, 5).translate(0, 2.5, 0);
+    const lhFlag   = new THREE.PlaneGeometry(1.5, 2.2).rotateY(-Math.PI * 0.5).translate(0, 3.7, 0.75);
+    const lhBanG   = mergeGeometries([lhPole.toNonIndexed(), lhFlag.toNonIndexed()]);
+    const lhBanMat = new THREE.MeshStandardMaterial({ color: 0x8e1a10, side: THREE.DoubleSide, roughness: 0.9 });
+    scatter(lhBanG, lhBanMat, LOWQ ? 10 : 24, () => { const a = rng() * Math.PI * 2, r = 36 + rng() * 10, x = Math.cos(a) * r * 1.2, z = Math.sin(a) * r; return { x, y: hgt(x, z), z, s: 1.0 + rng() * 0.3, ry: a + Math.PI }; });
+    const lhSun = new THREE.PointLight(0xff8c30, LOWQ ? 0 : 55, 180, 1.4); lhSun.position.set(18, 48, -22); W.add(lhSun);
+    const heapGeo  = new THREE.SphereGeometry(0.42, 5, 3).scale(1.4, 0.18, 1.1);
+    const heapMat  = new THREE.MeshLambertMaterial({ color: 0xe8d8b8, flatShading: true });
+    const HEAP_MAX = LOWQ ? 20 : 50;
+    const heapMesh = new THREE.InstancedMesh(heapGeo, heapMat, HEAP_MAX);
+    heapMesh.frustumCulled = false; heapMesh.count = 0; W.add(heapMesh);
+    LEHI_HORDE = { sun: lhSun, t: 0, heapMesh, heapIdx: 0, HEAP_MAX };
+  }
 }
+// ---- updateLehi: shimmer + heap-pile spawn hook
+function updateLehi(dt) {
+  const H = LEHI_HORDE; if (!H) return; H.t += dt; const t = H.t;
+  if (H.sun) H.sun.intensity = 55 + Math.sin(t * 2.1) * 8 + Math.sin(t * 5.7) * 4; // heat shimmer
+}
+// Called by hurtEnemy when WORLD==='lehi' and enemy is killed — spawn a heap
+function onLehiKill(e) {
+  const H = LEHI_HORDE; if (!H) return;
+  const idx = H.heapIdx % H.HEAP_MAX; H.heapIdx++; H.heapMesh.count = Math.min(H.heapIdx, H.HEAP_MAX);
+  const m4 = new THREE.Matrix4(); const ry = Math.random() * Math.PI * 2;
+  m4.makeRotationY(ry); m4.setPosition(e.pos.x + (Math.random() - 0.5) * 0.6, hgt(e.pos.x, e.pos.z) + 0.05, e.pos.z + (Math.random() - 0.5) * 0.6);
+  H.heapMesh.setMatrixAt(idx, m4); H.heapMesh.instanceMatrix.needsUpdate = true;
+}
+
 // ---- the temple of Dagon (Gaza): a flat hall, colonnades, a roof full of people, two middle pillars
 let TEMPLE = null;
 function tileTex() {
@@ -661,7 +731,7 @@ function buildTemple() {
 }
 
 // ---- Level 3 world: the camp of the four kings at Dan, by night (Genesis 14:14–15)
-let ADULLAM = null, DAN = null, JERICHO = null, MOREH = null, DEN = null, CARMEL = null, BELLY = null, HEZEKIAH = null;
+let LEHI_HORDE = null, ADULLAM = null, DAN = null, JERICHO = null, MOREH = null, DEN = null, CARMEL = null, BELLY = null, HEZEKIAH = null;
 function hgtDan(x, z) {
   const r = Math.hypot(x * 0.9, z + 2);
   let h = Math.max(0, r - 27); h = h * h * 0.026 + h * 0.3;
@@ -809,7 +879,7 @@ const GRADE = {
   temple: { sh: [0.92, 0.95, 1.06], hi: [1.1, 0.98, 0.86], sat: 1.08, con: 1.1, vig: 0.42 },
   jericho: { sh: [0.96, 0.98, 1.05], hi: [1.12, 1.02, 0.88], sat: 1.15, con: 1.12, vig: 0.36 },
   elah:    { sh: [0.88, 0.95, 1.12], hi: [1.16, 1.04, 0.84],  sat: 1.18, con: 1.16, vig: 0.38 }, // Gritty GoT grading
-  lehi:    { sh: [0.90, 0.95, 1.10], hi: [1.10, 0.98, 0.86],  sat: 1.08, con: 1.12, vig: 0.38 },
+  lehi:    { sh: [0.86, 0.91, 1.08], hi: [1.18, 1.00, 0.76],  sat: 1.22, con: 1.18, vig: 0.42 }, // Scorched GoT Lehi
   wild:    { sh: [0.93, 0.98, 1.06], hi: [1.07, 1.0, 0.91],  sat: 1.10, con: 1.09, vig: 0.32 },
   beth:    { sh: [0.94, 0.98, 1.07], hi: [1.08, 1.0, 0.90],  sat: 1.12, con: 1.10, vig: 0.32 },
   kishon:  { sh: [0.93, 0.97, 1.07], hi: [1.04, 1.0, 0.95],  sat: 1.05, con: 1.11, vig: 0.36 },
@@ -822,13 +892,13 @@ function setEnv(name) {
   SUN_DIR.set(...E.dir).normalize(); const u = skyMat.uniforms; u.uZen.value.set(...E.zen); u.uHor.value.set(...E.hor); u.uLow.value.set(...E.low); u.uSunC.value.set(...E.sunC); u.uWarm.value = E.warm ?? 1; u.uStars.value = E.stars ?? 0; u.uCloud.value = E.cloud ?? (name === 'dan' || name === 'pit' ? 0.35 : name === 'storm' ? 1.6 : name === 'temple' ? 0.6 : 1);
   RIM.value.set(E.rim || (E.warm === 0 ? 0x3a4a78 : E.sun[0])).multiplyScalar(E.rim ? 1 : E.warm === 0 ? 1 : 0.3);
   renderer.toneMappingExposure = E.exp; if (dust) dust.material.color.set(E.dust);
-  setEmbers(name === 'carmel' || name === 'belly' || name === 'temple');
+  setEmbers(name === 'carmel' || name === 'belly' || name === 'temple' || name === 'lehi');
   makeEnv();
 }
 function buildWorld(name) {
   if (WORLD === name) return;
   scene.remove(W); W.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); } });
-  W = new THREE.Group(); scene.add(W); COL.length = 0; FIRES.length = 0; ADULLAM = null; SNOW = null; KISHON = null; TEMPLE = null; DAN = null; WILD = null; JERICHO = null; MOREH = null; DEN = null; CARMEL = null; BELLY = null; HEZEKIAH = null; WORLD = name; musicMode(name);
+  W = new THREE.Group(); scene.add(W); COL.length = 0; FIRES.length = 0; ADULLAM = null; SNOW = null; KISHON = null; TEMPLE = null; DAN = null; WILD = null; JERICHO = null; MOREH = null; DEN = null; CARMEL = null; BELLY = null; HEZEKIAH = null; LEHI_HORDE = null; WORLD = name; musicMode(name);
   Object.assign(ARENA, ARENA_BY[name]); HGT = name === 'elah' ? hgtElah : name === 'lehi' ? hgtLehi : name === 'dan' ? hgtDan : name === 'wild' ? hgtWild : name === 'moab' ? hgtMoab : name === 'pit' ? hgtPit : name === 'kishon' ? hgtKishon : name === 'beth' ? hgtBeth : name === 'moreh' ? hgtMoreh : name === 'jericho' ? hgtJericho : name === 'den' ? hgtDen : name === 'carmel' ? hgtCarmel : name === 'belly' ? hgtBelly : name === 'adullam' ? hgtAdullam : name === 'jerusalem' ? hgtJerusalem : () => 0;
   RS = name === 'elah' ? 1234567 : name === 'lehi' ? 7654321 : name === 'dan' ? 3141592 : name === 'wild' ? 2718281 : 424242;
   setEnv(name);
@@ -839,6 +909,7 @@ function collide(p, r) { let hit = false; for (const c of COL) { const dx = p.x 
 function updateWorld(dt) {
   const t = now();
   updateFires(t);
+  if (LEHI_HORDE) updateLehi(dt);
   if (ADULLAM) updateAdullam(dt);
   if (DAN) updateDan(dt);
   if (SNOW) updateSnow(dt);
@@ -2406,6 +2477,21 @@ function samsonSpiritBlast() {
   }
   for (const a of arrows) if (a.life > 0 && a.m.position.distanceTo(P.pos) < R) { a.life = 0; a.m.visible = false; }
   if (P.heave && G.fin && !G.fin.collapsing) { G.fin.prog = Math.min(1, G.fin.prog + 0.2); dmgText(P.pos.clone().setY(P.pos.y + 2.4), 'MIGHTY HEAVE', 'crit'); SFX.rumble(); }
+  // GoT extra: bone-fracture ground crack — secondary shockwave at half-radius
+  if (WORLD === 'lehi') {
+    const R2 = 5; G.slow = Math.max(G.slow || 0, 0.25); G.slowT = Math.max(G.slowT || 0, 0.6);
+    for (const e of G.enemies) {
+      if (!e.alive || !e.obj.visible) continue;
+      const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z, d = Math.hypot(dx, dz);
+      if (d > R2 && d <= 14) { // outer ring — throw enemies to ground
+        const dir2 = new THREE.Vector3(dx, 0, dz).normalize();
+        e.vel.addScaledVector(dir2, 9 * (1 - d / 14 * 0.5));
+        if (e.alive) { e.state = 'hit'; e.st = 0; e.stun = Math.max(e.stun || 0, 2.4); e.play('Hit_Chest', { loop: false, restart: true, ts: 0.7 }); }
+      }
+    }
+    dmgText(P.pos.clone().setY(P.pos.y + 2.6), 'HEAPS UPON HEAPS', 'crit');
+    bloomPulse(1.6, 0.8);
+  }
 }
 function spiritDavidRicochet() {
   const st = STATS(); G.spirit = 0; LOG('spirit', { hero: 'david' });
@@ -2595,7 +2681,7 @@ function hurtEnemy(e, dmg, dir, src, crit = false, from = P) {
   e.state = 'hit'; e.st = 0; e.play(Math.random() < 0.5 ? 'Hit_Chest' : 'Hit_Head', { loop: false, ts: 1.3, restart: true, fade: 0.06 });
 }
 function killEnemy(e) {
-  e.alive = false; e.state = 'dead'; e.st = 0; G.kills++; cvOnKill(e); if (e.attacking) { attackers--; e.attacking = false; } gainSpirit(10);
+  e.alive = false; e.state = 'dead'; e.st = 0; G.kills++; cvOnKill(e); if (e.attacking) { attackers--; e.attacking = false; } gainSpirit(10); if (WORLD === 'lehi') onLehiKill(e);
   e.play('Death01', { loop: false, ts: 1.1, fade: 0.1, restart: true }); e.bar.visible = false; LOG('enemy_dead', { kind: e.kind });
   if (!G.boss && G.enemies.every(x => !x.alive) && captivesLeft() === 0 && LEVEL !== 6) finisher(e, false);
 }
