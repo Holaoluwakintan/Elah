@@ -64,6 +64,7 @@
     <div class="mtag">A BIBLE COMBAT SAGA</div>
     <button id="btn-play" class="gold">PLAY CAMPAIGN</button>
     <button id="btn-endless" class="gold" style="background:linear-gradient(180deg,#8b2a1a,#4a1208);box-shadow:0 4px 18px rgba(220,60,30,.45);margin-top:2px;">⚔️ DAVID'S TEN THOUSANDS · ENDLESS</button>
+    <button id="btn-liveops" class="gold" style="background:linear-gradient(180deg,#244e6b,#122938);box-shadow:0 4px 18px rgba(36,78,107,.5);margin-top:2px;letter-spacing:.08em;">📜 SEASON 1 · RELIC WAR BONDS</button>
     <button id="btn-adullam" class="gold" style="margin-top:2px;letter-spacing:.12em;background:linear-gradient(180deg,#7a5220,#3d240a);box-shadow:0 4px 18px rgba(180,110,30,.4);">🏛️ CAVE OF ADULLAM · SANCTUM</button>
     <button id="btn-mp" class="gold mp-btn" style="margin-top:2px;box-shadow:0 6px 24px rgba(220,150,40,.45);">⚔️ MULTIPLAYER REALM</button>
     <div class="mcont" id="mcont"></div>
@@ -105,6 +106,33 @@
   </div>
 </div>
 
+
+<!-- Season 1: Relic War Bonds Live-Ops Modal -->
+<div id="liveops-modal" class="screen">
+  <div class="lo-box">
+    <div class="thead" style="margin-bottom:8px;">
+      <div>
+        <div class="tbrand" id="lo-season">SEASON 1 · THE SIFTING OF GIDEON</div>
+        <div class="ttl">CHRONICLES OF THE COVENANT</div>
+      </div>
+    </div>
+    <div class="lo-verse" id="lo-verse"></div>
+    
+    <div class="lo-global">
+      <div class="lo-gl-title">COMMUNITY CRUSADE OBJECTIVE</div>
+      <div class="lo-prog-bar"><div class="lo-prog-fill" id="lo-prog-fill"></div></div>
+      <div class="lo-prog-text" id="lo-prog-text"></div>
+    </div>
+
+    <div class="lo-medals">YOUR RANK: <b id="lo-xp">0 WAR BOND MEDALS</b></div>
+
+    <div class="lo-tiers" id="lo-tiers"></div>
+    
+    <div class="cbtns" style="margin-top:16px;">
+      <button id="lo-close" class="gold">RETURN TO BATTLE</button>
+    </div>
+  </div>
+</div>
 
 <!-- Scroll of Mighty Acts (Achievements Modal) -->
 <div id="feats-modal" class="screen">

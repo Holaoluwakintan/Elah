@@ -2120,6 +2120,30 @@ function mRim(t, v = 1) { // frame drum / hand clap
   const c = AU.ctx, s = c.createBufferSource(); s.buffer = AU.noise; const fl = c.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = 1900; fl.Q.value = 1.4;
   const g = c.createGain(); g.gain.setValueAtTime(0.32 * v, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.09); s.connect(fl); fl.connect(g); mOut(g, 0.4); s.start(t, Math.random()); s.stop(t + 0.1);
 }
+// Plucked Kinnor (Ancient 10-string Lyre of David) synthesizer
+function mKinnor(t, f, v = 1) {
+  if (!AU.ctx || !AU.on) return;
+  const c = AU.ctx;
+  // Fundamental plucked string with natural metallic decay
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(f, t);
+  g.gain.setValueAtTime(0.001, t);
+  g.gain.linearRampToValueAtTime(0.45 * v, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 1.6);
+  o.connect(g); mOut(g, 0.45);
+  o.start(t); o.stop(t + 1.7);
+
+  // High sympathetic harmonic ring
+  const h = c.createOscillator(), hg = c.createGain();
+  h.type = 'sine';
+  h.frequency.setValueAtTime(f * 2.76, t);
+  hg.gain.setValueAtTime(0.18 * v, t);
+  hg.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+  h.connect(hg); mOut(hg, 0.5);
+  h.start(t); h.stop(t + 0.95);
+}
+
 function mString(t, f, dur, v = 1, cut = 900) { // bowed low string: two detuned saws through a swelling low-pass
   const c = AU.ctx, g = c.createGain(), fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.Q.value = 2; fl.frequency.setValueAtTime(cut * 0.4, t); fl.frequency.linearRampToValueAtTime(cut, t + Math.min(0.12, dur * 0.4));
   g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.13 * v, t + 0.03); g.gain.setValueAtTime(0.13 * v, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
@@ -2177,6 +2201,11 @@ function musicSchedule(cfg, st, until) {
     const t = MUSIC.next, s = MUSIC.step % 16, bar = Math.floor(MUSIC.step / 16) % 8, I = MUSIC.inten;
     const f0 = cfg.root * Math.pow(2, cfg.roots[bar] / 12);
     if (s === 0) mPad(t, f0, st * 16, 0.6 + I * 0.5);
+    // Lyre of David (Kinnor) melodic voice
+    if (s === 0 || s === 6 || s === 12) {
+      const lyrePitch = f0 * (s === 0 ? 2 : s === 6 ? 3 : 2.5);
+      mKinnor(t, lyrePitch, 0.6 + (1 - Math.min(1, I)) * 0.4);
+    }
     if (s === 0 || s === 6 || s === 8 || (s === 11 && I > 0.5) || (s === 14 && bar % 2 === 1)) mDrum(t, s === 0 ? 0.9 : 1, (s === 0 ? 1 : 0.75) * (0.45 + I * 0.55));
     if (I > 0.55 && (s === 3 || s === 13) && bar % 4 === 3) mDrum(t, 1.35, 0.5);
     if (s === 4 || s === 12) mRim(t, 0.4 + I * 0.6); else if (I > 0.75 && s % 2 === 1 && Math.random() < 0.35) mRim(t, 0.25);
@@ -5743,10 +5772,67 @@ function handleEndlessDefeat() {
 
 // Endless Horde & Feats UI hooks
 if ($('btn-endless')) $('btn-endless').onclick = startEndlessHorde;
+if ($('btn-liveops')) $('btn-liveops').onclick = openLiveOpsModal;
+if ($('lo-close')) $('lo-close').onclick = () => { show('liveops-modal', false); };
 if ($('btn-feats')) $('btn-feats').onclick = openFeatsModal;
 if ($('feats-close')) $('feats-close').onclick = () => show('feats-modal', false);
 if ($('ho-btn-again')) $('ho-btn-again').onclick = startEndlessHorde;
 if ($('ho-btn-adullam')) $('ho-btn-adullam').onclick = () => { show('horde-over-screen', false); enterAdullam(); };
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PILLAR 5: LIVE-OPS & RELIC WAR BONDS ("CHRONICLES OF THE COVENANT")
+// Season 1: THE SIFTING OF GIDEON (Judges 7:4–7)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const LIVE_OPS = {
+  season: 1,
+  seasonName: 'SEASON 1 · THE SIFTING OF GIDEON',
+  verse: '“The people are yet too many; bring them down unto the water, and I will try them for thee there…” — JUDGES 7:4',
+  endsInDays: 42,
+  globalGoal: 1000000,
+  globalCurrent: 384520, // Community Midianite slay counter
+  tiers: [
+    { tier: 1, xpReq: 0, title: 'Recruit of the Spring of Harod', reward: 'Pitcher of Gideon (Relic)', icon: '🏺', unlocked: true },
+    { tier: 2, xpReq: 150, title: 'Warrior of the Three Hundred', reward: 'Torches of Moreh (Aura VFX)', icon: '🔥', unlocked: false },
+    { tier: 3, xpReq: 350, title: 'Shieldbearer of Ephraim', reward: 'Gilded Bronze Greaves (Armor Skin)', icon: '🛡️', unlocked: false },
+    { tier: 4, xpReq: 600, title: 'Captain of the Valley', reward: 'Shofar of Jubilee (Soundpack)', icon: '📯', unlocked: false },
+    { tier: 5, xpReq: 1000, title: 'Champion of Mount Tabor', reward: 'Sword of the LORD & of Gideon', icon: '⚔️', unlocked: false },
+  ]
+};
+
+function getWarBondXP() {
+  const save = loadSave();
+  return (save.highKills || 0) * 12 + (Object.keys(save.done || {}).length) * 100;
+}
+
+function openLiveOpsModal() {
+  const modal = $('liveops-modal');
+  if (!modal) return;
+  const xp = getWarBondXP();
+  $('lo-season').textContent = LIVE_OPS.seasonName;
+  $('lo-verse').textContent = LIVE_OPS.verse;
+  $('lo-xp').textContent = xp + ' WAR BOND MEDALS';
+  
+  const progPct = Math.min(100, Math.round((LIVE_OPS.globalCurrent / LIVE_OPS.globalGoal) * 100));
+  $('lo-prog-fill').style.width = progPct + '%';
+  $('lo-prog-text').textContent = LIVE_OPS.globalCurrent.toLocaleString() + ' / ' + LIVE_OPS.globalGoal.toLocaleString() + ' (' + progPct + '%) MIDIANITES SMITTEN GLOBALLY';
+
+  const list = $('lo-tiers');
+  list.innerHTML = '';
+  for (const t of LIVE_OPS.tiers) {
+    const isUnlocked = xp >= t.xpReq;
+    const card = document.createElement('div');
+    card.className = 'lo-card' + (isUnlocked ? ' claimed' : '');
+    card.innerHTML = '<div class="lo-icon">' + t.icon + '</div>' +
+      '<div class="lo-info">' +
+        '<b>' + t.title + '</b>' +
+        '<span>' + t.reward + '</span>' +
+        '<small>' + (isUnlocked ? '✓ CLAIMED & EQUIPPED' : 'Requires ' + t.xpReq + ' Medals') + '</small>' +
+      '</div>';
+    list.appendChild(card);
+  }
+  show('liveops-modal', true);
+}
 
 async function boot() {
   buildDust(); buildFX(); buildSparks(); buildStones(); buildArrows(); buildSpoils(); buildPuffs(); setupInput();

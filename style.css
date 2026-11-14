@@ -557,3 +557,25 @@ body.post:not(.vision):not(.dark) #vignette{background:none}
 .fcard-ref{font:italic 9.5px Georgia,serif;color:var(--gold);margin-top:3px}
 
 #horde-over-screen{background:radial-gradient(ellipse at center,rgba(40,16,8,.92),rgba(8,3,1,.97));text-align:center}
+
+
+/* ── Pillar 5: Season War Bonds Live-Ops Modal ── */
+#liveops-modal { background: rgba(8, 12, 18, 0.94); backdrop-filter: blur(16px); z-index: 120; display: none; align-items: center; justify-content: center; }
+#liveops-modal.show { display: flex; }
+.lo-box { width: 92%; max-width: 620px; max-height: 88vh; overflow-y: auto; background: linear-gradient(180deg, #182230, #0c121a); border: 1px solid #3a526c; border-radius: 12px; padding: 24px; box-shadow: 0 16px 48px rgba(0,0,0,0.85); color: #e8eaec; font-family: inherit; }
+.lo-verse { font-style: italic; color: #a4b8cc; font-size: 0.85rem; line-height: 1.4; margin-bottom: 16px; border-left: 3px solid #ffd700; padding-left: 10px; }
+.lo-global { background: #0f1722; border: 1px solid #283a4e; border-radius: 8px; padding: 12px; margin-bottom: 14px; }
+.lo-gl-title { font-size: 0.75rem; letter-spacing: 0.12em; color: #7a94b0; font-weight: 700; margin-bottom: 6px; }
+.lo-prog-bar { width: 100%; height: 10px; background: #080d14; border-radius: 5px; overflow: hidden; margin-bottom: 6px; }
+.lo-prog-fill { height: 100%; width: 38%; background: linear-gradient(90deg, #2b6cb0, #4299e1); transition: width 0.4s ease; }
+.lo-prog-text { font-size: 0.78rem; color: #cbd5e0; font-weight: 600; text-align: right; }
+.lo-medals { font-size: 0.9rem; letter-spacing: 0.08em; color: #ffd700; margin-bottom: 14px; text-transform: uppercase; }
+.lo-tiers { display: flex; flex-direction: column; gap: 8px; max-height: 42vh; overflow-y: auto; padding-right: 4px; }
+.lo-card { display: flex; align-items: center; gap: 14px; background: #131c28; border: 1px solid #233446; border-radius: 8px; padding: 10px 14px; transition: transform 0.2s; }
+.lo-card.claimed { border-color: #ffd700; background: linear-gradient(90deg, #1e2838, #18202c); }
+.lo-icon { font-size: 1.8rem; width: 44px; text-align: center; }
+.lo-info { display: flex; flex-direction: column; }
+.lo-info b { font-size: 0.95rem; color: #f7fafc; }
+.lo-info span { font-size: 0.82rem; color: #ffd700; margin-top: 1px; }
+.lo-info small { font-size: 0.72rem; color: #718096; margin-top: 2px; }
+.lo-card.claimed .lo-info small { color: #48bb78; font-weight: 600; }
