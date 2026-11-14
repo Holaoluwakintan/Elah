@@ -1938,9 +1938,23 @@ function buildSparks() {
     fragmentShader: `varying float vL; uniform vec3 uC; void main(){ vec2 d = gl_PointCoord-0.5; float a = smoothstep(0.5,0.0,length(d)); gl_FragColor = vec4(uC*(1.6+vL)*a*vL, a*vL); }` });
   FX.spkPts = new THREE.Points(g, m); FX.spkPts.frustumCulled = false; scene.add(FX.spkPts);
 }
-function sparks(p, n = 8, power = 1) {
+function sparks(p, n = 8, power = 1, normalDir = null) {
   if (!FX.spk) return; if (LOWQ) n = Math.ceil(n / 2);
-  for (let i = 0; i < n; i++) { const s = FX.spk[FX.spkI = (FX.spkI + 1) % FX.spk.length]; s.max = s.life = 0.25 + Math.random() * 0.35; s.p.copy(p); s.v.set((Math.random() - 0.5) * 7, 1 + Math.random() * 5, (Math.random() - 0.5) * 7).multiplyScalar(power); }
+  for (let i = 0; i < n; i++) {
+    const s = FX.spk[FX.spkI = (FX.spkI + 1) % FX.spk.length];
+    s.max = s.life = 0.22 + Math.random() * 0.38;
+    s.p.copy(p);
+    if (normalDir) {
+      // Fan out violently along the tangent deflection arc
+      const spread = 0.8;
+      const vx = normalDir.x * 4.5 + (Math.random() - 0.5) * 7 * spread;
+      const vy = 1.5 + Math.random() * 5.5;
+      const vz = normalDir.z * 4.5 + (Math.random() - 0.5) * 7 * spread;
+      s.v.set(vx, vy, vz).multiplyScalar(power);
+    } else {
+      s.v.set((Math.random() - 0.5) * 8, 1 + Math.random() * 6, (Math.random() - 0.5) * 8).multiplyScalar(power);
+    }
+  }
   FX.spkOn = 1;
 }
 function updateSparks(dt) {
@@ -2236,6 +2250,45 @@ const SFX = {
     tone('sine', 87.3, 87.3, 3.2, 0.35);
     noise(2.5, 450, 180, 0.18, 'bandpass', 1.8);
   },
+  // ── AAA Visceral Kinesthetic Synthesizers ──
+  boneCrunch: () => {
+    if (!AU.ctx || !AU.on) return;
+    const c = AU.ctx, t = c.currentTime;
+    // 35Hz Sub-bass punch (chest-thumping physical impact)
+    const sub = c.createOscillator(), sg = c.createGain();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(75, t);
+    sub.frequency.exponentialRampToValueAtTime(32, t + 0.14);
+    sg.gain.setValueAtTime(0.7, t);
+    sg.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    sub.connect(sg); sg.connect(AU.master);
+    sub.start(t); sub.stop(t + 0.24);
+
+    // Bone fracture crackle
+    noise(0.08, 1800, 350, 0.5, 'bandpass', 2.5);
+    noise(0.12, 600, 120, 0.65, 'lowpass', 1.2, 0.02);
+  },
+  heavyDeflect: () => {
+    if (!AU.ctx || !AU.on) return;
+    const c = AU.ctx, t = c.currentTime;
+    // High-tensile bronze clang
+    const osc = c.createOscillator(), g = c.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1450, t);
+    osc.frequency.exponentialRampToValueAtTime(420, t + 0.45);
+    g.gain.setValueAtTime(0.8, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    osc.connect(g); g.connect(AU.master);
+    osc.start(t); osc.stop(t + 0.52);
+
+    // Sub-harmonic body reverberation
+    tone('sine', 95, 40, 0.3, 0.55);
+    noise(0.15, 3200, 800, 0.35, 'highpass', 1.0);
+  },
+  fleshGore: () => {
+    noise(0.18, 480, 90, 0.5, 'lowpass', 1.6);
+    smp('hit', 0.8, 0.85);
+  }
 };
 
 // ------------------------------------------------------------------ game state
@@ -2341,7 +2394,22 @@ function comboHit() {
   if (G.combo < 2) return; const el = $('combo'); el.firstChild.textContent = '×' + G.combo; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop', 'on');
   if (G.combo % 5 === 0) { G.hitstop = Math.max(G.hitstop, 0.06); G.flashV = 0.08; el.classList.add('gold'); setTimeout(() => el.classList.remove('gold'), 500); }
 }
-function hitstop(t) { G.hitstop = Math.max(G.hitstop, t); if (t >= 0.08) { G.kick = Math.max(G.kick || 0, Math.min(1, t * 7)); vibrate(Math.round(12 + t * 120)); } }
+function hitstop(t, dir = null) {
+  G.hitstop = Math.max(G.hitstop, t);
+  if (t >= 0.06) {
+    G.kick = Math.max(G.kick || 0, Math.min(1.4, t * 8.5));
+    vibrate(Math.round(15 + t * 140));
+    // Trigger chromatic aberration distortion punch on post-processing shader
+    if (gradePass && gradePass.uniforms.uChroma) {
+      gradePass.uniforms.uChroma.value = Math.min(1.4, Math.max(gradePass.uniforms.uChroma.value || 0, t * 4.5));
+    }
+    // Directional camera displacement vector
+    if (dir && CAM) {
+      CAM.kickX = (dir.x || 0) * 0.18;
+      CAM.kickZ = (dir.z || 0) * 0.18;
+    }
+  }
+}
 const flashEl = $('flash');
 function hurtFlash() { flashEl.style.opacity = 1; setTimeout(() => flashEl.style.opacity = 0, 120); }
 let toastT = 0;
@@ -2766,8 +2834,18 @@ function hurtEnemy(e, dmg, dir, src, crit = false, from = P) {
     dmgText(e.pos.clone().setY(e.pos.y + 2.2), 'STAGGERED!', 'crit');
     e.state = 'hit'; e.st = 0; e.play('Hit_Chest', { loop: false, ts: 0.6, restart: true, fade: 0.05 });
   }
-  const hp = e.pos.clone().setY(e.pos.y + 1.3); blood(hp, dir, crit ? 24 : 14, crit ? 1.3 : 0.95); flashAt(hp, crit ? 1.9 : 1.3, crit ? 0.2 : 0.14, 0xfff0d0); flashAt(hp.clone().addScaledVector(dir, 0.15), crit ? 1.1 : 0.7, 0.09, 0xff7a40); SFX.hit();
-  if (crit) { hitstop(0.11); shake(0.32); }
+  const hp = e.pos.clone().setY(e.pos.y + 1.3); blood(hp, dir, crit ? 28 : 16, crit ? 1.4 : 1.0); flashAt(hp, crit ? 2.2 : 1.4, crit ? 0.22 : 0.15, 0xfff0d0); flashAt(hp.clone().addScaledVector(dir, 0.15), crit ? 1.2 : 0.8, 0.09, 0xff7a40); SFX.hit();
+  // AAA Visceral impact feedback
+  if (crit) {
+    SFX.boneCrunch && SFX.boneCrunch();
+    hitstop(0.15, dir); // 150ms micro-freeze frame
+    shake(0.42);
+    sparks(hp, 14, 1.3, dir);
+  } else {
+    hitstop(0.065, dir); // 65ms standard crisp hitstop
+    shake(0.18);
+    sparks(hp, 6, 0.9, dir);
+  }
   dmgText(hp.setY(hp.y + 0.6), Math.round(dmg) + (crit ? '!' : ''), crit ? 'crit' : '');
   e.vel.addScaledVector(dir, src === 'sling' ? 4 : 5.5);
   if (e.hp <= 0) { killEnemy(e); return; }
@@ -7926,15 +8004,18 @@ function startParry() {
 
 function handlePerfectParry(from) { cvOnParry();
   SFX.parry();
-  SFX.clang();
-  shake(0.38);
-  hitstop(0.085); // 85ms freeze frame
-  hurtFlash(0.2);
+  SFX.heavyDeflect && SFX.heavyDeflect();
+  shake(0.55);
+  hitstop(0.12); // 120ms Sekiro-grade freeze frame
+  hurtFlash(0.25);
+  bloomPulse(1.5, 0.4);
 
-  // Spark explosion at weapon clash point
+  // Spark explosion along deflection tangent
   const contact = P.pos.clone().add(from).multiplyScalar(0.5).setY(P.pos.y + 1.25);
-  flashAt(contact, 3.0, 0.35, 0xffe066);
-  puff(contact, 1.2, 0.45, new THREE.Vector3(0, 1.8, 0));
+  flashAt(contact, 3.6, 0.4, 0xffe880);
+  const deflNorm = P.pos.clone().sub(from).setY(0).normalize();
+  sparks(contact, 24, 1.6, deflNorm);
+  puff(contact, 1.6, 0.5, new THREE.Vector3(0, 2.2, 0));
 
   dmgText(P.headPos(tmpV), 'DEFLECTED!', 'parry'); unlockFeat('parry_master');
   gainSpirit(22); // rewarding deflect
@@ -8015,12 +8096,15 @@ async function triggerExecution(e) { bloomPulse(1.6, 1.2); godRayPulse(0.22);
   await sleep(360);
 
   // Lethal impact
-  shake(0.75);
-  hitstop(0.12);
-  flashAt(e.pos.clone().setY(e.pos.y + 1.2), 4.2, 0.4, 0xffffff);
-  hurtFlash(0.35);
+  shake(0.95);
+  hitstop(0.22); // 220ms God of War execution freeze frame
+  flashAt(e.pos.clone().setY(e.pos.y + 1.2), 5.5, 0.5, 0xffffff);
+  hurtFlash(0.45);
+  bloomPulse(2.4, 0.8);
   SFX.clang();
   SFX.execute();
+  SFX.boneCrunch && SFX.boneCrunch();
+  SFX.fleshGore && SFX.fleshGore();
 
   const strikeDir = new THREE.Vector3(dx, 0, dz).normalize();
   blood(e.headPos(new THREE.Vector3()), strikeDir, 28, 1.4);
