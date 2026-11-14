@@ -5315,7 +5315,7 @@ if ($('feats-close')) $('feats-close').onclick = () => show('feats-modal', false
 if ($('ho-btn-again')) $('ho-btn-again').onclick = startEndlessHorde;
 if ($('ho-btn-adullam')) $('ho-btn-adullam').onclick = () => { show('horde-over-screen', false); enterAdullam(); };
 
-function boot() {
+async function boot() {
   buildDust(); buildFX(); buildSparks(); buildStones(); buildArrows(); buildSpoils(); buildPuffs(); setupInput();
   buildWorld(WORLD_OF(LEVEL));
   const loader = new GLTFLoader();
