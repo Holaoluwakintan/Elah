@@ -5092,7 +5092,6 @@ const TIPS = [
   ['“Saul hath slain his thousands, and David his ten thousands.”', '1 Samuel 18:7'],
 ];
 { const t = TIPS[(Math.random() * TIPS.length) | 0]; $('ltip').innerHTML = `${t[0]}<span>${t[1]} (KJV)</span>`; }
-async 
 // Cave of Adullam UI hooks
 if ($('btn-adullam')) $('btn-adullam').onclick = enterAdullam;
 if ($('btn-pause-adullam')) $('btn-pause-adullam').onclick = enterAdullam;
