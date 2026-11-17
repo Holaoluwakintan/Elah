@@ -161,6 +161,22 @@ class NetworkClient {
       case 'chat':
         this.emit('chat', msg);
         break;
+
+      case 'hit_enemy':
+        this.emit('enemy_hit', msg);
+        break;
+
+      case 'sync_enemies':
+        this.emit('sync_enemies', msg);
+        break;
+
+      case 'coop_victory':
+        this.emit('coop_victory', msg);
+        break;
+
+      case 'coop_defeat':
+        this.emit('coop_defeat', msg);
+        break;
     }
   }
 

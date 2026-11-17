@@ -7788,10 +7788,21 @@ function initMultiplayerUI() {
       p = REMOTE_PEERS.get(msg.senderId);
     }
     if (p) {
+      const wasAlive = !p.dead;
       p.targetPos.set(msg.pos[0], msg.pos[1], msg.pos[2]);
       p.targetYaw = msg.yaw;
       p.targetAnim = msg.anim;
+      const prevHp = p.hp;
       p.hp = msg.hp;
+      // Detect peer just died
+      if (wasAlive && p.hp <= 0 && prevHp > 0) {
+        p.dead = true;
+        p.deathT = 0;
+        p.actor && p.actor.play('Death01', { loop: false, ts: 0.8, restart: true });
+        SFX.boneCrunch && SFX.boneCrunch();
+        shake(0.3);
+        toast(`${p.name.toUpperCase()} HAS FALLEN! HOLD THE LINE!`, 4000);
+      }
     }
   });
 
@@ -7833,6 +7844,56 @@ function initMultiplayerUI() {
       damagePlayer(msg.dmg, P.pos.clone().add(fromDir.clone().negate()));
       shake(0.35); hurtFlash();
     }
+  });
+
+  NET.on('enemy_hit', msg => {
+    if (!NET.isCoop) return;
+    const e = G.enemies[msg.enemyIdx];
+    if (!e || !e.alive) return;
+    e.hp = Math.max(0, e.hp - msg.dmg);
+    // Visual feedback for ally's hit
+    const hitDir = msg.dir ? new THREE.Vector3(...msg.dir) : new THREE.Vector3(0,0,1);
+    sparks(e.pos.clone().setY(e.pos.y + 1.2), 6, 0.7, hitDir);
+    if (e.hp <= 0) {
+      killEnemy(e);
+    }
+  });
+
+  NET.on('sync_enemies', msg => {
+    if (NET.isHost || !NET.isCoop) return; // only non-host syncs
+    for (const snap of msg.enemies) {
+      const e = G.enemies[snap.i];
+      if (!e) continue;
+      if (!snap.alive && e.alive) { killEnemy(e); continue; }
+      if (e.alive) e.hp = snap.hp;
+    }
+  });
+
+  NET.on('peer_spirit', msg => {
+    // Render remote player's Kinnor spirit summon as a golden pulse
+    if (!msg.pos) return;
+    const pos = new THREE.Vector3(...msg.pos);
+    bloomPulse(1.4, 0.6);
+    flashAt(pos, 3.0, 0.5, 0xffd36a);
+    puff(pos.clone().setY(pos.y + 0.5), 1.8, 0.6, new THREE.Vector3(0, 2.4, 0));
+    SFX.shofar && SFX.shofar();
+    const peer = REMOTE_PEERS.get(msg.senderId);
+    if (peer) toast(`${peer.name.toUpperCase()} CALLS ON THE SPIRIT OF THE LORD!`, 3200);
+  });
+
+  NET.on('coop_victory', msg => {
+    if (G.phase !== 'play') return;
+    toast('🏆 COVENANT VICTORY — ALL WARRIORS STAND!', 5000);
+    SFX.win && SFX.win();
+    bloomPulse(2.5, 1.5);
+    setTimeout(() => { G.phase = 'win'; show('win', true); }, 2200);
+  });
+
+  NET.on('coop_defeat', msg => {
+    if (G.phase !== 'play') return;
+    toast('⚔ THE HOST HAS FALLEN — THE BATTLE IS LOST!', 5000);
+    SFX.lose && SFX.lose();
+    setTimeout(() => { show('menu', true); show('hud', false); NET.leaveRoom(); clearRemotePeers(); }, 4000);
   });
 
   NET.on('chat', msg => {
@@ -7882,16 +7943,48 @@ function spawnRemotePeer(player) {
   ground(actor);
   W.add(actor.obj);
 
+  // ── Floating name tag sprite ──────────────────────────────
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 64;
+  const ctx2d = canvas.getContext('2d');
+  ctx2d.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx2d.roundRect(4, 4, 248, 56, 10);
+  ctx2d.fill();
+  ctx2d.font = 'bold 26px serif';
+  ctx2d.fillStyle = '#ffd36a';
+  ctx2d.textAlign = 'center';
+  ctx2d.fillText(player.name.toUpperCase(), 128, 36);
+  ctx2d.font = '18px serif';
+  ctx2d.fillStyle = '#c8b98a';
+  ctx2d.fillText(heroKey.toUpperCase(), 128, 56);
+  const tex = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(2.6, 0.65, 1);
+  actor.obj.add(sprite);
+  sprite.position.set(0, 2.6, 0);
+
+  // ── Team colour rim light ─────────────────────────────────
+  const peerColors = [0x4fc3f7, 0x81c784, 0xba68c8, 0xff8a65];
+  const peerIdx = REMOTE_PEERS.size % 4;
+  const rimLight = new THREE.PointLight(peerColors[peerIdx], 1.4, 4.5);
+  rimLight.position.set(0, 1.4, 0);
+  actor.obj.add(rimLight);
+
   REMOTE_PEERS.set(player.id, {
     id: player.id,
     name: player.name,
     hero: heroKey,
     actor,
+    sprite,
+    rimLight,
     targetPos: actor.pos.clone(),
     targetYaw: actor.yaw,
     targetAnim: 'Idle_Loop',
     hp: 100,
-    maxHp: 100
+    maxHp: 100,
+    dead: false,
+    deathT: 0
   });
 }
 
@@ -7899,6 +7992,8 @@ function removeRemotePeer(id) {
   const p = REMOTE_PEERS.get(id);
   if (p) {
     if (p.actor) {
+      if (p.sprite) p.actor.obj.remove(p.sprite);
+      if (p.rimLight) p.actor.obj.remove(p.rimLight);
       p.actor.remove();
       W.remove(p.actor.obj);
     }
@@ -7917,9 +8012,27 @@ function clearRemotePeers() {
 }
 
 function updateMultiplayer(dt) {
-  // Lerp and update remote actors
   for (const [id, peer] of REMOTE_PEERS) {
     if (!peer.actor) continue;
+
+    // ── Dead peer: show ghost tint and resurrection countdown ──
+    if (peer.dead) {
+      peer.deathT = (peer.deathT || 0) + dt;
+      peer.actor.obj.traverse(c => { if (c.material) { c.material.opacity = 0.35; c.material.transparent = true; } });
+      if (peer.sprite) peer.sprite.material.opacity = 0.4;
+      // Auto-resurrect after 8 seconds
+      if (peer.deathT > 8.0) {
+        peer.dead = false;
+        peer.deathT = 0;
+        peer.hp = 50;
+        peer.actor.obj.traverse(c => { if (c.material) { c.material.opacity = 1.0; c.material.transparent = false; } });
+        if (peer.sprite) peer.sprite.material.opacity = 1.0;
+        toast(`${peer.name.toUpperCase()} RETURNS FROM THE FALLEN!`, 3000);
+        SFX.shofar && SFX.shofar();
+      }
+      continue;
+    }
+
     peer.actor.pos.lerp(peer.targetPos, 0.28);
     peer.actor.yaw = turnTo(peer.actor.yaw, peer.targetYaw, dt * 12);
     if (peer.targetAnim && peer.actor.curAnim !== peer.targetAnim) {
@@ -7927,15 +8040,39 @@ function updateMultiplayer(dt) {
     }
     peer.actor.update(dt);
     ground(peer.actor);
+
+    // ── Keep name tag facing camera ───────────────────────────
+    if (peer.sprite && camera) {
+      peer.sprite.quaternion.copy(camera.quaternion);
+    }
+
+    // ── Rim light pulse on damage ─────────────────────────────
+    if (peer.rimLight) {
+      const hpRatio = peer.hp / (peer.maxHp || 100);
+      peer.rimLight.intensity = 0.8 + Math.sin(performance.now() * 0.003) * 0.3;
+      if (hpRatio < 0.3) peer.rimLight.color.setHex(0xff3300);
+    }
   }
 
-  // Send local player state throttled
+  // ── Send local player state at 25 Hz ─────────────────────
   if (P && G.phase === 'play') {
     const curAnim = P.curAnim || (P.state === 'attack' ? 'Sword_Attack' : P.state === 'dodge' ? 'Dodge' : 'Idle_Loop');
     NET.sendState(P.pos, P.yaw, curAnim, P.hp);
   }
 
-  // Update multiplayer HUD roster
+  // ── HOST: broadcast enemy state at 10 Hz for co-op sync ──
+  if (NET.isHost && NET.isCoop && G.phase === 'play') {
+    const now = performance.now();
+    if (!NET._lastEnemySync || now - NET._lastEnemySync > 100) {
+      NET._lastEnemySync = now;
+      const snap = G.enemies
+        .filter(e => e.alive)
+        .slice(0, 32)
+        .map((e, i) => ({ i, hp: Math.round(e.hp), px: +e.pos.x.toFixed(1), pz: +e.pos.z.toFixed(1), alive: e.alive }));
+      if (snap.length) NET.sendSyncEnemies(snap);
+    }
+  }
+
   updateMultiplayerHud();
 }
 
@@ -7971,6 +8108,22 @@ function handleMultiplayerMelee(strong) {
   const st = STATS();
   const dir = new THREE.Vector3(Math.sin(P.yaw), 0, Math.cos(P.yaw)).normalize();
   NET.sendAttack('staff', dir);
+
+  // ── Co-op: broadcast enemy hits so allies see the same damage ──
+  if (NET.isCoop) {
+    for (let i = 0; i < G.enemies.length; i++) {
+      const e = G.enemies[i];
+      if (!e || !e.alive) continue;
+      const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d <= 2.8 && Math.abs(angDiff(P.yaw, Math.atan2(dx, dz))) <= 1.4) {
+        const dmg = st.staff * (strong ? 1.5 : 1) * (0.9 + Math.random() * 0.2);
+        const hitDir = new THREE.Vector3(dx, 0, dz).normalize();
+        NET.sendHitEnemy(i, Math.round(dmg), hitDir);
+        break; // one hit per swing in co-op
+      }
+    }
+  }
 
   // In PvP, test hit against rival players
   if (NET.isPvP) {
@@ -8052,8 +8205,31 @@ function startMultiplayerMatch(room) {
     startLevel();
     toast('BROTHERS IN ARMS: FIGHT SIDE-BY-SIDE!', 4200);
     SFX.horn();
+
+    // ── Host watches for game-over and broadcasts to room ────
+    if (NET.isHost) {
+      NET._coopWatcher = setInterval(() => {
+        if (!NET.isCoop || !NET.isMultiplayer) { clearInterval(NET._coopWatcher); return; }
+        if (G.phase === 'win') {
+          NET.send({ type: 'coop_victory' });
+          clearInterval(NET._coopWatcher);
+        } else if (G.phase === 'dead' || (P && P.hp <= 0 && G.phase === 'play')) {
+          NET.send({ type: 'coop_defeat' });
+          clearInterval(NET._coopWatcher);
+        }
+      }, 500);
+    }
   }
 }
+
+// ── Co-op quick chat shortcut ────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.code === 'KeyT' && NET.isMultiplayer && G.phase === 'play') {
+    e.preventDefault();
+    const msg = prompt('Send to allies (or cancel):');
+    if (msg && msg.trim()) NET.sendChat(msg.trim());
+  }
+});
 
 // Initialize UI when document is ready
 setTimeout(initMultiplayerUI, 300);
