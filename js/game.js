@@ -991,6 +991,26 @@ function updateWorld(dt) {
   updateFires(t);
   if (LEHI_HORDE) updateLehi(dt);
   if (ADULLAM) updateAdullam(dt);
+  // Pillar 3: Dynamic Skirmish & Vanguard Patrol AI
+  if (WORLD === 'elah' && G.phase === 'play' && G.stage !== 'escape' && !G.boss) {
+    if (!window._skirmishT) window._skirmishT = 0;
+    window._skirmishT += dt;
+    // Every 8-12 seconds, check if active enemies are low; dispatch a skirmish flanking scout
+    if (window._skirmishT > 10) {
+      window._skirmishT = 0;
+      const aliveEnemies = G.enemies.filter(e => e.alive);
+      if (aliveEnemies.length > 0 && aliveEnemies.length <= 2 && P) {
+        // Flank from left or right ridge
+        const side = Math.random() < 0.5 ? -1 : 1;
+        const scout = spawnEnemy('phil', side * (ARENA.x1 - 3), ARENA.z0 + 2, 0.4);
+        if (scout) {
+          scout.speed *= 1.15;
+          dmgText(scout.pos.clone().setY(scout.pos.y + 2), 'VANGUARD PATROL', 'crit');
+          SFX.horn && SFX.horn();
+        }
+      }
+    }
+  }
   if (DAN) updateDan(dt);
   if (SNOW) updateSnow(dt);
   if (KISHON && KISHON.rain && KISHON.rain.visible) updatePrecip(KISHON.rain, dt);
