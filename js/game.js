@@ -3967,6 +3967,26 @@ function winGame() {
   if (LEVEL === 1 && WILD) { const cv = WILD.cave; P.state = 'cine'; G.cine = { pos: new THREE.Vector3(cv.x + 2.5, cv.y + 2.2, cv.z + 9), look: new THREE.Vector3(cv.x, cv.y + 1.6, cv.z) }; }
   setTimeout(() => { show('win'); $('hud').classList.add('hidden'); $('touch').classList.add('hidden'); $('toast').classList.remove('on'); toastT = 0; }, 600);
   if (BOT && Q.has('chain') && NX) setTimeout(() => $('btn-next').click(), 3500);
+
+  // ── Submit score to Hall of Valor leaderboard ─────────────
+  submitScore();
+}
+
+function submitScore() {
+  try {
+    const name = (localStorage.getItem('elah_mp_name') || localStorage.getItem('elah-player-name') || 'Anonymous').slice(0, 20);
+    const hero = ($('who-name') && $('who-name').textContent) || 'DAVID';
+    const payload = { name, hero: hero.toLowerCase(), level: LEVEL, kills: G.kills, time: Math.round(now() - G.t0) };
+    fetch('/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      .then(r => r.json())
+      .then(d => {
+        if (d.rank && d.rank <= 10) {
+          setTimeout(() => toast(`🏆 YOU RANKED #${d.rank} IN THE HALL OF VALOR!`, 5000), 1200);
+          if (d.rank === 1) { bloomPulse && bloomPulse(2.0, 1.0); SFX.shofar && SFX.shofar(); }
+        }
+      })
+      .catch(() => {}); // silent fail — leaderboard is optional
+  } catch (e) {}
 }
 function resetRun(full) {
   clearDead(); if (G.boss) { G.boss.remove(); scene.remove(G.boss.marker); G.boss = null; } $('boss-wrap').classList.add('hidden'); FX.ring.visible = FX.ringFill.visible = false;
@@ -5890,11 +5910,128 @@ async function boot() {
   requestAnimationFrame(frame);
   if (BOT) setTimeout(() => $('btn-start').click(), 600);
 }
+// ============================================================
+// CINEMATIC SCRIPTURE INTRO
+// ============================================================
+
+const CINEMA_PANELS = [
+  {
+    location: 'THE VALLEY OF ELAH · 1004 BC',
+    verse: '"And there went out a champion out of the camp of the Philistines, named Goliath of Gath, whose height was six cubits and a span."',
+    ref: '1 Samuel 17:4 (KJV)',
+    duration: 3800
+  },
+  {
+    location: '',
+    verse: '"And David said to Saul, Let no man's heart fail because of him; thy servant will go and fight with this Philistine."',
+    ref: '1 Samuel 17:32 (KJV)',
+    duration: 3800
+  },
+  {
+    location: '',
+    verse: '"Then said David to the Philistine, Thou comest to me with a sword… but I come to thee in the name of the LORD of hosts…"',
+    ref: '1 Samuel 17:45 (KJV)',
+    duration: 3800
+  }
+];
+
+let _cinemaSkipped = false;
+
+async function cinemaIntro() {
+  if (SAVE.done && SAVE.done[1] && !Q.has('intro')) return; // only on first play
+  _cinemaSkipped = false;
+
+  // Build overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'cinema-overlay';
+  overlay.className = 'cinema-overlay';
+  overlay.innerHTML = `
+    <div class="cinema-bars-top"></div>
+    <div class="cinema-bars-bot"></div>
+    <div id="cinema-panel" class="cinema-panel"></div>
+    <div class="cinema-skip">PRESS ANY KEY TO SKIP</div>
+  `;
+  document.body.appendChild(overlay);
+
+  const skipHandler = () => { _cinemaSkipped = true; };
+  document.addEventListener('keydown', skipHandler, { once: false });
+  overlay.addEventListener('pointerdown', skipHandler, { once: false });
+
+  // Animate camera sweep across Valley of Elah
+  G.cine = {
+    pos: new THREE.Vector3(-18, 4.5, 8),
+    look: new THREE.Vector3(0, 1.0, 0)
+  };
+
+  const panel = document.getElementById('cinema-panel');
+
+  for (let i = 0; i < CINEMA_PANELS.length; i++) {
+    if (_cinemaSkipped) break;
+    const cp = CINEMA_PANELS[i];
+
+    // Slowly sweep camera
+    const camTargets = [
+      { pos: new THREE.Vector3(-18, 4.5, 8),  look: new THREE.Vector3(0, 1.0, 0) },
+      { pos: new THREE.Vector3(0,   5.0, 20), look: new THREE.Vector3(0, 0.8, 0) },
+      { pos: new THREE.Vector3(14,  3.8, 10), look: new THREE.Vector3(0, 1.0, 0) }
+    ];
+    const ct = camTargets[i % camTargets.length];
+    if (G.cine) {
+      G.cine.pos.lerp(ct.pos, 0.05);
+      G.cine.look.lerp(ct.look, 0.05);
+    }
+
+    // Fade in panel
+    panel.innerHTML = `
+      ${cp.location ? `<div class="cinema-location">${cp.location}</div>` : ''}
+      <blockquote class="cinema-verse">${cp.verse}</blockquote>
+      <cite class="cinema-ref">${cp.ref}</cite>
+    `;
+    panel.classList.remove('cinema-panel-visible');
+    await sleep(80);
+    panel.classList.add('cinema-panel-visible');
+
+    // Hold for duration
+    const t0 = performance.now();
+    while (performance.now() - t0 < cp.duration && !_cinemaSkipped) {
+      await sleep(60);
+      // Animate camera
+      if (G.cine) {
+        G.cine.pos.lerp(ct.pos, 0.012);
+        G.cine.look.lerp(ct.look, 0.012);
+      }
+    }
+
+    if (_cinemaSkipped) break;
+
+    // Fade out panel
+    panel.classList.remove('cinema-panel-visible');
+    await sleep(500);
+  }
+
+  // Final fade to black then gameplay
+  overlay.style.transition = 'opacity 0.9s ease';
+  overlay.style.opacity = '1';
+
+  // Flash of divine light
+  bloomPulse && bloomPulse(2.0, 0.6);
+  await sleep(300);
+
+  overlay.style.opacity = '0';
+  await sleep(900);
+
+  // Cleanup
+  document.removeEventListener('keydown', skipHandler);
+  overlay.removeEventListener('pointerdown', skipHandler);
+  G.cine = null;
+  document.body.removeChild(overlay);
+}
+
 function startLevel() {
   show('title', false); show('win', false); $('hud').classList.remove('hidden'); if (isTouch || BOT) $('touch').classList.remove('hidden');
   SAVE.level = LEVEL; writeSave(); G.cine = null;
   resetRun(true); MOSES.play('Idle_Loop'); MOSES.obj.visible = true; LOG('level_start', { level: LEVEL });
-  if (LEVEL === 2 && Q.get('dev') === 'temple') { resetRun(false); finale(true); } else if (LEVEL === 3 && Q.get('dev') === 'king') { G.t0 = now(); kingFight(); } else if (LEVEL === 3 && Q.get('dev') === 'end') { G.t0 = now(); endingL3(); } else if (LEVEL === 3) flow3(); else if (LEVEL === 4 && Q.get('dev') === 'pit') { G.t0 = now(); pitFight(); } else if (LEVEL === 4 && Q.get('dev') === 'egypt') { G.t0 = now(); egyptFight(); } else if (LEVEL === 4) flow4(); else if (LEVEL === 5 && Q.get('dev') === 'chariots') { G.t0 = now(); chariotSeq(); } else if (LEVEL === 5 && Q.get('dev') === 'river') { G.t0 = now(); riverSeq(); } else if (LEVEL === 5 && Q.get('dev') === 'pursue') { G.t0 = now(); pursueSisera(); } else if (LEVEL === 5) flow5(); else if (LEVEL === 6 && Q.get('dev') === 'barley') { G.t0 = now(); barleySeq(); } else if (LEVEL === 6 && Q.get('dev') === 'lentil') { G.t0 = now(); lentilSeq(); } else if (LEVEL === 6 && Q.get('dev') === 'well') { G.t0 = now(); wellSeq(); } else if (LEVEL === 6) flow6(); else if (LEVEL === 7) flow7(); else if (LEVEL === 11) flow11(); else if (LEVEL === 12) flow12(); else if (LEVEL === 10) flow10(); else if (LEVEL === 9) flow9(); else if (LEVEL === 8) flow8(); else if (LEVEL === 2) flow2(); else if (Q.get('dev') === 'escape') { G.t0 = now(); runEscape(false); } else if (Q.get('dev') === 'jub') { G.t0 = now(); afterGoliath(); } else flow();
+  if (LEVEL === 2 && Q.get('dev') === 'temple') { resetRun(false); finale(true); } else if (LEVEL === 3 && Q.get('dev') === 'king') { G.t0 = now(); kingFight(); } else if (LEVEL === 3 && Q.get('dev') === 'end') { G.t0 = now(); endingL3(); } else if (LEVEL === 3) flow3(); else if (LEVEL === 4 && Q.get('dev') === 'pit') { G.t0 = now(); pitFight(); } else if (LEVEL === 4 && Q.get('dev') === 'egypt') { G.t0 = now(); egyptFight(); } else if (LEVEL === 4) flow4(); else if (LEVEL === 5 && Q.get('dev') === 'chariots') { G.t0 = now(); chariotSeq(); } else if (LEVEL === 5 && Q.get('dev') === 'river') { G.t0 = now(); riverSeq(); } else if (LEVEL === 5 && Q.get('dev') === 'pursue') { G.t0 = now(); pursueSisera(); } else if (LEVEL === 5) flow5(); else if (LEVEL === 6 && Q.get('dev') === 'barley') { G.t0 = now(); barleySeq(); } else if (LEVEL === 6 && Q.get('dev') === 'lentil') { G.t0 = now(); lentilSeq(); } else if (LEVEL === 6 && Q.get('dev') === 'well') { G.t0 = now(); wellSeq(); } else if (LEVEL === 6) flow6(); else if (LEVEL === 7) flow7(); else if (LEVEL === 11) flow11(); else if (LEVEL === 12) flow12(); else if (LEVEL === 10) flow10(); else if (LEVEL === 9) flow9(); else if (LEVEL === 8) flow8(); else if (LEVEL === 2) flow2(); else if (Q.get('dev') === 'escape') { G.t0 = now(); runEscape(false); } else if (Q.get('dev') === 'jub') { G.t0 = now(); afterGoliath(); } else { cinemaIntro().then(() => flow()); }
 }
 $('btn-start').onclick = async () => {
   audioInit();
@@ -8233,6 +8370,98 @@ document.addEventListener('keydown', e => {
 
 // Initialize UI when document is ready
 setTimeout(initMultiplayerUI, 300);
+
+// ── Hall of Valor Leaderboard ────────────────────────────────
+let lbCurrentTab = 'kills';
+
+function openLeaderboard() {
+  const modal = $('lb-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  fetchLeaderboard();
+}
+
+function fetchLeaderboard() {
+  const listEl = $('lb-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="text-align:center;color:#6a5a40;padding:40px;">Loading the chronicles…</div>';
+  fetch('/api/leaderboard')
+    .then(r => r.json())
+    .then(scores => renderLeaderboard(scores))
+    .catch(() => {
+      listEl.innerHTML = '<div style="text-align:center;color:#6a5a40;padding:40px;">Chronicles unavailable — the server must be running locally.</div>';
+    });
+}
+
+function renderLeaderboard(scores) {
+  const listEl = $('lb-list');
+  if (!listEl) return;
+  if (!scores || scores.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;color:#6a5a40;padding:40px;">No warriors recorded yet. Be the first!</div>';
+    return;
+  }
+  const sorted = lbCurrentTab === 'speed'
+    ? [...scores].filter(s => s.time > 0).sort((a, b) => a.time - b.time)
+    : [...scores].sort((a, b) => b.kills - a.kills);
+
+  const HERO_EMOJI = { david:'👑', samson:'💪', benaiah:'🦁', joshua:'⚔️', gideon:'🔥', elijah:'⚡', hezekiah:'🛡️', jonah:'🐋', barak:'⛈️' };
+  const LEVEL_NAMES = { 1:'Valley of Elah', 2:'Lehi', 3:'Hobah', 4:'The Pit', 5:'Kishon', 6:'Adullam', 7:'Jericho', 8:'Midian', 9:'Den of Lions', 10:'Carmel', 11:'Jerusalem', 12:'The Deep' };
+
+  listEl.innerHTML = sorted.slice(0, 20).map((s, i) => {
+    const em = HERO_EMOJI[s.hero] || '⚔️';
+    const rank = i + 1;
+    const rankStyle = rank === 1 ? 'color:#ffd36a;font-size:16px;' : rank === 2 ? 'color:#c0c0c0;' : rank === 3 ? 'color:#cd7f32;' : 'color:#6a5a40;';
+    const stat = lbCurrentTab === 'speed'
+      ? `${Math.floor(s.time/60)}:${String(s.time%60).padStart(2,'0')}`
+      : `${s.kills.toLocaleString()} kills`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid rgba(255,255,255,0.05);${rank===1?'background:rgba(255,211,106,0.07);border-radius:7px;':''}">
+      <span style="width:28px;text-align:center;font-weight:bold;${rankStyle}">${rank <= 3 ? ['🥇','🥈','🥉'][rank-1] : rank}</span>
+      <span style="font-size:18px;">${em}</span>
+      <span style="flex:1;font-size:13px;color:#f3e2c0;font-weight:bold;">${s.name}</span>
+      <span style="font-size:11px;color:#8a7050;">${LEVEL_NAMES[s.level] || 'Level '+s.level}</span>
+      <span style="font-size:12px;color:#ffd36a;font-weight:bold;">${stat}</span>
+    </div>`;
+  }).join('');
+}
+
+setTimeout(() => {
+  const btnLb = $('btn-leaderboard');
+  const lbModal = $('lb-modal');
+  const lbClose = $('lb-close');
+  const lbTabs = document.querySelectorAll('.lb-tab');
+
+  if (btnLb) {
+    btnLb.onclick = () => {
+      audioInit();
+      show('menu', false);
+      openLeaderboard();
+    };
+  }
+  if (lbClose) {
+    lbClose.onclick = () => {
+      lbModal.classList.add('hidden');
+      show('menu', true);
+    };
+  }
+  if (lbTabs) {
+    lbTabs.forEach(tab => {
+      tab.onclick = () => {
+        lbTabs.forEach(t => {
+          t.classList.remove('active');
+          t.style.background = 'rgba(255,255,255,0.03)';
+          t.style.borderColor = 'rgba(255,255,255,0.1)';
+          t.style.color = '#a09070';
+        });
+        tab.classList.add('active');
+        tab.style.background = 'rgba(255,211,106,0.12)';
+        tab.style.borderColor = 'rgba(220,170,80,0.35)';
+        tab.style.color = '#ffd36a';
+        lbCurrentTab = tab.dataset.tab;
+        fetchLeaderboard();
+      };
+    });
+  }
+}, 320);
 
 
 

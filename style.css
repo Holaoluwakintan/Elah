@@ -579,3 +579,78 @@ body.post:not(.vision):not(.dark) #vignette{background:none}
 .lo-info span { font-size: 0.82rem; color: #ffd700; margin-top: 1px; }
 .lo-info small { font-size: 0.72rem; color: #718096; margin-top: 2px; }
 .lo-card.claimed .lo-info small { color: #48bb78; font-weight: 600; }
+
+/* ── Cinematic Scripture Intro ───────────────────────────── */
+.cinema-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  pointer-events: all;
+}
+.cinema-bars-top,
+.cinema-bars-bot {
+  position: absolute;
+  left: 0; right: 0;
+  height: 13vh;
+  background: #000;
+  z-index: 2001;
+}
+.cinema-bars-top { top: 0; }
+.cinema-bars-bot { bottom: 0; }
+
+.cinema-panel {
+  position: relative;
+  z-index: 2002;
+  max-width: 680px;
+  padding: 0 32px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.75s ease, transform 0.75s ease;
+}
+.cinema-panel.cinema-panel-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.cinema-location {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: #806040;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+.cinema-verse {
+  font-size: clamp(14px, 2.2vw, 20px);
+  font-style: italic;
+  color: #f3e2c0;
+  line-height: 1.65;
+  margin: 0 0 16px;
+  text-shadow: 0 2px 18px rgba(0,0,0,0.9);
+  font-family: 'Georgia', serif;
+}
+.cinema-ref {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: #ffd36a;
+  font-style: normal;
+}
+.cinema-skip {
+  position: absolute;
+  bottom: 16vh;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.3);
+  z-index: 2003;
+  animation: cinema-blink 2.4s infinite;
+}
+@keyframes cinema-blink {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.7; }
+}

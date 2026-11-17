@@ -346,6 +346,54 @@ function handleMessage(socket, msg) {
   }
 }
 
+// ------------------------------------------------------------------ Leaderboard API
+const SCORES_FILE = path.join(root, 'scores.json');
+
+function readScores() {
+  try { return JSON.parse(fs.readFileSync(SCORES_FILE, 'utf8')); } catch { return []; }
+}
+function writeScores(arr) {
+  fs.writeFileSync(SCORES_FILE, JSON.stringify(arr.slice(0, 100), null, 2), 'utf8');
+}
+
+server.on('request', (req, res) => {
+  if (req.method === 'GET' && req.url === '/api/leaderboard') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify(readScores()));
+    return;
+  }
+  if (req.method === 'POST' && req.url === '/api/score') {
+    let body = '';
+    req.on('data', d => body += d);
+    req.on('end', () => {
+      try {
+        const entry = JSON.parse(body);
+        if (!entry.name || typeof entry.kills !== 'number') {
+          res.writeHead(400); res.end('Bad payload'); return;
+        }
+        const scores = readScores();
+        scores.push({
+          name:  String(entry.name).slice(0, 20),
+          hero:  String(entry.hero  || 'david').slice(0, 16),
+          level: Number(entry.level || 1),
+          kills: Math.round(entry.kills),
+          time:  Math.round(entry.time  || 0),
+          date:  new Date().toISOString().slice(0, 10)
+        });
+        scores.sort((a, b) => b.kills - a.kills);
+        writeScores(scores);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ rank: scores.findIndex(s => s.name === entry.name && s.kills === entry.kills) + 1 }));
+      } catch { res.writeHead(400); res.end('Parse error'); }
+    });
+    return;
+  }
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST', 'Access-Control-Allow-Headers': 'Content-Type' });
+    res.end(); return;
+  }
+});
+
 server.listen(port, () => {
   console.log(`Server listening on http://localhost:${port}`);
   console.log(`WebSocket multiplayer ready on ws://localhost:${port}`);
