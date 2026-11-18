@@ -2444,6 +2444,7 @@ function comboHit() {
   if (G.combo % 5 === 0) { G.hitstop = Math.max(G.hitstop, 0.06); G.flashV = 0.08; el.classList.add('gold'); setTimeout(() => el.classList.remove('gold'), 500); }
 }
 function hitstop(t, dir = null) {
+  haptic && haptic('hit');
   G.hitstop = Math.max(G.hitstop, t);
   if (t >= 0.06) {
     G.kick = Math.max(G.kick || 0, Math.min(1.4, t * 8.5));
@@ -2471,6 +2472,7 @@ function show(id, on = true) { $(id).classList.toggle('show', on); }
 
 // ------------------------------------------------------------------ player
 function damagePlayer(dmg, from) {
+  haptic && haptic('damage');
   if (P.state === 'dead' || G.phase !== 'play') return;
   if (P.state === 'dodge' && P.st < 0.5) { dmgText(P.headPos(tmpV), 'DODGED', 'heal'); return; }
   if (P.bound || P.state === 'spirit' || (G.fin && G.fin.collapsing)) return;
@@ -2644,6 +2646,7 @@ function updatePlayer(dt) {
   for (const a of ALLIES) { if (a.rallyBuff > 0) a.rallyBuff -= dt; }
 }
 function startDodge(iv) {
+  haptic && haptic('dodge');
   const p = P; p.state = 'dodge'; p.st = 0; const ts = 1.55; p.atkDur = p.dur('Roll') / ts;
   if (iv.m > 0) { p.dodgeDir = new THREE.Vector3(iv.x, 0, iv.z).normalize(); p.yaw = Math.atan2(iv.x, iv.z); } else p.dodgeDir = new THREE.Vector3(-Math.sin(p.yaw), 0, -Math.cos(p.yaw));
   if (iv.m === 0) p.yaw += Math.PI;
@@ -3126,7 +3129,15 @@ function updateSpoils(dt) {
 function spawnGoliath() {
   const b = new Actor('goliath', 2.25); b.isBoss = true; b.radius = 1.0;
   b.pos.set(0, 0, -27); ground(b); b.yaw = 0; b.maxHp = b.hp = 360; b.state = 'intro'; b.st = 0; b.chargeCd = 3; b.atkCd = 1.5;
+  // Phase 2 flags
+  b.phase2 = false; b.stoneCaught = false; b.stoneThrowCd = 0; b.berserking = false;
   b.play('Walk_Loop', { ts: 0.7 }); G.boss = b;
+
+  // ── Rage aura point light (hidden until phase 2) ──────────
+  b.rageLight = new THREE.PointLight(0xff2200, 0, 7);
+  b.rageLight.position.set(0, 2.0, 0);
+  b.obj.add(b.rageLight);
+
   // head marker (shows when the head is open)
   b.marker = new THREE.Sprite(new THREE.SpriteMaterial({ map: FX.flashTex, color: 0xffd060, transparent: true, depthTest: false, blending: THREE.AdditiveBlending }));
   b.marker.scale.setScalar(1.3); b.marker.renderOrder = 30; b.marker.visible = false; scene.add(b.marker);
@@ -3174,6 +3185,26 @@ function hurtBoss(b, dmg, dir, src) {
 function bossHeadHit(b, s) {
   if (LEVEL === 3 || LEVEL === 4) return hurtBoss(b, s.dmg * (LEVEL === 4 ? 0.45 : 1.4), s.v.clone().setY(0).normalize(), 'sling');
   const p = b.headPos(new THREE.Vector3()); const open = bossWindow(b);
+
+  // ── Phase 2: Goliath CATCHES the stone! ────────────────
+  if (LEVEL === 1 && b.phase2 && !b.stoneCaught) {
+    b.stoneCaught = true;
+    b.stoneThrowCd = 2.2;
+    SFX.clang && SFX.clang();
+    flashAt(p, 3.5, 0.4, 0xff4400);
+    shake(0.5); hitstop(0.1);
+    bloomPulse(1.2, 0.5);
+    dmgText(p.clone().setY(p.y + 0.8), 'CAUGHT!', 'crit');
+    b.state = 'stalk'; b.st = 0;
+    setTimeout(() => {
+      toast('"Is thy God a God of hills only? I shall return thy stone!"<i>Goliath — Phase 2</i>', 4000);
+      prompt('HE HOLDS THE STONE — DODGE OR STRIKE WITH YOUR STAFF!');
+    }, 400);
+    b.play('Idle_Talking_Loop', { ts: 0.5, fade: 0.2 });
+    LOG('boss_phase2_catch');
+    return;
+  }
+
   if (!open) { SFX.clang(); flashAt(p, 1.4, 0.2, 0xffe6a0); b.hp = Math.max(30, b.hp - 6); dmgText(p, 'CLANG', ''); toast('“…an helmet of brass upon his head…” Wait until he stumbles!<i>1 SAMUEL 17:5</i>', 2600); LOG('boss_head_blocked'); return; }
   const dmg = 60 + 15 * G.up.sling; b.hp -= dmg; b.flash = 1; LOG('boss_head', { dmg, hp: Math.round(b.hp) });
   SFX.hit(); SFX.clang(); blood(p, s.v.clone().setY(0).normalize(), 22, 1.3); flashAt(p, 2.2, 0.25); dmgText(p, Math.round(dmg) + '!', 'crit'); hitstop(0.12); shake(0.5);
@@ -3249,6 +3280,14 @@ function killBoss(b) {
     return;
   }
   b.play('Hit_Head', { loop: false, ts: 0.5, restart: true, fade: 0.08 }); b.faceDown = true; b.landed = false;
+  // Phase 2 finale — extra divine light burst on the killing stone
+  if (b.phase2) {
+    const head = b.headPos(new THREE.Vector3());
+    flashAt(head, 8.0, 0.8, 0xffffff);
+    bloomPulse(3.0, 2.0);
+    godRayPulse && godRayPulse(0.6);
+    setTimeout(() => toast('"David prevailed over the Philistine with a sling and with a stone… and THE BATTLE IS THE LORD'S"<br><i>1 SAMUEL 17:50, 47</i>', 6000), 800);
+  }
   cinematicGoliathDefeat(b);
 }
 function updateBoss(b, dt) {
@@ -3296,6 +3335,43 @@ function updateBoss(b, dt) {
   }
   if (b.state !== 'charge' && b.state !== 'intro') { clampArena(b.pos, 1); if (b.alive) collide(b.pos, 0.9); }
   if (b.alive && !b.summoned && b.hp < b.maxHp * 0.5 && b.state !== 'intro') { b.summoned = true; if (LEVEL === 3) { spawnEnemy('phil', -26, -14, 0); spawnEnemy('phil', 26, -12, 0.8); spawnEnemy('archer', 0, -27, 1.4); SFX.horn(); toast('<b>The king’s guard rushes to his side!</b> Your servants meet them.', 2600); } else { spawnEnemy('phil', -34, -6, 0); spawnEnemy('phil', 34, -4, 0.8); SFX.horn(); toast('<b>The Philistines rush to aid their champion!</b>', 2600); } LOG('boss_summon'); }
+
+  // ── Phase 2: Trigger at 35% HP (Level 1 Goliath only) ───
+  if (LEVEL === 1 && b.alive && !b.phase2 && b.hp < b.maxHp * 0.35 && b.state !== 'intro') {
+    b.phase2 = true; b.stoneCaught = false; b.berserking = true;
+    if (b.rageLight) b.rageLight.intensity = 2.8;
+    b.obj.traverse(c => { if (c.material && c.material.color) { c.material.emissive = new THREE.Color(0.4, 0.0, 0.0); c.material.emissiveIntensity = 0.6; } });
+    b.chargeCd = Math.min(b.chargeCd, 1.0); b.atkCd = Math.min(b.atkCd, 0.5); b.winK = 0.65;
+    shake(1.4); bloomPulse(2.2, 1.2); godRayPulse && godRayPulse(0.3);
+    if (gradePass && gradePass.uniforms.uChroma) gradePass.uniforms.uChroma.value = 1.2;
+    SFX.roar && SFX.roar(); SFX.shatter && SFX.shatter();
+    flashAt(b.pos.clone().setY(b.pos.y + 2), 6.0, 0.6, 0xff2200);
+    setTimeout(() => { toast('"Thou art but a youth! Come to me, and I will give thy flesh unto the fowls of the air AND the beasts of the field!"<br><i>Goliath PHASE 2 — ENRAGED</i>', 4500); prompt('GOLIATH IS ENRAGED — DODGE HIS THROWS!'); }, 500);
+    LOG('boss_phase2_start');
+  }
+
+  // ── Phase 2: Rage aura + stone throw countdown ───────────
+  if (LEVEL === 1 && b.phase2 && b.alive) {
+    if (b.rageLight) b.rageLight.intensity = 2.0 + Math.sin(now() * 8) * 1.2;
+    if (b.stoneCaught && b.stoneThrowCd > 0) {
+      b.stoneThrowCd -= dt;
+      if (b.stoneThrowCd <= 0) {
+        b.stoneCaught = false;
+        const throwDir = P.pos.clone().sub(b.pos).setY(0).normalize(); throwDir.y = 0.15;
+        const throwPos = b.pos.clone().setY(b.pos.y + 2.2);
+        const st = stones && stones.find(s => s.life <= 0);
+        if (st) { st.pos.copy(throwPos); st.v.copy(throwDir).multiplyScalar(28); st.life = 2.0; st.dmg = 45; st.m.visible = true; }
+        else if (P.pos.distanceTo(b.pos) < 18) { damagePlayer(45, b.pos); }
+        SFX.sling && SFX.sling(); SFX.roar && SFX.roar();
+        flashAt(throwPos, 2.5, 0.3, 0xff6600);
+        dmgText(throwPos.clone().setY(throwPos.y + 0.5), 'HURLED!', 'crit');
+        prompt('INCOMING — DODGE!');
+        b.stoneThrowCd = 4.5 + Math.random() * 2.0;
+        LOG('boss_stone_throw');
+      }
+    }
+  }
+
   if (b.state === 'dead' && b.faceDown && LEVEL !== 3) { const k = Math.min(1, b.st / 1.05); b.root.rotation.x = (k * k) * (Math.PI / 2 - 0.08); if (k >= 1 && !b.landed) { b.landed = true; SFX.slam(); shake(0.9); for (let i = 0; i < 6; i++) puff(b.pos.clone().add(new THREE.Vector3(Math.sin(b.yaw) * (1.5 + i * 0.6), 0.3, Math.cos(b.yaw) * (1.5 + i * 0.6))), 2.5, 1.6); } }
   ground(b); b.update(dt);
   const open = b.alive && bossWindow(b); b.marker.visible = open; if (open) { b.headPos(b.marker.position); b.marker.material.opacity = 0.55 + 0.45 * Math.sin(now() * 10); }
@@ -3959,6 +4035,7 @@ const WIN_TXT = {
   },
 };
 function winGame() {
+  haptic && haptic('win');
   G.phase = 'won'; $('boss-wrap').classList.add('hidden'); SFX.win(); LOG('win', { level: LEVEL });
   SAVE.done[LEVEL] = true; const NX = NEXT_RUN(LEVEL); if (NX) SAVE.open[ORD(NX).key] = true; SAVE.unlocked = Math.max(SAVE.unlocked, LEVEL + 1); saveProgress();
   const t = Math.round(now() - G.t0), ups = UPG.reduce((s, u) => s + G.up[u.k], 0);
@@ -5549,6 +5626,7 @@ function frame() {
   if (P) {
     updatePlayer(dt);
     if (NET && NET.isMultiplayer) updateMultiplayer(dt);
+  applyGyroAim && applyGyroAim(dt);
     for (const e of G.enemies) if (!e.gone) updateEnemy(e, dt);
     for (const a of ALLIES) updateAlly(a, dt); if (LEVEL === 6) updateL6(dt); if (G.captives.length) updateCaptives(dt); if (MELCH && MELCH.obj.visible) MELCH.update(dt); if (DEB && DEB.obj.visible) DEB.update(dt); if (CH.list.length) updateChariots(dt);
     if (G.boss) updateBoss(G.boss, dt);
@@ -8367,6 +8445,111 @@ document.addEventListener('keydown', e => {
     if (msg && msg.trim()) NET.sendChat(msg.trim());
   }
 });
+
+// ============================================================
+// MOBILE PWA: HAPTICS · GYRO AIM · INSTALL PROMPT
+// ============================================================
+
+// ── Haptic Feedback ──────────────────────────────────────────
+const HX = {
+  hit:    () => navigator.vibrate && navigator.vibrate(18),
+  crit:   () => navigator.vibrate && navigator.vibrate([30, 10, 30]),
+  kill:   () => navigator.vibrate && navigator.vibrate([40, 15, 60]),
+  boss:   () => navigator.vibrate && navigator.vibrate([80, 20, 80, 20, 120]),
+  damage: () => navigator.vibrate && navigator.vibrate(55),
+  dodge:  () => navigator.vibrate && navigator.vibrate(8),
+  win:    () => navigator.vibrate && navigator.vibrate([60, 30, 60, 30, 100, 30, 200]),
+  shofar: () => navigator.vibrate && navigator.vibrate([20, 10, 20, 10, 60]),
+};
+
+// Patch existing SFX calls to also trigger haptics (mobile only)
+const _origHurtEnemy = typeof hurtEnemy === 'function' ? hurtEnemy : null;
+// Hook haptics on key game events via event system
+document.addEventListener('elah:hit',    () => HX.hit());
+document.addEventListener('elah:crit',   () => HX.crit());
+document.addEventListener('elah:kill',   () => HX.kill());
+document.addEventListener('elah:boss',   () => HX.boss());
+document.addEventListener('elah:damage', () => HX.damage());
+document.addEventListener('elah:dodge',  () => HX.dodge());
+document.addEventListener('elah:win',    () => HX.win());
+
+function haptic(type) {
+  if (!isTouch) return;
+  document.dispatchEvent(new Event('elah:' + type));
+}
+
+// ── Gyroscope Camera Aim ─────────────────────────────────────
+let GYRO = { active: false, beta: 0, gamma: 0, baseGamma: null };
+
+function initGyro() {
+  if (!isTouch || !window.DeviceOrientationEvent) return;
+
+  const tryListen = () => {
+    window.addEventListener('deviceorientation', e => {
+      if (!GYRO.active) return;
+      if (GYRO.baseGamma === null) GYRO.baseGamma = e.gamma;
+      GYRO.beta  = e.beta  || 0;
+      GYRO.gamma = e.gamma || 0;
+    }, true);
+    GYRO.active = true;
+    console.log('Gyro aim active');
+  };
+
+  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS 13+ requires explicit permission
+    document.addEventListener('pointerdown', async () => {
+      if (GYRO.active) return;
+      try {
+        const perm = await DeviceOrientationEvent.requestPermission();
+        if (perm === 'granted') tryListen();
+      } catch {}
+    }, { once: true });
+  } else {
+    tryListen();
+  }
+}
+
+function applyGyroAim(dt) {
+  if (!GYRO.active || !P || G.phase !== 'play') return;
+  if (GYRO.baseGamma === null) return;
+  const tilt = (GYRO.gamma - GYRO.baseGamma) * 0.014; // sensitivity
+  CAM.yaw += tilt * dt * 60;
+}
+
+initGyro();
+
+// ── PWA Install Prompt ───────────────────────────────────────
+setTimeout(() => {
+  const installBtn  = document.getElementById('pwa-install-btn');
+  const dismissBtn  = document.getElementById('pwa-dismiss-btn');
+  const pwaBanner   = document.getElementById('pwa-banner');
+
+  if (installBtn) {
+    installBtn.onclick = async () => {
+      if (!window._deferredInstall) return;
+      window._deferredInstall.prompt();
+      const { outcome } = await window._deferredInstall.userChoice;
+      if (outcome === 'accepted') {
+        pwaBanner && pwaBanner.classList.add('hidden');
+        toast('⚔️ ELAH WARRIOR installed! Find it on your home screen.', 4000);
+      }
+      window._deferredInstall = null;
+    };
+  }
+  if (dismissBtn) {
+    dismissBtn.onclick = () => {
+      pwaBanner && pwaBanner.classList.add('hidden');
+      try { localStorage.setItem('elah-pwa-dismissed', '1'); } catch {}
+    };
+  }
+
+  // Auto-dismiss if previously dismissed
+  try {
+    if (localStorage.getItem('elah-pwa-dismissed') === '1' && pwaBanner) {
+      pwaBanner.classList.add('hidden');
+    }
+  } catch {}
+}, 400);
 
 // Initialize UI when document is ready
 setTimeout(initMultiplayerUI, 300);

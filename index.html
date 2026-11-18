@@ -15,10 +15,38 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preload" href="assets/hero2.glb" as="fetch" crossorigin>
 <link rel="stylesheet" href="style.css">
+<script>
+  // Service Worker registration
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+  // PWA install prompt
+  let _deferredInstall = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _deferredInstall = e;
+    const banner = document.getElementById('pwa-banner');
+    if (banner) banner.classList.remove('hidden');
+  });
+  window.addEventListener('appinstalled', () => {
+    const banner = document.getElementById('pwa-banner');
+    if (banner) banner.classList.add('hidden');
+  });
+</script>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}</script>
 </head>
 <body>
 <canvas id="c"></canvas>
+<!-- PWA Install Banner -->
+<div id="pwa-banner" class="pwa-banner hidden">
+  <div class="pwa-banner-icon">⚔️</div>
+  <div class="pwa-banner-text">
+    <b>ELAH WARRIOR</b>
+    <span>Add to Home Screen for the best battle experience</span>
+  </div>
+  <button id="pwa-install-btn" class="pwa-install-btn">INSTALL</button>
+  <button id="pwa-dismiss-btn" class="pwa-dismiss-btn">✕</button>
+</div>
 <div id="vignette"></div>
 <div id="flash"></div>
 <div id="bars"><div class="bar top"></div><div class="bar bot"></div></div>
