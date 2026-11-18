@@ -1,8 +1,13 @@
-// ELAH WARRIOR Service Worker — offline caching
-const CACHE = 'elah-v1';
+// ELAH WARRIOR Service Worker — offline caching (supports root and /Elah/ sub-path)
+const CACHE = 'elah-v2';
 const PRECACHE = [
-  '/', '/index.html', '/style.css', '/js/game.js', '/js/net.js',
-  '/vendor/three.module.min.js', '/manifest.webmanifest'
+  './',
+  './index.html',
+  './style.css',
+  './js/game.js',
+  './js/net.js',
+  './vendor/three.module.min.js',
+  './manifest.webmanifest'
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).catch(() => {}));

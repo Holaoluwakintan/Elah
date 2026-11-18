@@ -18,7 +18,7 @@
 <script>
   // Service Worker registration
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
   // PWA install prompt
   let _deferredInstall = null;
