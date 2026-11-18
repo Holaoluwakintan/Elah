@@ -28,7 +28,7 @@ function detectQuality() {
     return 'high';
   } catch (e) { return 'med'; }
 }
-const SETTINGS = (() => { let s = {}; try { s = JSON.parse(localStorage.getItem(SET_KEY) || '{}') || {}; } catch (e) { } return { q: s.q || 'auto', music: s.music ?? 0.7, sfx: s.sfx ?? 0.9, vib: s.vib ?? true, narr: s.narr ?? true, auto: s.auto || null, shake: s.shake ?? true, gyro: s.gyro ?? false, subs: s.subs ?? true }; })();
+const SETTINGS = (() => { let s = {}; try { s = JSON.parse(localStorage.getItem(SET_KEY) || '{}') || {}; } catch (e) { } return { q: s.q || 'auto', music: s.music ?? 0.7, sfx: s.sfx ?? 0.9, vib: s.vib ?? true, narr: s.narr ?? true, auto: s.auto || null, shake: s.shake ?? true, gyro: s.gyro ?? false, subs: s.subs ?? true, touchLayout: s.touchLayout || 'standard' }; })();
 function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(SETTINGS)); } catch (e) { } }
 if (!SETTINGS.auto) { SETTINGS.auto = detectQuality(); saveSettings(); }
 const QQ = Q.get('q');
@@ -2395,9 +2395,17 @@ const pushHeld = () => IN.push || !!IN.keys.KeyR || (BOT && BOTI.push);
 const now = () => performance.now() / 1000;
 function press(k) { IN.q[k] = now(); if (!BOT) audioInit(); }
 function take(k, win = 0.32) { if (now() - IN.q[k] < win) { IN.q[k] = -9; return true; } return false; }
+
+function applyTouchLayout() {
+  const t = $('touch');
+  if (!t) return;
+  t.classList.toggle('touch-large', SETTINGS.touchLayout === 'large');
+  t.classList.toggle('touch-left', SETTINGS.touchLayout === 'left');
+}
+
 function setupInput() {
   const stick = $('stick'), knob = $('knob'), zone = $('stick-zone'); let sid = null, cx = 0, cy = 0; const R = 52;
-  const homeStick = () => { stick.style.left = '110px'; stick.style.top = 'calc(100% - 110px)'; knob.style.transform = ''; stick.classList.remove('active'); };
+  const homeStick = () => { stick.style.left = (SETTINGS.touchLayout === 'left') ? 'calc(100% - 110px)' : '110px'; stick.style.top = 'calc(100% - 110px)'; knob.style.transform = ''; stick.classList.remove('active'); };
   zone.addEventListener('pointerdown', (e) => { if (sid !== null) return; sid = e.pointerId; zone.setPointerCapture(sid); cx = e.clientX; cy = e.clientY; stick.style.left = cx + 'px'; stick.style.top = cy + 'px'; stick.classList.add('active'); audioInit(); e.preventDefault(); });
   zone.addEventListener('pointermove', (e) => { if (e.pointerId !== sid) return; let dx = e.clientX - cx, dy = e.clientY - cy; const d = Math.hypot(dx, dy); if (d > R) { dx *= R / d; dy *= R / d; } knob.style.transform = `translate(${dx}px,${dy}px)`; IN.x = dx / R; IN.y = dy / R; });
   const end = (e) => { if (e.pointerId !== sid) return; sid = null; IN.x = IN.y = 0; homeStick(); };
@@ -6236,7 +6244,7 @@ function openLiveOpsModal() {
 }
 
 async function boot() {
-  buildDust(); buildFX(); buildSparks(); buildStones(); buildArrows(); buildSpoils(); buildPuffs(); setupInput();
+  buildDust(); buildFX(); buildSparks(); buildStones(); buildArrows(); buildSpoils(); buildPuffs(); setupInput(); applyTouchLayout();
   buildWorld(WORLD_OF(LEVEL));
   const loader = new GLTFLoader();
   const gltf = await loader.loadAsync('assets/hero2.glb', (e) => { if (e.total) $('lfill').style.width = (e.loaded / e.total * 100).toFixed(0) + '%'; });
@@ -6524,6 +6532,7 @@ function renderSettings() {
   const sShake = $('set-shake'); if (sShake) { sShake.textContent = SETTINGS.shake ? 'ON' : 'OFF'; sShake.classList.toggle('on', SETTINGS.shake); }
   const sGyro = $('set-gyro'); if (sGyro) { sGyro.textContent = SETTINGS.gyro ? 'ON' : 'OFF'; sGyro.classList.toggle('on', SETTINGS.gyro); }
   const sSubs = $('set-subs'); if (sSubs) { sSubs.textContent = SETTINGS.subs ? 'ON' : 'OFF'; sSubs.classList.toggle('on', SETTINGS.subs); }
+  document.querySelectorAll('#set-touch-layout button').forEach(b => b.classList.toggle('on', b.dataset.tl === (SETTINGS.touchLayout || 'standard')));
 }
 function openSettings(from) { setFrom = from; show(from, false); renderSettings(); show('settings'); }
 $('btn-settings').onclick = () => { audioInit(); openSettings('menu'); };
@@ -6537,7 +6546,13 @@ $('set-sfx').onchange = () => SFX.hit();
 $('set-vib').onclick = () => { SETTINGS.vib = !SETTINGS.vib; saveSettings(); renderSettings(); vibrate(40); };
 const bShake = $('set-shake'); if (bShake) bShake.onclick = () => { SETTINGS.shake = !SETTINGS.shake; saveSettings(); renderSettings(); };
 const bGyro = $('set-gyro'); if (bGyro) bGyro.onclick = () => { SETTINGS.gyro = !SETTINGS.gyro; saveSettings(); renderSettings(); if (SETTINGS.gyro && typeof initGyro === 'function') initGyro(); };
-const bSubs = $('set-subs'); if (bSubs) bSubs.onclick = () => { SETTINGS.subs = !SETTINGS.subs; saveSettings(); renderSettings(); }; $('set-narr').onclick = () => { SETTINGS.narr = !SETTINGS.narr; saveSettings(); if (!SETTINGS.narr) narrStop(); renderSettings(); };
+const bSubs = $('set-subs'); if (bSubs) bSubs.onclick = () => { SETTINGS.subs = !SETTINGS.subs; saveSettings(); renderSettings(); };
+document.querySelectorAll('#set-touch-layout button').forEach(b => b.onclick = () => {
+  SETTINGS.touchLayout = b.dataset.tl;
+  saveSettings();
+  applyTouchLayout();
+  renderSettings();
+}); $('set-narr').onclick = () => { SETTINGS.narr = !SETTINGS.narr; saveSettings(); if (!SETTINGS.narr) narrStop(); renderSettings(); };
 $('btn-reset').onclick = () => { if (!confirm('Reset all saved progress?')) return; try { localStorage.removeItem(SAVE_KEY); } catch (e) { } location.href = location.pathname; };
 
 // QA hook

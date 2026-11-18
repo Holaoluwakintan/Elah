@@ -725,3 +725,59 @@ body.post:not(.vision):not(.dark) #vignette{background:none}
   letter-spacing: 0.08em;
   pointer-events: none;
 }
+
+
+/* ── Touch Ergonomics & Accessibility Layouts ──────────────── */
+#touch.touch-large #stick {
+  width: 148px; height: 148px; margin: -74px 0 0 -74px;
+}
+#touch.touch-large #knob {
+  width: 62px; height: 62px; margin: -31px 0 0 -31px;
+}
+#touch.touch-large #b-attack {
+  width: 104px; height: 104px;
+}
+#touch.touch-large #b-sling {
+  width: 88px; height: 88px;
+  right: calc(max(18px, env(safe-area-inset-right)) + 116px);
+}
+#touch.touch-large #b-dodge {
+  width: 74px; height: 74px;
+  bottom: 140px;
+}
+#touch.touch-large #b-parry {
+  width: 74px; height: 74px;
+  right: calc(max(18px, env(safe-area-inset-right)) + 98px);
+  bottom: 114px;
+}
+#touch.touch-large #b-lock {
+  width: 58px; height: 58px;
+  right: calc(max(18px, env(safe-area-inset-right)) + 180px);
+  bottom: 96px;
+}
+
+/* Southpaw / Left-handed mirrored touch layout */
+#touch.touch-left #stick-zone {
+  left: auto; right: 0;
+}
+#touch.touch-left #stick {
+  left: auto; right: 110px;
+}
+#touch.touch-left #b-attack {
+  right: auto; left: calc(max(18px, env(safe-area-inset-left)) + 0px);
+}
+#touch.touch-left #b-sling {
+  right: auto; left: calc(max(18px, env(safe-area-inset-left)) + 104px);
+}
+#touch.touch-left #b-dodge {
+  right: auto; left: calc(max(18px, env(safe-area-inset-left)) + 14px);
+}
+#touch.touch-left #b-parry {
+  right: auto; left: calc(max(18px, env(safe-area-inset-left)) + 88px);
+}
+#touch.touch-left #b-lock {
+  right: auto; left: calc(max(18px, env(safe-area-inset-left)) + 160px);
+}
+#touch.touch-left #b-exec {
+  right: auto; left: calc(max(18px, env(safe-area-inset-left)) + 48px);
+}
