@@ -28,7 +28,7 @@ function detectQuality() {
     return 'high';
   } catch (e) { return 'med'; }
 }
-const SETTINGS = (() => { let s = {}; try { s = JSON.parse(localStorage.getItem(SET_KEY) || '{}') || {}; } catch (e) { } return { q: s.q || 'auto', music: s.music ?? 0.7, sfx: s.sfx ?? 0.9, vib: s.vib ?? true, narr: s.narr ?? true, auto: s.auto || null }; })();
+const SETTINGS = (() => { let s = {}; try { s = JSON.parse(localStorage.getItem(SET_KEY) || '{}') || {}; } catch (e) { } return { q: s.q || 'auto', music: s.music ?? 0.7, sfx: s.sfx ?? 0.9, vib: s.vib ?? true, narr: s.narr ?? true, auto: s.auto || null, shake: s.shake ?? true, gyro: s.gyro ?? false, subs: s.subs ?? true }; })();
 function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(SETTINGS)); } catch (e) { } }
 if (!SETTINGS.auto) { SETTINGS.auto = detectQuality(); saveSettings(); }
 const QQ = Q.get('q');
@@ -2564,7 +2564,7 @@ const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= Math.PI * 2;
 const turnTo = (a, b, k) => a + angDiff(a, b) * Math.min(1, k);
 function clampArena(p, m = 0) { p.x = THREE.MathUtils.clamp(p.x, ARENA.x0 + m, ARENA.x1 - m); p.z = THREE.MathUtils.clamp(p.z, ARENA.z0 + m, ARENA.z1 - m); }
 function ground(a) { a.pos.y = hgt(a.pos.x, a.pos.z); }
-function shake(v) { G.shake = Math.max(G.shake, v); }
+function shake(v) { if (SETTINGS.shake) G.shake = Math.max(G.shake, v); }
 // ---- Lightning strike (Kishon storm, Carmel fire from heaven)
 const LTN = { active: false, t: 0, next: 4 + Math.random()*6 };
 function lightningStrike() {
@@ -6493,6 +6493,9 @@ function renderSettings() {
   $('set-music').value = Math.round(SETTINGS.music * 100); $('set-sfx').value = Math.round(SETTINGS.sfx * 100);
   $('set-vib').textContent = SETTINGS.vib ? 'ON' : 'OFF'; $('set-vib').classList.toggle('on', SETTINGS.vib);
   $('set-narr').textContent = SETTINGS.narr ? 'ON' : 'OFF'; $('set-narr').classList.toggle('on', SETTINGS.narr); $('set-nnote').textContent = 'Spoken KJV scripture, advisor counsel, and hero battle cries are voiced aloud.';
+  const sShake = $('set-shake'); if (sShake) { sShake.textContent = SETTINGS.shake ? 'ON' : 'OFF'; sShake.classList.toggle('on', SETTINGS.shake); }
+  const sGyro = $('set-gyro'); if (sGyro) { sGyro.textContent = SETTINGS.gyro ? 'ON' : 'OFF'; sGyro.classList.toggle('on', SETTINGS.gyro); }
+  const sSubs = $('set-subs'); if (sSubs) { sSubs.textContent = SETTINGS.subs ? 'ON' : 'OFF'; sSubs.classList.toggle('on', SETTINGS.subs); }
 }
 function openSettings(from) { setFrom = from; show(from, false); renderSettings(); show('settings'); }
 $('btn-settings').onclick = () => { audioInit(); openSettings('menu'); };
@@ -6503,7 +6506,10 @@ $('set-apply').onclick = () => { location.reload(); };
 $('set-music').oninput = (e) => { SETTINGS.music = e.target.value / 100; saveSettings(); if (AU.musicOut) AU.musicOut.gain.value = SETTINGS.music; };
 $('set-sfx').oninput = (e) => { SETTINGS.sfx = e.target.value / 100; saveSettings(); if (AU.master) AU.master.gain.value = 0.6 * SETTINGS.sfx; };
 $('set-sfx').onchange = () => SFX.hit();
-$('set-vib').onclick = () => { SETTINGS.vib = !SETTINGS.vib; saveSettings(); renderSettings(); vibrate(40); }; $('set-narr').onclick = () => { SETTINGS.narr = !SETTINGS.narr; saveSettings(); if (!SETTINGS.narr) narrStop(); renderSettings(); };
+$('set-vib').onclick = () => { SETTINGS.vib = !SETTINGS.vib; saveSettings(); renderSettings(); vibrate(40); };
+const bShake = $('set-shake'); if (bShake) bShake.onclick = () => { SETTINGS.shake = !SETTINGS.shake; saveSettings(); renderSettings(); };
+const bGyro = $('set-gyro'); if (bGyro) bGyro.onclick = () => { SETTINGS.gyro = !SETTINGS.gyro; saveSettings(); renderSettings(); if (SETTINGS.gyro && typeof initGyro === 'function') initGyro(); };
+const bSubs = $('set-subs'); if (bSubs) bSubs.onclick = () => { SETTINGS.subs = !SETTINGS.subs; saveSettings(); renderSettings(); }; $('set-narr').onclick = () => { SETTINGS.narr = !SETTINGS.narr; saveSettings(); if (!SETTINGS.narr) narrStop(); renderSettings(); };
 $('btn-reset').onclick = () => { if (!confirm('Reset all saved progress?')) return; try { localStorage.removeItem(SAVE_KEY); } catch (e) { } location.href = location.pathname; };
 
 // QA hook
