@@ -3463,7 +3463,7 @@ function killBoss(b) {
     flashAt(head, 8.0, 0.8, 0xffffff);
     bloomPulse(3.0, 2.0);
     godRayPulse && godRayPulse(0.6);
-    setTimeout(() => toast('"David prevailed over the Philistine with a sling and with a stone… and THE BATTLE IS THE LORD'S"<br><i>1 SAMUEL 17:50, 47</i>', 6000), 800);
+    setTimeout(() => toast('"David prevailed over the Philistine with a sling and with a stone… and THE BATTLE IS THE LORD\'S"<br><i>1 SAMUEL 17:50, 47</i>', 6000), 800);
   }
   cinematicGoliathDefeat(b);
 }
@@ -6178,7 +6178,7 @@ const CINEMA_PANELS = [
   },
   {
     location: '',
-    verse: '"And David said to Saul, Let no man's heart fail because of him; thy servant will go and fight with this Philistine."',
+    verse: '"And David said to Saul, Let no man\'s heart fail because of him; thy servant will go and fight with this Philistine."',
     ref: '1 Samuel 17:32 (KJV)',
     duration: 3800
   },

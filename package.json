@@ -4,7 +4,8 @@
   "description": "ELAH WARRIOR — 3D Biblical Combat Saga with Real-Time Multiplayer Realm",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --experimental-vm-modules scripts/verify_boot.js"
   },
   "keywords": [
     "threejs",
