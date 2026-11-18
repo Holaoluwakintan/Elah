@@ -1405,6 +1405,19 @@ const MAT = {
   hair: new THREE.MeshStandardMaterial({ color: 0x140c06, roughness: 0.75 }),
   wing: new THREE.MeshBasicMaterial({ color: 0xfff6dc, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }),
 };
+function G_tentpeg() {
+  // Kenite forged iron tent spike (Judges 4:21)
+  const spike = new THREE.CylinderGeometry(0.012, 0.032, 0.68, 6).rotateX(Math.PI / 2).translate(0, 0, 0.22).toNonIndexed();
+  const point = new THREE.ConeGeometry(0.032, 0.18, 6).rotateX(Math.PI / 2).translate(0, 0, 0.65).toNonIndexed();
+  const head = new THREE.CylinderGeometry(0.048, 0.042, 0.06, 8).rotateX(Math.PI / 2).translate(0, 0, -0.14).toNonIndexed();
+  return mergeGeometries([spike, point, head]);
+}
+function G_hammer() {
+  // The workman's hammer (Judges 5:26)
+  const handle = new THREE.CylinderGeometry(0.02, 0.024, 0.52, 6).rotateX(Math.PI / 2).translate(0, 0, 0.12).toNonIndexed();
+  const mallet = new THREE.BoxGeometry(0.12, 0.12, 0.22).translate(0, 0.02, 0.38).toNonIndexed();
+  return mergeGeometries([handle, mallet]);
+}
 function G_staff(len = 1.75) { return new THREE.CylinderGeometry(0.022, 0.03, len, 6).rotateX(Math.PI / 2).translate(0, 0, len * 0.22); }
 function G_spear(len = 2.3, r = 0.025, head = 0.28) {
   const sh = new THREE.CylinderGeometry(r, r * 1.2, len, 6).rotateX(Math.PI / 2).translate(0, 0, len * 0.3).toNonIndexed();
@@ -1842,6 +1855,13 @@ class Actor {
       attach(root, 'DEF-handL', G_shield(0.34), MAT.iron, hLp.clone().add(new THREE.Vector3(-0.14 * Math.sign(hLp.x), 0.07, 0)), { shadow: true });
     } else if (kind === 'jonah') {
       this.weapon = attach(root, 'DEF-handR', G_jaw().scale(1.05, 1.05, 1.05), MAT.bone, grip, { shadow: true });
+    } else if (kind === 'jael') {
+      // Jael: Tent Peg in right hand, Workman's Hammer in left hand (Judges 5:26)
+      this.weapon = attach(root, 'DEF-handR', G_tentpeg(), MAT.iron, grip, { shadow: true });
+      attach(root, 'DEF-handL', G_hammer(), MAT.wood, hLp.clone().add(new THREE.Vector3(-0.06 * Math.sign(hLp.x), 0.02, 0.02)), { shadow: true });
+      // The lordly dish of milk on the hip (Judges 5:25)
+      const dish = new THREE.CylinderGeometry(0.11, 0.06, 0.07, 10).translate(-0.16, 0.95, 0.04);
+      attach(root, 'DEF-hips', dish, smat(0xd8b860, 0.4, 0.8, { key: 'dish' }), new THREE.Vector3(), { shadow: true });
     }
     // cloth skirt / robe (gives each character a costume silhouette) and beards
     const L = L0;
@@ -2656,7 +2676,40 @@ function startDodge(iv) {
 
 // ------------------------------------------------------------------ Samson: Spirit, cords, jawbone, pillars
 function gainSpirit(v) { if (G.spirit < 100 && G.spirit + v >= 100) cvOnSpirit(); if (!P || P.bound) return; const was = G.spirit; G.spirit = Math.min(100, G.spirit + v * STATS().spiritGain); if (was < 100 && G.spirit >= 100) { SFX.buy(); dmgText(P.headPos(new THREE.Vector3()), 'SPIRIT READY', 'heal'); LOG('spirit_ready'); } }
+function tryJaelMilk() {
+  if (G.spirit < 100) {
+    if (now() - (G.spNag || 0) > 1.5) {
+      G.spNag = now();
+      dmgText(P.headPos(new THREE.Vector3()), 'MILK OF SLEEP ' + Math.floor(G.spirit) + '%', '');
+    }
+    return false;
+  }
+  G.spirit = 0;
+  P.state = 'spirit'; P.st = 0;
+  const ts = 1.4;
+  P.atkDur = P.dur('Jump_Start') / ts;
+  P.play('Jump_Start', { loop: false, ts, restart: true, fade: 0.06 });
+
+  // Fragrant cloud of slumber
+  bloomPulse(1.8, 1.0);
+  SFX.angel && SFX.angel();
+  flashAt(P.pos.clone().setY(P.pos.y + 1.2), 4.5, 0.8, 0xfff0c0);
+  puff(P.pos.clone().setY(P.pos.y + 0.6), 3.5, 1.2, new THREE.Vector3(0, 1.2, 0));
+
+  toast('“He asked water, and she gave him milk; she brought forth butter in a lordly dish.”<br><i>JUDGES 5:25 (KJV) · MILK OF SLEEP</i>', 4200);
+
+  // Put nearby enemies into deep slumber / posture break
+  const foes = targets().filter(e => e.alive && e.pos.distanceTo(P.pos) < 14);
+  for (const e of foes) {
+    triggerPostureBreak(e);
+    dmgText(e.headPos(new THREE.Vector3()), 'ASLEEP · VULNERABLE', 'heal');
+  }
+
+  return true;
+}
+
 function trySpirit() {
+  if (P && P.look === 'jael') return tryJaelMilk();
   if (G.spirit < 100) { if (now() - (G.spNag || 0) > 1.5) { G.spNag = now(); dmgText(P.headPos(new THREE.Vector3()), 'SPIRIT ' + Math.floor(G.spirit) + '%', ''); } return false; }
   const p = P; p.heave = p.state === 'push'; p.state = 'spirit'; p.st = 0; p.blasted = false; p.poseT = 0;
   const ts = 1.6; p.atkDur = p.dur('Jump_Start') / ts; p.relT = p.atkDur * 0.5; p.play('Jump_Start', { loop: false, ts, restart: true, fade: 0.06 });
@@ -6128,6 +6181,8 @@ $('btn-mute').classList.toggle('off', !AU.on);
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.phase === 'play') togglePause(true); });
 // ---- level select (title screen)
 const ICONS = {
+  tentpeg: '<svg viewBox="0 0 64 64"><path d="M28 8 L36 8 L34 46 L32 58 L30 46 Z" fill="#e8e4dc"/><rect x="24" y="6" width="16" height="5" rx="2" fill="#d6a650"/></svg><span>TENT PEG</span>',
+  milk: '<svg viewBox="0 0 64 64"><path d="M16 24 C16 44 20 54 32 54 C44 54 48 44 48 24 Z" fill="#fff5dd"/><path d="M14 22 Q32 28 50 22" stroke="#d6a650" stroke-width="4" fill="none"/></svg><span>MILK</span><i id="sling-cd"></i>',
   sword: '<svg viewBox="0 0 64 64"><path d="M46 8 L54 10 L52 18 L22 48 L16 42Z" fill="#e8e4dc"/><path d="M12 38 L26 52 M14 50 L8 56" stroke="#d6a650" stroke-width="5" stroke-linecap="round"/></svg><span>SWORD</span>',
   bow: '<svg viewBox="0 0 64 64"><path d="M18 8 Q50 32 18 56" stroke="#c49a5a" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M18 8 L18 56" stroke="#efe2c4" stroke-width="1.5"/><path d="M10 32 L54 32" stroke="#efe2c4" stroke-width="3"/><path d="M54 32 L46 27 L46 37Z" fill="#efe2c4"/></svg><span>BOW</span><i id="sling-cd"></i>',
   staff: '<svg viewBox="0 0 64 64"><path d="M14 52 L50 12" stroke="#f3e2c0" stroke-width="6" stroke-linecap="round"/><path d="M44 10 q8 -2 10 6" stroke="#f3e2c0" stroke-width="4" fill="none" stroke-linecap="round"/></svg><span>STAFF</span>',
@@ -6141,6 +6196,13 @@ function setLevelUI() {
   const ARMS = LEVEL === 3 || LEVEL >= 5; $('b-attack').innerHTML = ARMS ? ICONS.sword : LEVEL === 2 ? ICONS.jaw : ICONS.staff; $('b-sling').innerHTML = ARMS ? ICONS.bow : LEVEL === 2 ? ICONS.spirit : ICONS.sling; hud.cd = $('sling-cd');
   $('b-attack').setAttribute('aria-label', ARMS ? 'Sword attack' : LEVEL === 2 ? 'Jawbone attack' : 'Staff attack'); $('b-sling').setAttribute('aria-label', ARMS ? 'Bow' : LEVEL === 2 ? 'Spirit power' : 'Sling');
   $('sp-wrap').classList.remove('hidden'); $('bname').textContent = LEVEL === 11 ? 'RABSHAKEH & ASSYRIAN HOST' : LEVEL === 12 ? 'CARNIVOROUS FISH SWARM' : LEVEL === 10 ? 'PROPHETS OF BAAL' : LEVEL === 9 ? 'THE LIONS' : LEVEL === 8 ? 'ZEBAH & ZALMUNNA' : LEVEL === 7 ? 'KING OF JERICHO' : LEVEL === 6 ? 'THE HOST' : LEVEL === 5 ? 'SISERA' : LEVEL === 4 ? 'THE LION' : LEVEL === 3 ? 'CHEDORLAOMER' : 'GOLIATH OF GATH'; $('boss-wrap').classList.remove('house');
+  if (P && P.look === 'jael') {
+    $('who-name').textContent = 'JAEL';
+    $('b-attack').innerHTML = ICONS.tentpeg;
+    $('b-sling').innerHTML = ICONS.milk;
+    $('b-attack').setAttribute('aria-label', 'Tent peg strike');
+    $('b-sling').setAttribute('aria-label', 'Milk of sleep');
+  }
   document.body.dataset.level = LEVEL; lastHud = '';
 }
 function renderTitle() {
@@ -7820,6 +7882,7 @@ function initMultiplayerUI() {
 
   // Populate hero grid
   const MP_HEROES = [
+    { key: 'jael', name: 'Jael', sub: 'Tent Peg · Milk of Sleep' },
     { key: 'david', name: 'David', sub: 'Staff · Sling' },
     { key: 'samson', name: 'Samson', sub: 'Jawbone · Might' },
     { key: 'benaiah', name: 'Benaiah', sub: 'Spear · Valor' },
@@ -8587,7 +8650,7 @@ function renderLeaderboard(scores) {
     ? [...scores].filter(s => s.time > 0).sort((a, b) => a.time - b.time)
     : [...scores].sort((a, b) => b.kills - a.kills);
 
-  const HERO_EMOJI = { david:'👑', samson:'💪', benaiah:'🦁', joshua:'⚔️', gideon:'🔥', elijah:'⚡', hezekiah:'🛡️', jonah:'🐋', barak:'⛈️' };
+  const HERO_EMOJI = { jael:'🔨', david:'👑', samson:'💪', benaiah:'🦁', joshua:'⚔️', gideon:'🔥', elijah:'⚡', hezekiah:'🛡️', jonah:'🐋', barak:'⛈️' };
   const LEVEL_NAMES = { 1:'Valley of Elah', 2:'Lehi', 3:'Hobah', 4:'The Pit', 5:'Kishon', 6:'Adullam', 7:'Jericho', 8:'Midian', 9:'Den of Lions', 10:'Carmel', 11:'Jerusalem', 12:'The Deep' };
 
   listEl.innerHTML = sorted.slice(0, 20).map((s, i) => {
@@ -8805,6 +8868,7 @@ async function triggerExecution(e) { bloomPulse(1.6, 1.2); godRayPulse(0.22);
   puff(e.pos.clone().setY(e.pos.y + 1), 2.2, 0.6, new THREE.Vector3(0, 2, 0));
 
   const execQuotes = {
+    jael: '“She smote off his head, when she had pierced and stricken through his temples.” — Judges 5:26',
     david: '“David took his sword, and slew him, and cut off his head therewith.”',
     samson: '“With the jawbone of an ass, heaps upon heaps!”',
     benaiah: '“Plucked the spear out of the Egyptian’s hand, and slew him!”',
@@ -9106,6 +9170,13 @@ function buildAdullam() {
       look: 'davidking',
       verse: '"He lifted up his spear against eight hundred, whom he slew at one time."',
       ref: '2 Samuel 23:8 (KJV)'
+    },
+    {
+      id: 'jael', name: 'JAEL · HEROINE OF THE KENITES',
+      pos: new THREE.Vector3(-2.2, 0, 8.2), yaw: 0.35,
+      look: 'jael',
+      verse: '"Blessed above women shall Jael the wife of Heber the Kenite be."',
+      ref: 'Judges 5:24 (KJV)'
     }
   ];
 
@@ -9122,6 +9193,26 @@ function buildAdullam() {
       pos: ad.pos,
       dist: 2.8,
       action: async () => {
+        if (ad.id === 'jael') {
+          const chooseJael = await card({
+            who: 'JAEL · HEROINE OF THE KENITES',
+            text: '“She put her hand to the nail, and her right hand to the workmen’s hammer; and with the hammer she smote Sisera…”<br><br><b>Weapon:</b> Forged Tent Peg & Workman’s Hammer<br><b>Ability:</b> Lordly Dish of Milk (Area of Effect Sleep)',
+            verse: ad.verse,
+            ref: ad.ref,
+            btn: 'WALK IN HER STEPS (PLAY AS JAEL)',
+            btn2: 'AMEN'
+          });
+          if (chooseJael) {
+            P.remove();
+            P = new Actor('jael', 0.98, 'jael');
+            P.pos.set(0, 0, 4); ground(P); P.yaw = Math.PI;
+            P.play('Idle_Loop');
+            setLevelUI();
+            toast('You now fight as Jael!', 3200);
+            SFX.shofar && SFX.shofar();
+          }
+          return;
+        }
         await card({
           who: ad.name,
           verse: ad.verse,
