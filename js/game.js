@@ -2717,9 +2717,14 @@ function updatePlayer(dt) {
   switch (p.state) {
     case 'idle': case 'move': {
       if (G.stage === 'escape' && ESC) { escapeControl(p, iv, dt, canAct); break; }
-      if (canAct && take('dodge')) { startDodge(iv); break; }
-      if (canAct && take('attack')) { startAttack(); break; }
-      if (canAct && take('sling')) {
+      if (canAct && (take('execute') || (IN.q && IN.q.execute > 0))) {
+        IN.q.execute = -9;
+        if (typeof tryExecute === 'function' && tryExecute()) break;
+      }
+      if (canAct && take('parry', 0.35)) { startParry(); break; }
+      if (canAct && take('dodge', 0.35)) { startDodge(iv); break; }
+      if (canAct && take('attack', 0.35)) { startAttack(); break; }
+      if (canAct && take('sling', 0.35)) {
         if (G.spirit >= 100 && trySpirit()) break;
         if (LEVEL === 2 && G.fin && !G.fin.collapsing && pushHeld() && nearSpot()) { startPush(); break; }
         if (LEVEL !== 2 && p.slingCd <= 0) { startSling(); break; }
@@ -2733,23 +2738,38 @@ function updatePlayer(dt) {
       if (iv.m > 0) { p.pos.x += iv.x * 1.2 * dt; p.pos.z += iv.z * 1.2 * dt; }
       if (p.st < p.hitT) { p.pos.x += Math.sin(p.yaw) * 2.0 * dt; p.pos.z += Math.cos(p.yaw) * 2.0 * dt; }
       if (!p.hitDone && p.st >= p.hitT) { p.hitDone = true; staffHit(); }
-      if (p.st > p.atkDur * 0.55) { if (take('dodge')) { startDodge(iv); break; } if (take('attack', 0.45)) { startAttack(); break; } }
+      // Action cancellation / buffering during attack recovery
+      if (p.st > p.atkDur * 0.52) {
+        if (take('parry', 0.35)) { startParry(); break; }
+        if (take('dodge', 0.35)) { startDodge(iv); break; }
+        if (take('attack', 0.45)) { startAttack(); break; }
+      }
       if (p.st >= p.atkDur) { p.state = 'idle'; p.combo = 0; }
       break;
     }
     case 'sling': {
       if (!p.released && p.st >= p.relT) { p.released = true; releaseStone(); }
-      if (p.st > p.relT + 0.05 && take('dodge')) { startDodge(iv); break; }
+      if (p.st > p.relT + 0.05 && take('dodge', 0.35)) { startDodge(iv); break; }
       if (p.st >= p.atkDur) p.state = 'idle';
       break;
     }
     case 'dodge': {
       const k = p.st < 0.55 ? 1 : Math.max(0, 1 - (p.st - 0.55) * 4);
       p.pos.x += p.dodgeDir.x * 9.5 * k * dt; p.pos.z += p.dodgeDir.z * 9.5 * k * dt;
+      // Buffer attack or parry directly out of dodge recovery
+      if (p.st >= p.atkDur * 0.7) {
+        if (take('parry', 0.35)) { startParry(); break; }
+        if (take('attack', 0.35)) { startAttack(); break; }
+        if (take('sling', 0.35) && p.slingCd <= 0) { startSling(); break; }
+      }
       if (p.st >= p.atkDur) p.state = 'idle';
       break;
     }
     case 'parry': {
+      if (p.st >= p.atkDur * 0.6) {
+        if (take('attack', 0.35)) { startAttack(); break; }
+        if (take('dodge', 0.35)) { startDodge(iv); break; }
+      }
       if (p.st >= p.atkDur) p.state = 'idle';
       break;
     }
@@ -3483,8 +3503,18 @@ function updateBoss(b, dt) {
     }
     case 'slamWind': {
       if (b.st < b.slamT * 0.7) b.yaw = turnTo(b.yaw, face, dt * 2.5);
-      const L3 = MEL, RR = b.slamR || (L3 ? 2.6 : 3.3); const c = b.pos.clone().add(new THREE.Vector3(Math.sin(b.yaw), 0, Math.cos(b.yaw)).multiplyScalar(b.slamOff || (L3 ? 1.8 : 2.6))); c.y = hgt(c.x, c.z) + 0.06; b.slamC = c;
-      const k = Math.min(1, b.st / b.slamT); FX.ring.visible = FX.ringFill.visible = true; FX.ring.position.copy(c); FX.ringFill.position.copy(c).setY(c.y + 0.01); FX.ring.scale.setScalar(RR); FX.ringFill.scale.setScalar(RR * k); FX.ring.material.opacity = 0.85; FX.ringFill.material.opacity = 0.25 + 0.2 * k;
+      const L3 = MEL, RR = b.slamR || (L3 ? 2.6 : 3.3);
+      const c = b.pos.clone().add(new THREE.Vector3(Math.sin(b.yaw), 0, Math.cos(b.yaw)).multiplyScalar(b.slamOff || (L3 ? 1.8 : 2.6)));
+      c.y = hgt(c.x, c.z) + 0.06; b.slamC = c;
+      const k = Math.min(1, b.st / b.slamT);
+      FX.ring.visible = FX.ringFill.visible = true;
+      FX.ring.position.copy(c); FX.ringFill.position.copy(c).setY(c.y + 0.01);
+      FX.ring.scale.setScalar(RR); FX.ringFill.scale.setScalar(RR * k);
+      FX.ring.material.opacity = 0.95;
+      // High-contrast crimson danger zone
+      if (FX.ring.material.color) FX.ring.material.color.setHex(0xff2200);
+      FX.ringFill.material.opacity = 0.35 + 0.35 * k;
+      if (FX.ringFill.material.color) FX.ringFill.material.color.setHex(0xdd1100);
       if (b.st >= b.slamT) {
         FX.ring.visible = FX.ringFill.visible = false; SFX.slam(); shake(1.0); dustRing(c, 24, 7.5, 6.5); if (gradePass && gradePass.uniforms.uChroma) gradePass.uniforms.uChroma.value = 0.8; flashAt(c.clone().setY(c.y + 0.4), 5, 0.35, 0xffc890);
         for (let i = 0; i < 3; i++) blood(c.clone(), new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5), 0, 0);
@@ -5670,22 +5700,70 @@ function updateCamera(dt) {
     const t = Math.sin(now() * 0.12); const cx = P.pos.x + 2.6 + t * 1.5, cz = P.pos.z + 4.2; CAM.pos.set(cx, Math.max(hgt(cx, cz) + 1.2, P.pos.y + 1.5), cz); camera.position.copy(CAM.pos); CAM.tgt.set(P.pos.x - 1 + t, P.pos.y + 3.2, P.pos.z - 20); camera.lookAt(CAM.tgt); return;
   }
   const b = G.boss;
+  const lock = (typeof LOCKED_TARGET !== 'undefined' && LOCKED_TARGET && LOCKED_TARGET.alive) ? LOCKED_TARGET : (b && b.alive && b.state !== 'intro' ? b : null);
   let dist = CAM.dist;
-  if (G.stage === 'escape' && ESC && G.phase === 'play') { dist = 7.8; if (now() - CAM.lastDrag > 1.2) { const az = Math.max(CAVE_Z, P.pos.z - 14), ax = WILD_PX(az); CAM.yaw = turnTo(CAM.yaw, Math.atan2(P.pos.x - ax, P.pos.z - az), dt * 1.8); } }
-  if (b && b.alive && b.state !== 'intro') {
-    dist = WORLD === 'pit' ? 7.4 : 9.5;
-    if (now() - CAM.lastDrag > 1.5) { const want = Math.atan2(P.pos.x - b.pos.x, P.pos.z - b.pos.z); CAM.yaw = turnTo(CAM.yaw, want, dt * 0.9); }
+
+  if (G.stage === 'escape' && ESC && G.phase === 'play') {
+    dist = 7.8;
+    if (now() - CAM.lastDrag > 1.2) {
+      const az = Math.max(CAVE_Z, P.pos.z - 14), ax = WILD_PX(az);
+      CAM.yaw = turnTo(CAM.yaw, Math.atan2(P.pos.x - ax, P.pos.z - az), dt * 1.8);
+    }
   }
+
+  // ── AAA Dynamic Target Framing (Goliath / Enemies) ───────
+  if (lock) {
+    const isGiant = lock === b && LEVEL === 1;
+    dist = isGiant ? 9.8 : (WORLD === 'pit' ? 7.4 : 8.2);
+    if (now() - CAM.lastDrag > 1.2) {
+      const wantYaw = Math.atan2(P.pos.x - lock.pos.x, P.pos.z - lock.pos.z);
+      CAM.yaw = turnTo(CAM.yaw, wantYaw, dt * 1.6);
+    }
+  }
+
   const pushing = P.state === 'push' || (P.state === 'spirit' && P.heave);
-  CAM.pitch += ((pushing ? 0.1 : WORLD === 'pit' ? 0.62 : 0.33) - CAM.pitch) * Math.min(1, dt * 2.5); if (pushing) { dist = 8.4; if (now() - CAM.lastDrag > 1.5) CAM.yaw = turnTo(CAM.yaw, 0, dt * 2); }
-  const tgt = tmpV.set(P.pos.x, P.pos.y + (pushing ? 2.6 : 1.5), P.pos.z);
-  if (b && b.alive && b.state !== 'intro') tgt.lerp(tmpV2.set(b.pos.x, b.pos.y + 2.5, b.pos.z), 0.18);
+  const basePitch = pushing ? 0.1 : (WORLD === 'pit' ? 0.62 : (lock === b && LEVEL === 1 ? 0.28 : 0.33));
+  CAM.pitch += (basePitch - CAM.pitch) * Math.min(1, dt * 2.5);
+  if (pushing) { dist = 8.4; if (now() - CAM.lastDrag > 1.5) CAM.yaw = turnTo(CAM.yaw, 0, dt * 2); }
+
+  // Target midpoint with height compensation for Goliath
+  const tgt = tmpV.set(P.pos.x, P.pos.y + (pushing ? 2.6 : 1.6), P.pos.z);
+  if (lock) {
+    const lockH = (lock === b && LEVEL === 1) ? 3.8 : 1.8;
+    tgt.lerp(tmpV2.set(lock.pos.x, lock.pos.y + lockH, lock.pos.z), 0.28);
+  }
   CAM.tgt.lerp(tgt, Math.min(1, dt * 8));
+
+  // ── Spring-Arm Collision Check against Terrain ──────────
   const cp = Math.cos(CAM.pitch);
-  const want = new THREE.Vector3(CAM.tgt.x + Math.sin(CAM.yaw) * cp * dist, CAM.tgt.y + Math.sin(CAM.pitch) * dist, CAM.tgt.z + Math.cos(CAM.yaw) * cp * dist);
-  const gy = hgt(want.x, want.z) + 1.2; if (want.y < gy) want.y = gy;
-  if (WORLD === 'temple') { want.x = THREE.MathUtils.clamp(want.x, -12.2, 12.2); want.z = Math.max(want.z, -15.5); if (want.z < -2 || Math.abs(want.x) > 8.8) want.y = Math.min(want.y, 5.9); }
-  CAM.pos.lerp(want, Math.min(1, dt * 7)); camera.position.copy(CAM.pos);
+  let effectiveDist = dist;
+  // Test 3 points along the boom arm to prevent hills popping through
+  for (let step = 0.5; step <= 1.0; step += 0.25) {
+    const testDist = dist * step;
+    const tx = CAM.tgt.x + Math.sin(CAM.yaw) * cp * testDist;
+    const tz = CAM.tgt.z + Math.cos(CAM.yaw) * cp * testDist;
+    const groundH = hgt(tx, tz) + 0.9;
+    const testY = CAM.tgt.y + Math.sin(CAM.pitch) * testDist;
+    if (testY < groundH) {
+      effectiveDist = Math.max(3.8, testDist - 0.5);
+      break;
+    }
+  }
+
+  const want = new THREE.Vector3(
+    CAM.tgt.x + Math.sin(CAM.yaw) * cp * effectiveDist,
+    CAM.tgt.y + Math.sin(CAM.pitch) * effectiveDist,
+    CAM.tgt.z + Math.cos(CAM.yaw) * cp * effectiveDist
+  );
+  const gy = hgt(want.x, want.z) + 1.2;
+  if (want.y < gy) want.y = gy;
+  if (WORLD === 'temple') {
+    want.x = THREE.MathUtils.clamp(want.x, -12.2, 12.2);
+    want.z = Math.max(want.z, -15.5);
+    if (want.z < -2 || Math.abs(want.x) > 8.8) want.y = Math.min(want.y, 5.9);
+  }
+  CAM.pos.lerp(want, Math.min(1, dt * 7.5));
+  camera.position.copy(CAM.pos);
   if (G.shake > 0) { camera.position.x += (Math.random() - 0.5) * G.shake * 0.5; camera.position.y += (Math.random() - 0.5) * G.shake * 0.5; G.shake = Math.max(0, G.shake - dt * 2.2); }
   if (G.kick > 0) { camera.position.lerp(CAM.tgt, G.kick * 0.09); G.kick = Math.max(0, G.kick - dt * 4); }
   camera.lookAt(CAM.tgt);
