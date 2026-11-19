@@ -8269,6 +8269,30 @@ function initMultiplayerUI() {
       try {
         await NET.connect();
         NET.listRooms();
+        // ── Graceful auto-reconnect ────────────────────────────
+        NET.onDisconnect = async () => {
+          if (!mpModal || mpModal.classList.contains('hidden')) return;
+          let attempt = 0;
+          const MAX_RETRIES = 5;
+          const delay = (ms) => new Promise(r => setTimeout(r, ms));
+          while (attempt < MAX_RETRIES) {
+            attempt++;
+            const wait = Math.min(1000 * Math.pow(2, attempt - 1), 16000); // 1s, 2s, 4s, 8s, 16s
+            toast(`🔄 Connection lost — reconnecting (${attempt}/${MAX_RETRIES})…`, wait - 100);
+            await delay(wait);
+            try {
+              await NET.connect();
+              if (NET.room) {
+                NET.rejoinRoom(NET.room.code, NET.name, mpSelectedHero);
+                toast('✅ Reconnected to realm!', 2500);
+              } else {
+                NET.listRooms();
+              }
+              return; // Success — stop retry loop
+            } catch (re) { /* keep retrying */ }
+          }
+          toast('❌ Could not reconnect. Please refresh and try again.', 5000);
+        };
       } catch (e) {
         toast('Could not connect to multiplayer server', 3000);
       }
@@ -8511,6 +8535,37 @@ function initMultiplayerUI() {
   NET.on('chat', msg => {
     toast(`<b>${msg.name}:</b> ${msg.text}`, 3500);
   });
+
+  // ── Auto-join from invite URL hash (#coop=ROOM_CODE) ───────
+  const hashJoin = (() => {
+    try {
+      const h = location.hash;
+      if (!h.startsWith('#coop=')) return null;
+      return decodeURIComponent(h.slice(6)).trim();
+    } catch (e) { return null; }
+  })();
+
+  if (hashJoin) {
+    // Clear the hash so reloads don't re-join
+    history.replaceState(null, '', location.pathname + location.search);
+    setTimeout(async () => {
+      audioInit();
+      show('menu', false);
+      if (mpModal) mpModal.classList.remove('hidden');
+      const browserView = $('mp-view-browser');
+      const roomView = $('mp-view-room');
+      if (browserView) browserView.classList.remove('hidden');
+      if (roomView) roomView.classList.add('hidden');
+      toast('⚔️ Joining co-op realm via invite link…', 2500);
+      try {
+        await NET.connect();
+        const nm = (nameInput && nameInput.value) || (localStorage.getItem('elah_mp_name') || 'Warrior');
+        NET.joinRoom(hashJoin, nm.trim(), mpSelectedHero);
+      } catch (e) {
+        toast('Could not connect to multiplayer server', 3000);
+      }
+    }, 1200); // slight delay so the game finishes loading
+  }
 }
 
 function renderLobbyView(room) {
@@ -8520,6 +8575,45 @@ function renderLobbyView(room) {
   $('mp-room-code').textContent = room.code;
   $('mp-room-mode-tag').textContent = room.mode === 'pvp' ? 'PVP DUEL' : 'CO-OP CAMPAIGN';
   $('mp-player-count').textContent = room.players.length;
+
+  // ── Invite link: build and display ─────────────────────────
+  const baseUrl = location.origin + location.pathname;
+  const inviteUrl = baseUrl + '#coop=' + encodeURIComponent(room.code);
+  const inviteLinkEl = $('mp-invite-link');
+  if (inviteLinkEl) inviteLinkEl.textContent = inviteUrl;
+  const copyBtn = $('mp-copy-invite');
+  if (copyBtn) {
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(inviteUrl);
+        copyBtn.textContent = '✅ COPIED!';
+        setTimeout(() => { copyBtn.textContent = '📋 COPY INVITE LINK'; }, 2200);
+      } catch (e) {
+        // Fallback: select the text
+        const r = document.createRange();
+        r.selectNode(inviteLinkEl);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(r);
+        copyBtn.textContent = '📋 SELECT & COPY';
+        setTimeout(() => { copyBtn.textContent = '📋 COPY INVITE LINK'; }, 2500);
+      }
+    };
+  }
+
+  // ── Invite link section (create if not already in DOM) ──
+  let inviteSection = $('mp-invite-section');
+  if (!inviteSection) {
+    inviteSection = document.createElement('div');
+    inviteSection.id = 'mp-invite-section';
+    inviteSection.className = 'mp-invite-section';
+    inviteSection.innerHTML = `
+      <div class="mp-invite-label">📨 INVITE A WARRIOR</div>
+      <div class="mp-invite-url" id="mp-invite-link">…</div>
+      <button class="mp-copy-invite-btn ghost-sm" id="mp-copy-invite">📋 COPY INVITE LINK</button>
+    `;
+    const roomView = $('mp-view-room');
+    if (roomView) roomView.insertBefore(inviteSection, roomView.querySelector('.mp-players-section') || roomView.firstChild);
+  }
 
   const rosterBox = $('mp-players-roster');
   if (rosterBox) {
