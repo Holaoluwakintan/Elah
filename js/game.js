@@ -37,12 +37,90 @@ const LOWQ = QUALITY === 'low';
 const QP = { low: { dpr: 1, shadow: 0, bloom: false, post: false, sky: 0 }, med: { dpr: 1.25, shadow: 1024, bloom: false, post: true, sky: 1 }, high: { dpr: 1.75, shadow: 2048, bloom: true, post: true, sky: 1 } };
 const vibrate = (ms) => { if (typeof GP !== 'undefined' && GP.rumble) GP.rumble(ms, 0.5, 0.85); if (SETTINGS.vib && navigator.vibrate && !BOT) try { navigator.vibrate(ms); } catch (e) { } };
 const HD = +(Q.get('hd') || 0);
-// ---- save (localStorage): unlocked levels, spoils, upgrades
-const SAVE_KEY = 'elah-save-v1';
+// ---- save system: versioned schema migration (v1 → v2) ----
+const SAVE_KEY    = 'elah-save-v2';  // bump on incompatible schema changes
+const SAVE_KEY_V1 = 'elah-save-v1';  // kept for one-time migration only
 const UP0 = () => ({ staff: 0, sling: 0, bronze: 0, jaw: 0, spirit: 0, sword: 0, bow: 0, men: 0 });
-function loadSave() { let s = {}; try { s = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch (e) { } return { open: s.open || { abram: (s.unlocked || 1) >= 2, samson: (s.unlocked || 1) >= 2 }, unlocked: s.unlocked || 1, coins: s.coins || 0, armour: s.armour || 0, up: Object.assign(UP0(), s.up || {}), done: s.done || {}, level: s.level || 1, highKills: s.highKills || 0, highWave: s.highWave || 0, feats: s.feats || {} }; }
+
+function migrateSaveV1toV2(v1) {
+  // Promote all v1 fields, add new v2 fields with safe defaults
+  return {
+    _v: 2,
+    open:        v1.open        || { abram: (v1.unlocked || 1) >= 2, samson: (v1.unlocked || 1) >= 2 },
+    unlocked:    v1.unlocked    || 1,
+    coins:       v1.coins       || 0,
+    armour:      v1.armour      || 0,
+    up:          Object.assign(UP0(), v1.up || {}),
+    done:        v1.done        || {},
+    level:       v1.level       || 1,
+    highKills:   v1.highKills   || 0,
+    highWave:    v1.highWave    || 0,
+    feats:       v1.feats       || {},
+    // ── New in v2 ──
+    activeHero:  v1.activeHero  || 'david',
+    covenants:   v1.covenants   || [],
+    relics:      v1.relics      || [],
+  };
+}
+
+function loadSave() {
+  // 1. Try current v2 save
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw) || {};
+      if (s._v >= 2) return s;
+    }
+  } catch (e) {}
+
+  // 2. Fall back to v1 migration
+  let v1 = {};
+  try { v1 = JSON.parse(localStorage.getItem(SAVE_KEY_V1) || '{}') || {}; } catch (e) {}
+  const migrated = migrateSaveV1toV2(v1);
+  // Write migrated save immediately
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(migrated)); } catch (e) {}
+  return migrated;
+}
+
 let SAVE = loadSave();
-function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) { } }
+function writeSave() { try { SAVE._v = 2; localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) { } }
+
+// ── Save export/import utilities ──────────────────────────────
+function exportSave() {
+  try {
+    const json = JSON.stringify(SAVE);
+    const b64  = btoa(unescape(encodeURIComponent(json)));
+    const blob = new Blob([b64], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), { href: url, download: 'elah-warrior-save.txt' });
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('✅ Save exported! Keep elah-warrior-save.txt safe.', 3000);
+  } catch (e) { toast('Export failed: ' + e.message, 3000); }
+}
+
+function importSave() {
+  const inp = Object.assign(document.createElement('input'), { type: 'file', accept: '.txt' });
+  inp.onchange = (ev) => {
+    const file = ev.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (re) => {
+      try {
+        const json = decodeURIComponent(escape(atob(re.result.trim())));
+        const data = JSON.parse(json);
+        if (!data || typeof data !== 'object') throw new Error('Invalid save file');
+        // Run migration if needed
+        const imported = (data._v >= 2) ? data : migrateSaveV1toV2(data);
+        SAVE = imported;
+        writeSave();
+        toast('✅ Save imported! Reloading…', 2000);
+        setTimeout(() => location.reload(), 2200);
+      } catch (e) { toast('❌ Import failed: ' + e.message, 4000); }
+    };
+    reader.readAsText(file);
+  };
+  document.body.appendChild(inp); inp.click(); document.body.removeChild(inp);
+}
 // =====================================================================================================
 // STORY & LEVEL ORDER: everything Michael may want to change lives in this block.
 //  · LEVEL_ORDER is the order on the title screen and the order levels unlock. Move a line to reorder.
@@ -6533,6 +6611,9 @@ function renderSettings() {
   const sGyro = $('set-gyro'); if (sGyro) { sGyro.textContent = SETTINGS.gyro ? 'ON' : 'OFF'; sGyro.classList.toggle('on', SETTINGS.gyro); }
   const sSubs = $('set-subs'); if (sSubs) { sSubs.textContent = SETTINGS.subs ? 'ON' : 'OFF'; sSubs.classList.toggle('on', SETTINGS.subs); }
   document.querySelectorAll('#set-touch-layout button').forEach(b => b.classList.toggle('on', b.dataset.tl === (SETTINGS.touchLayout || 'standard')));
+  // Show/hide export+import buttons (always visible in settings)
+  const expBtn = $('set-export-save'); if (expBtn) expBtn.style.display = '';
+  const impBtn = $('set-import-save'); if (impBtn) impBtn.style.display = '';
 }
 function openSettings(from) { setFrom = from; show(from, false); renderSettings(); show('settings'); }
 $('btn-settings').onclick = () => { audioInit(); openSettings('menu'); };
@@ -6552,7 +6633,9 @@ document.querySelectorAll('#set-touch-layout button').forEach(b => b.onclick = (
   saveSettings();
   applyTouchLayout();
   renderSettings();
-}); $('set-narr').onclick = () => { SETTINGS.narr = !SETTINGS.narr; saveSettings(); if (!SETTINGS.narr) narrStop(); renderSettings(); };
+});
+const bExport = $('set-export-save'); if (bExport) bExport.onclick = exportSave;
+const bImport = $('set-import-save'); if (bImport) bImport.onclick = importSave; $('set-narr').onclick = () => { SETTINGS.narr = !SETTINGS.narr; saveSettings(); if (!SETTINGS.narr) narrStop(); renderSettings(); };
 $('btn-reset').onclick = () => { if (!confirm('Reset all saved progress?')) return; try { localStorage.removeItem(SAVE_KEY); } catch (e) { } location.href = location.pathname; };
 
 // QA hook

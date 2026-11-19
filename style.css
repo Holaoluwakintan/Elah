@@ -781,3 +781,20 @@ body.post:not(.vision):not(.dark) #vignette{background:none}
 #touch.touch-left #b-exec {
   right: auto; left: calc(max(18px, env(safe-area-inset-left)) + 48px);
 }
+
+/* ── Save Backup Export/Import row in Settings ─────────────── */
+.save-backup-row { margin-top: 4px; }
+.save-seg { display: flex; gap: 6px; }
+.save-seg button {
+  flex: 1;
+  padding: 7px 10px;
+  font: 700 10px system-ui, sans-serif;
+  letter-spacing: .12em;
+  background: rgba(60, 40, 15, 0.9);
+  border: 1px solid rgba(220, 170, 80, 0.5);
+  border-radius: 6px;
+  color: var(--gold, #e8c46a);
+  cursor: pointer;
+  transition: background .2s, border-color .2s;
+}
+.save-seg button:hover { background: rgba(100, 65, 20, 0.95); border-color: rgba(220, 170, 80, 0.85); }
