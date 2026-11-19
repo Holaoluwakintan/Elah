@@ -43,6 +43,59 @@ const server = http.createServer((req, res) => {
 });
 
 // ------------------------------------------------------------------ WebSocket & Multiplayer Rooms
+// ── Server-Authoritative Co-Op Waves (§05) ─────────────────────
+const COOP_WAVES = {
+  1: [
+    { name: 'WAVE 1 · PHILISTINE ADVANCE SCOUTS', list: [['phil', -3, -12], ['phil', 3, -14], ['phil', 0, -20]] },
+    { name: 'WAVE 2 · THE VANGUARD & CAPTAIN', list: [['phil', -8, -24], ['phil', 8, -24], ['captain', 0, -28], ['phil', -20, -10], ['phil', 20, -10]] },
+    { name: 'WAVE 3 · THE HOST OF GATH', list: [['phil', -8, -30], ['phil', 8, -30], ['captain', -14, -32], ['captain', 14, -32], ['phil', -26, 2], ['phil', 26, 4], ['phil', 0, -36]] }
+  ]
+};
+
+// ── Anti-Cheat & Score Integrity Constraints (§06) ─────────────
+const HMAC_SECRET = process.env.SCORE_SECRET || 'elah-holy-covenant-2026-auth-seal';
+const MAX_KILLS_BY_LEVEL = { 1: 50, 2: 150, 3: 80, 4: 70, 5: 100, 6: 120, 7: 120, 8: 120, 9: 80, 10: 90, 11: 100, 12: 90 };
+const MIN_TIME_BY_LEVEL = { 1: 18, 2: 25, 3: 20, 4: 20, 5: 25, 6: 25, 7: 25, 8: 25, 9: 20, 10: 25, 11: 25, 12: 25 };
+
+function createMatchToken(level) {
+  const ts = Date.now();
+  const sig = crypto.createHmac('sha256', HMAC_SECRET).update(`${level}:${ts}`).digest('hex');
+  return `${sig}.${ts}.${level}`;
+}
+
+function verifyMatchToken(token, level, timeSec, kills) {
+  if (!token || typeof token !== 'string') return { valid: false, reason: 'Missing token' };
+  const parts = token.split('.');
+  if (parts.length !== 3) return { valid: false, reason: 'Malformed token' };
+  const [sig, tsStr, tokLevelStr] = parts;
+  const ts = parseInt(tsStr, 10);
+  const tokLevel = parseInt(tokLevelStr, 10);
+  if (tokLevel !== level) return { valid: false, reason: 'Level mismatch' };
+  const expectedSig = crypto.createHmac('sha256', HMAC_SECRET).update(`${tokLevel}:${ts}`).digest('hex');
+  if (sig !== expectedSig) return { valid: false, reason: 'Forged signature' };
+  const elapsed = (Date.now() - ts) / 1000;
+  const minTime = MIN_TIME_BY_LEVEL[level] || 15;
+  if (timeSec < minTime || elapsed < minTime * 0.8) return { valid: false, reason: 'Impossible clear time' };
+  const maxKills = MAX_KILLS_BY_LEVEL[level] || 60;
+  if (kills > maxKills) return { valid: false, reason: 'Kills exceed ceiling' };
+  return { valid: true };
+}
+
+// ── Persistent Rooms Cache (§05) ──────────────────────────────
+const ROOMS_CACHE_FILE = path.join(root, 'rooms_state.json');
+function saveRoomsState() {
+  try {
+    const serialized = [];
+    for (const r of ROOMS.values()) {
+      serialized.push({
+        code: r.code, mode: r.mode, level: r.level, hostId: r.hostId, state: r.state,
+        waveIndex: r.waveIndex || 0, kills: r.kills || 0
+      });
+    }
+    fs.writeFileSync(ROOMS_CACHE_FILE, JSON.stringify(serialized, null, 2), 'utf8');
+  } catch (e) {}
+}
+
 const ROOMS = new Map(); // code -> Room
 let nextPlayerId = 1;
 
@@ -221,6 +274,43 @@ server.on('upgrade', (req, socket, head) => {
   socket.on('error', cleanup);
 });
 
+
+function serverSpawnWave(room, waveIndex) {
+  const waves = COOP_WAVES[room.level] || COOP_WAVES[1];
+  if (waveIndex >= waves.length) {
+    // Boss wave
+    room.waveState = 'boss';
+    room.boss = { hp: 500, maxHp: 500, alive: true };
+    console.log(`Room ${room.code}: Spawning authoritative Goliath boss`);
+    broadcastRoom(room, {
+      type: 'server_boss_spawn',
+      boss: { kind: 'goliath', hp: 500, maxHp: 500 }
+    });
+    saveRoomsState();
+    return;
+  }
+  const w = waves[waveIndex];
+  room.waveIndex = waveIndex;
+  room.waveState = 'active';
+  room.enemies = w.list.map((def, idx) => ({
+    id: `e_${waveIndex}_${idx}`,
+    kind: def[0],
+    x: def[1],
+    z: def[2],
+    hp: def[0] === 'captain' ? 130 : 66,
+    maxHp: def[0] === 'captain' ? 130 : 66,
+    alive: true
+  }));
+  console.log(`Room ${room.code}: Server spawning authoritative ${w.name} (${room.enemies.length} enemies)`);
+  broadcastRoom(room, {
+    type: 'server_wave_spawn',
+    waveIndex,
+    name: w.name,
+    enemies: room.enemies
+  });
+  saveRoomsState();
+}
+
 function handleMessage(socket, msg) {
   const pId = socket.playerId;
 
@@ -328,11 +418,70 @@ function handleMessage(socket, msg) {
   if (msg.type === 'start_game') {
     if (room.hostId !== pId) return;
     room.state = 'playing';
+    room.kills = 0;
     console.log(`Game started in room ${room.code} [${room.mode}] Level ${room.level}`);
     broadcastRoom(room, {
       type: 'game_started',
       room: getRoomSnapshot(room)
     });
+    // For co-op games, server authoritatively triggers Wave 0
+    if (room.mode === 'coop') {
+      setTimeout(() => {
+        if (room.state === 'playing') serverSpawnWave(room, 0);
+      }, 1500);
+    }
+    saveRoomsState();
+    return;
+  }
+
+  // ── Server-Authoritative Hit Handling ────────────────────────
+  if (msg.type === 'hit_enemy' && room.mode === 'coop' && room.enemies) {
+    msg.senderId = pId;
+    const e = room.enemies.find(x => x.id === msg.enemyId || x.id === `e_${room.waveIndex}_${msg.enemyIdx}`);
+    if (e && e.alive) {
+      e.hp = Math.max(0, e.hp - (msg.dmg || 25));
+      if (e.hp <= 0) {
+        e.alive = false;
+        room.kills = (room.kills || 0) + 1;
+        broadcastRoom(room, {
+          type: 'enemy_died',
+          enemyId: e.id,
+          enemyIdx: msg.enemyIdx,
+          killerId: pId,
+          kills: room.kills
+        });
+        // Check if wave is wiped
+        if (room.enemies.every(x => !x.alive)) {
+          room.waveState = 'cleared';
+          broadcastRoom(room, { type: 'wave_cleared', waveIndex: room.waveIndex });
+          setTimeout(() => {
+            if (room.state === 'playing') serverSpawnWave(room, room.waveIndex + 1);
+          }, 3200);
+        }
+      } else {
+        broadcastRoom(room, {
+          type: 'enemy_damaged',
+          enemyId: e.id,
+          enemyIdx: msg.enemyIdx,
+          hp: e.hp,
+          dmg: msg.dmg,
+          dir: msg.dir
+        });
+      }
+    }
+    return;
+  }
+
+  if (msg.type === 'hit_boss' && room.mode === 'coop' && room.boss && room.boss.alive) {
+    msg.senderId = pId;
+    room.boss.hp = Math.max(0, room.boss.hp - (msg.dmg || 35));
+    if (room.boss.hp <= 0) {
+      room.boss.alive = false;
+      room.kills = (room.kills || 0) + 1;
+      broadcastRoom(room, { type: 'coop_victory', kills: room.kills });
+    } else {
+      broadcastRoom(room, { type: 'boss_damaged', hp: room.boss.hp, dmg: msg.dmg });
+    }
     return;
   }
 
@@ -357,6 +506,16 @@ function writeScores(arr) {
 }
 
 server.on('request', (req, res) => {
+  // ── Match Token Generator for Score Integrity (§06) ────────
+  if (req.method === 'GET' && req.url.startsWith('/api/match/token')) {
+    const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const lvl = parseInt(urlObj.searchParams.get('level') || '1', 10);
+    const tok = createMatchToken(lvl);
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ token: tok, level: lvl }));
+    return;
+  }
+
   if (req.method === 'GET' && req.url === '/api/leaderboard') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     res.end(JSON.stringify(readScores()));
@@ -371,6 +530,15 @@ server.on('request', (req, res) => {
         if (!entry.name || typeof entry.kills !== 'number') {
           res.writeHead(400); res.end('Bad payload'); return;
         }
+        // Verify score integrity via signed match token
+        const vResult = verifyMatchToken(entry.token, Number(entry.level || 1), Number(entry.time || 0), Number(entry.kills || 0));
+        if (!vResult.valid) {
+          console.warn(`Score rejection for "${entry.name}": ${vResult.reason}`);
+          res.writeHead(403, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: 'Score verification failed: ' + vResult.reason }));
+          return;
+        }
+
         const scores = readScores();
         scores.push({
           name:  String(entry.name).slice(0, 20),
@@ -378,6 +546,7 @@ server.on('request', (req, res) => {
           level: Number(entry.level || 1),
           kills: Math.round(entry.kills),
           time:  Math.round(entry.time  || 0),
+          verified: true,
           date:  new Date().toISOString().slice(0, 10)
         });
         scores.sort((a, b) => b.kills - a.kills);

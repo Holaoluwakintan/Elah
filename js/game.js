@@ -4385,7 +4385,7 @@ function submitScore() {
   try {
     const name = (localStorage.getItem('elah_mp_name') || localStorage.getItem('elah-player-name') || 'Anonymous').slice(0, 20);
     const hero = ($('who-name') && $('who-name').textContent) || 'DAVID';
-    const payload = { name, hero: hero.toLowerCase(), level: LEVEL, kills: G.kills, time: Math.round(now() - G.t0) };
+    const payload = { name, hero: hero.toLowerCase(), level: LEVEL, kills: G.kills, time: Math.round(now() - G.t0), token: G.matchToken || '' };
     fetch('/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       .then(r => r.json())
       .then(d => {
@@ -8614,6 +8614,56 @@ function initMultiplayerUI() {
     if (e.hp <= 0) {
       killEnemy(e);
     }
+  });
+
+  // ── Server-Authoritative Wave Sync (§05) ───────────────────
+  NET.on('server_wave_spawn', msg => {
+    if (!NET.isCoop) return;
+    toast(msg.name, 3000);
+    $('wave').textContent = msg.name;
+    // Clear dead enemies
+    for (const e of G.enemies) if (!e.gone) { e.remove(); if (e.bar) scene.remove(e.bar); }
+    G.enemies = [];
+    // Spawn authoritative enemies
+    for (let i = 0; i < msg.enemies.length; i++) {
+      const se = msg.enemies[i];
+      const e = spawnEnemy(se.kind, se.x, se.z, 0);
+      e.serverEnemyId = se.id;
+      e.maxHp = se.maxHp;
+      e.hp = se.hp;
+    }
+  });
+
+  NET.on('enemy_damaged', msg => {
+    if (!NET.isCoop) return;
+    const e = G.enemies.find(x => x.serverEnemyId === msg.enemyId) || G.enemies[msg.enemyIdx];
+    if (e && e.alive) {
+      e.hp = msg.hp;
+      hurtEnemy(e, msg.dmg || 20, msg.dir ? new THREE.Vector3(...msg.dir) : new THREE.Vector3(0, 0, 1), 'strike');
+    }
+  });
+
+  NET.on('enemy_died', msg => {
+    if (!NET.isCoop) return;
+    const e = G.enemies.find(x => x.serverEnemyId === msg.enemyId) || G.enemies[msg.enemyIdx];
+    if (e && e.alive) {
+      killEnemy(e);
+      if (msg.killerId !== NET.playerId) {
+        toast('Ally struck down an enemy!', 1500);
+      }
+    }
+  });
+
+  NET.on('wave_cleared', msg => {
+    if (!NET.isCoop) return;
+    toast('⚔️ WAVE CLEARED! Stand ready for the next assault.', 2800);
+    SFX.shofar && SFX.shofar();
+  });
+
+  NET.on('server_boss_spawn', msg => {
+    if (!NET.isCoop) return;
+    toast('⚡ GOLIATH OF GATH STEPS FORTH!', 4000);
+    bossFight && bossFight(true);
   });
 
   NET.on('sync_enemies', msg => {

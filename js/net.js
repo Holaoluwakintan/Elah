@@ -177,6 +177,26 @@ class NetworkClient {
       case 'coop_defeat':
         this.emit('coop_defeat', msg);
         break;
+
+      case 'server_wave_spawn':
+        this.emit('server_wave_spawn', msg);
+        break;
+
+      case 'enemy_died':
+        this.emit('enemy_died', msg);
+        break;
+
+      case 'enemy_damaged':
+        this.emit('enemy_damaged', msg);
+        break;
+
+      case 'wave_cleared':
+        this.emit('wave_cleared', msg);
+        break;
+
+      case 'server_boss_spawn':
+        this.emit('server_boss_spawn', msg);
+        break;
     }
   }
 
