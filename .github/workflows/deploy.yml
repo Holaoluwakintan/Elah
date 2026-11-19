@@ -29,8 +29,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Verify Release & Boot Gates
-        run: node --experimental-vm-modules scripts/verify_boot.js
+      - name: Verify Release & Performance Gates
+        run: npm test
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
