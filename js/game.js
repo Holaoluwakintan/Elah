@@ -5967,7 +5967,7 @@ const TIPS = [
 // Cave of Adullam UI hooks
 if ($('btn-adullam')) $('btn-adullam').onclick = enterAdullam;
 if ($('btn-pause-adullam')) $('btn-pause-adullam').onclick = enterAdullam;
-if ($('btn-win-adullam')) $('btn-win-adullam').onclick = enterAdullam;
+if ($('btn-win-adullam')) $('btn-win-adullam').onclick = () => enterAdullam(true);
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -9547,7 +9547,7 @@ function updateAdullam(dt) {
 }
 
 // Function to enter the Cave of Adullam Hub directly
-async function enterAdullam() {
+async function enterAdullam(fromWin = false) {
   audioInit();
   show('menu', false);
   show('title', false);
@@ -9568,4 +9568,45 @@ async function enterAdullam() {
   $('boss-wrap').classList.add('hidden');
   $('wave').textContent = 'SANCTUM · CAVE OF ADULLAM (1 SAMUEL 22:1)';
   updateRelicHUD && updateRelicHUD();
+
+  // ── First-visit: cinematic pull to the Anointing Stone + Forge card ──
+  const isFirstVisit = !SAVE.done || !SAVE.done['adullam_forge'];
+  if (fromWin || isFirstVisit) {
+    // Mark as visited
+    if (SAVE.done) SAVE.done['adullam_forge'] = true;
+    writeSave();
+
+    // Brief pause for scene to settle, then cinematic pan to altar
+    await new Promise(r => setTimeout(r, 900));
+    P.state = 'cine';
+    // Altar is at (0, 0, -9.5) — pull camera from behind player toward it
+    G.cine = {
+      pos: new THREE.Vector3(0, 2.8, -4.0),
+      look: new THREE.Vector3(0, 1.1, -9.5),
+      snap: false
+    };
+
+    // Scripture card — The Forge of Israel
+    await card({
+      who: 'THE FORGE OF ISRAEL',
+      verse: '"And David took the gold that was brought to him… and brought it to Jerusalem. And Hiram was full of wisdom and understanding and cunning to work all works in brass. And he came to king Solomon, and wrought all his work."',
+      ref: '1 Kings 7:13–14 (KJV)',
+      text: 'The Anointing Stone holds the spoils of Elah. Spend your coins and armour shards to forge bronze armour, strengthen your sling, and temper your staff. Each upgrade carries into every battle.',
+      btn: '⚒️ FORGE YOUR WEAPONS'
+    });
+
+    // Clear cinematic, let player roam
+    G.cine = null;
+    P.state = 'idle';
+    P.pos.set(0, 0, 4);
+    ground(P);
+    P.yaw = Math.PI;
+
+    // Open upgrade panel positioned at the Anointing Stone
+    await upgradePanel('RETURN TO CAVE');
+
+    // After forging, play a short Shofar triumph and resume sanctum
+    SFX.shofar && SFX.shofar();
+    toast('⚒️ WEAPONS FORGED · Explore the Cave of Adullam', 3000);
+  }
 }
