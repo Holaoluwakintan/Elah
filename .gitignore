@@ -2,8 +2,18 @@
 node_modules/
 dist/
 build/
+www/
 .cache/
 .parcel-cache/
+
+# Android build outputs
+.gradle/
+android/app/build/
+android/build/
+android/.idea/
+android/.gradle/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
 
 # Vercel
 .vercel/

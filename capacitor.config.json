@@ -1,0 +1,15 @@
+{
+  "appId": "com.blossom.elahwarrior",
+  "appName": "Elah Warrior",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#120a04",
+    "webContentsDebuggingEnabled": true
+  }
+}

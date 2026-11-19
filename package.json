@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --experimental-vm-modules scripts/verify_boot.js && node scripts/check_perf_budget.js"
+    "test": "node --experimental-vm-modules scripts/verify_boot.js && node scripts/check_perf_budget.js",
+    "build:mobile": "node scripts/build_mobile.js && npx cap sync android",
+    "open:android": "npx cap open android"
   },
   "keywords": [
     "threejs",
@@ -15,5 +17,10 @@
     "bible-game"
   ],
   "author": "Holaoluwakintan",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2"
+  }
 }
