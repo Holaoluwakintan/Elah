@@ -5981,6 +5981,39 @@ function updateHud() {
   const pushOn = !!(G.fin && !G.fin.collapsing && TEMPLE && Math.hypot(P.pos.x - TEMPLE.spot.x, P.pos.z - TEMPLE.spot.z) < 3.2);
   const key = hpP + '|' + G.coins + '|' + G.armour + '|' + bp + '|' + cd + '|' + pushOn; if (key === lastHud) return; lastHud = key;
   hud.hp.style.width = hpP + '%'; hud.ghost.style.width = hpP + '%'; hud.coins.textContent = G.coins; hud.armour.textContent = G.armour; hud.boss.style.width = bp + '%'; hud.cd.style.height = cd + '%';
+  // Non-colour-only accessibility badges (§03)
+  const hpBadge = $('hp-badge');
+  if (hpBadge && P) {
+    const curHp = Math.round(P.hp);
+    if (curHp <= 0) {
+      hpBadge.textContent = '💀 FALLEN';
+      hpBadge.className = 'hp-badge crit';
+    } else if (hpP <= 28) {
+      hpBadge.textContent = `🚨 ${curHp} HP (CRITICAL)`;
+      hpBadge.className = 'hp-badge crit';
+    } else if (hpP <= 55) {
+      hpBadge.textContent = `⚠️ ${curHp} HP (WOUNDED)`;
+      hpBadge.className = 'hp-badge warn';
+    } else {
+      hpBadge.textContent = `♥ ${curHp} HP`;
+      hpBadge.className = 'hp-badge';
+    }
+  }
+  const bossBadge = $('boss-badge');
+  if (bossBadge && G.boss) {
+    const b = G.boss;
+    const bHp = Math.round(b.hp);
+    if (b.stumbleT > 0 || b.state === 'stumble') {
+      bossBadge.textContent = '✨ VULNERABLE · SLING TO FOREHEAD!';
+      bossBadge.className = 'boss-badge vuln';
+    } else if (b.phase2 || (b.hp / b.maxHp) <= 0.35) {
+      bossBadge.textContent = `⚡ PHASE 2 · ENRAGED [${bHp}/${b.maxHp}]`;
+      bossBadge.className = 'boss-badge enraged';
+    } else {
+      bossBadge.textContent = `👑 PHASE 1 · ARMOURED [${bHp}/${b.maxHp}]`;
+      bossBadge.className = 'boss-badge';
+    }
+  }
   { $('sp-fill').style.width = G.spirit.toFixed(0) + '%'; $('b-sling').classList.toggle('ready', G.spirit >= 100); $('sp-wrap').classList.toggle('ready', G.spirit >= 100); }
   $('b-push').classList.toggle('on', pushOn);
 }

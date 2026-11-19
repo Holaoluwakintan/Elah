@@ -854,3 +854,49 @@ body.post:not(.vision):not(.dark) #vignette{background:none}
 
 /* ── Full FPS HUD overlay ──────────────────────────────────── */
 #fps-hud { font: 700 11px/1.6 monospace !important; }
+
+
+/* ── Non-Colour-Only Accessibility Badges (§03 Audit) ──────── */
+.hp-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(220, 180, 100, 0.45);
+  color: #fff2c8;
+  font: 800 10px/1.2 monospace, sans-serif;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+}
+.hp-badge.crit {
+  background: rgba(180, 20, 20, 0.85);
+  border-color: #ff5555;
+  color: #ffffff;
+  animation: pulse-badge 0.8s infinite alternate;
+}
+.hp-badge.warn {
+  background: rgba(140, 90, 10, 0.8);
+  border-color: #ffbb33;
+  color: #fff8e0;
+}
+@keyframes pulse-badge {
+  to { transform: scale(1.08); box-shadow: 0 0 8px rgba(255, 60, 60, 0.8); }
+}
+
+.boss-badge {
+  margin-top: 4px;
+  font: 800 11px/1.2 system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  color: #ffd770;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+}
+.boss-badge.enraged {
+  color: #ff4444;
+  text-shadow: 0 0 8px rgba(255, 50, 50, 0.85);
+  animation: pulse-badge 0.6s infinite alternate;
+}
+.boss-badge.vuln {
+  color: #55ffaa;
+  text-shadow: 0 0 10px rgba(80, 255, 170, 0.9);
+}
