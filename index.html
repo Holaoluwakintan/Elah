@@ -53,6 +53,7 @@
 
 <!-- HUD -->
 <div id="hud" class="hidden">
+  <div id="fps-badge" title="Press F9 for performance details"></div>
   <div id="mp-hud-roster" class="hidden"></div>
   <div id="hp-wrap">
     <div class="who"><span id="who-name">DAVID</span> <span id="angel-ico" title="Angel rescue ready">✦</span></div>
@@ -371,5 +372,7 @@ if ('serviceWorker' in navigator) {
     <div id="lb-my-rank" style="margin-top:14px;padding:10px 14px;background:rgba(255,211,106,0.07);border:1px solid rgba(220,170,80,0.2);border-radius:8px;font-size:12px;color:#c8b98a;text-align:center;display:none;"></div>
   </div>
 </div>
+<!-- FPS Performance Monitor HUD (F9 to toggle) -->
+<div id="fps-hud" style="display:none;position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(0,0,0,0.75);color:#e8c46a;font:700 11px/1.5 monospace;padding:6px 12px;border-radius:8px;border:1px solid rgba(220,170,80,0.5);text-align:center;pointer-events:none;white-space:nowrap;" aria-hidden="true"></div>
 </body>
 </html>

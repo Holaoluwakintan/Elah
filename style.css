@@ -835,3 +835,22 @@ body.post:not(.vision):not(.dark) #vignette{background:none}
   transition: background .2s;
 }
 .mp-copy-invite-btn:hover { background: rgba(100, 65, 20, 0.95); }
+
+/* ── FPS Performance Badge (top-right, non-intrusive) ──────── */
+#fps-badge {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 400;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #44ff88;
+  box-shadow: 0 0 5px rgba(68,255,136,0.6);
+  pointer-events: none;
+  transition: background .6s, box-shadow .6s;
+}
+#fps-badge.warn { background: #ffcc44; box-shadow: 0 0 5px rgba(255,204,68,0.6); }
+#fps-badge.crit { background: #ff4444; box-shadow: 0 0 5px rgba(255,68,68,0.6); }
+
+/* ── Full FPS HUD overlay ──────────────────────────────────── */
+#fps-hud { font: 700 11px/1.6 monospace !important; }

@@ -2481,6 +2481,17 @@ function applyTouchLayout() {
   t.classList.toggle('touch-left', SETTINGS.touchLayout === 'left');
 }
 
+// ── FPS Monitor HUD toggle (F9) ─────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'F9') {
+    const hud = document.getElementById('fps-hud');
+    if (!hud) return;
+    const on = hud.style.display === 'none' || hud.style.display === '';
+    hud.style.display = on ? 'block' : 'none';
+    if (on) AQE.renderHud();
+  }
+});
+
 function setupInput() {
   const stick = $('stick'), knob = $('knob'), zone = $('stick-zone'); let sid = null, cx = 0, cy = 0; const R = 52;
   const homeStick = () => { stick.style.left = (SETTINGS.touchLayout === 'left') ? 'calc(100% - 110px)' : '110px'; stick.style.top = 'calc(100% - 110px)'; knob.style.transform = ''; stick.classList.remove('active'); };
@@ -5976,14 +5987,124 @@ function updateHud() {
 
 // ------------------------------------------------------------------ loop
 const clock = new THREE.Clock();
-let frames = 0, fpsAcc = 0, fpsT = 0, lowFor = 0;
+let frames = 0, fpsAcc = 0, fpsT = 0;
 const ADAPT = !Q.has('noadapt');
+
+// ── Adaptive Quality Engine ───────────────────────────────────
+// Tracks rolling FPS. Downgrades one step per 3s of sustained
+// under-performance; re-upgrades one step per 10s of headroom.
+const AQE = {
+  lowFor: 0,  // seconds below DOWN_THRESH
+  highFor: 0, // seconds above UP_THRESH
+  DOWN_THRESH: 50, // fps below this → downgrade candidate
+  UP_THRESH: 58,   // fps above this → upgrade candidate
+  DOWN_WAIT: 3,    // seconds before downgrading
+  UP_WAIT: 10,     // seconds before upgrading
+  // Quality step ladder (descending order — first true step is taken)
+  steps: ['bloom', 'dpr', 'shadows', 'post'],
+  stepIndex: () => {
+    if (bloomPass && bloomPass.enabled) return 0; // bloom on → first to drop
+    if (DPR > 1.01) return 1;
+    if (sun.castShadow) return 2;
+    if (POST) return 3;
+    return 4; // already at minimum
+  },
+  downgrade() {
+    const idx = AQE.stepIndex();
+    if (idx === 0 && bloomPass) {
+      bloomPass.enabled = false;
+      LOG('aqe_downgrade', { step: 'bloom_off' });
+      toast('⚡ Quality: bloom disabled for smooth play', 1800);
+    } else if (idx <= 1 && DPR > 1.01) {
+      DPR = Math.max(1, DPR - 0.25);
+      renderer.setPixelRatio(DPR);
+      onResize();
+      LOG('aqe_downgrade', { step: 'dpr', dpr: DPR });
+    } else if (idx <= 2 && sun.castShadow) {
+      sun.castShadow = false;
+      LOG('aqe_downgrade', { step: 'shadows_off' });
+    } else if (idx <= 3 && POST) {
+      POST = false;
+      document.body.classList.remove('post');
+      LOG('aqe_downgrade', { step: 'post_off' });
+    }
+    AQE.lowFor = 0;
+    AQE.renderHud();
+  },
+  upgrade() {
+    // Re-enable the most recently disabled feature
+    if (!POST && QP[QUALITY].post) {
+      POST = true;
+      document.body.classList.toggle('post', POST);
+      LOG('aqe_upgrade', { step: 'post_on' });
+    } else if (!sun.castShadow && QP[QUALITY].shadow > 0) {
+      sun.castShadow = true;
+      LOG('aqe_upgrade', { step: 'shadows_on' });
+    } else if (DPR < QP[QUALITY].dpr - 0.01) {
+      DPR = Math.min(QP[QUALITY].dpr, DPR + 0.25);
+      renderer.setPixelRatio(DPR);
+      onResize();
+      LOG('aqe_upgrade', { step: 'dpr', dpr: DPR });
+    } else if (bloomPass && !bloomPass.enabled && QP[QUALITY].bloom) {
+      bloomPass.enabled = true;
+      LOG('aqe_upgrade', { step: 'bloom_on' });
+    }
+    AQE.highFor = 0;
+    AQE.renderHud();
+  },
+  renderHud() {
+    const hud = document.getElementById('fps-hud');
+    if (!hud || hud.style.display === 'none') return;
+    const fps = G.fps || 0;
+    const col = fps >= 55 ? '#44ff88' : fps >= 40 ? '#ffcc44' : '#ff4444';
+    const calls = renderer.info.render.calls;
+    const tris  = renderer.info.render.triangles;
+    const qual  = bloomPass && bloomPass.enabled ? 'HIGH' : DPR > 1.01 ? 'MED+' : sun.castShadow ? 'MED' : POST ? 'LOW+' : 'LOW';
+    // Update the always-visible FPS dot
+    const badge = document.getElementById('fps-badge');
+    if (badge) {
+      badge.classList.toggle('warn', fps < 55 && fps >= 40);
+      badge.classList.toggle('crit', fps < 40);
+      badge.classList.remove(fps >= 55 ? 'warn' : '', fps >= 55 ? 'crit' : '');
+      if (fps >= 55) { badge.classList.remove('warn'); badge.classList.remove('crit'); }
+    }
+    hud.innerHTML =
+      '<span style="color:' + col + ';font-size:16px;font-weight:900">' + fps + ' FPS</span>' +
+      ' &nbsp;' + qual +
+      ' &nbsp;DPR ' + DPR.toFixed(2) +
+      '<br>Draw calls: <b>' + calls + '</b>' +
+      ' &nbsp;Tris: <b>' + (tris >= 1000 ? (tris / 1000).toFixed(0) + 'k' : tris) + '</b>' +
+      '<br>CPU update: <b>' + ((G.cpuU || 0)).toFixed(1) + 'ms</b>' +
+      ' &nbsp;render: <b>' + ((G.cpuR || 0)).toFixed(1) + 'ms</b>';
+  }
+};
+
 function frame() {
   requestAnimationFrame(frame);
   let rdt = Math.min(clock.getDelta(), 0.05);
   frames++; fpsAcc += rdt; fpsT += rdt;
-  if (fpsT >= 2) { const fps = frames / fpsAcc; G.fps = Math.round(fps); G.fpsLog.push(G.fps); if (G.fpsLog.length > 120) G.fpsLog.shift(); frames = 0; fpsAcc = 0; fpsT = 0;
-    if (ADAPT && G.phase === 'play') { if (fps < 42) lowFor++; else lowFor = 0; if (lowFor >= 2) { lowFor = 0; if (bloomPass && bloomPass.enabled) { bloomPass.enabled = false; LOG('adapt', { bloom: false }); } else if (DPR > 1) { DPR = Math.max(1, DPR - 0.25); renderer.setPixelRatio(DPR); onResize(); LOG('adapt', { dpr: DPR }); } else if (sun.castShadow) { sun.castShadow = false; LOG('adapt', { shadows: false }); } else if (POST) { POST = false; document.body.classList.remove('post'); LOG('adapt', { post: false }); } } } }
+  if (fpsT >= 1) {  // evaluate every 1 second (more responsive than 2s)
+    const fps = frames / fpsAcc;
+    G.fps = Math.round(fps);
+    G.fpsLog.push(G.fps);
+    if (G.fpsLog.length > 120) G.fpsLog.shift();
+    frames = 0; fpsAcc = 0; fpsT = 0;
+    if (ADAPT && (G.phase === 'play' || G.phase === 'adullam')) {
+      if (fps < AQE.DOWN_THRESH) {
+        AQE.lowFor += 1;
+        AQE.highFor = 0;
+        if (AQE.lowFor >= AQE.DOWN_WAIT) AQE.downgrade();
+      } else if (fps > AQE.UP_THRESH) {
+        AQE.highFor += 1;
+        AQE.lowFor = 0;
+        if (AQE.highFor >= AQE.UP_WAIT) AQE.upgrade();
+      } else {
+        AQE.lowFor = Math.max(0, AQE.lowFor - 0.5);
+        AQE.highFor = Math.max(0, AQE.highFor - 0.5);
+      }
+    }
+    AQE.renderHud();
+  }
   if (G.paused || document.hidden) return;
   if (G.hitstop > 0) { G.hitstop -= rdt; rdt *= 0.05; }
   if (G.slowT > 0) { G.slowT -= rdt; if (G.slowT <= 0) G.slow = 1; }
